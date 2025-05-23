@@ -20,6 +20,7 @@
     "@react-navigation/native-stack": "^7.3.13",
     "expo": "~53.0.9",
     "expo-status-bar": "~2.2.3",
+    "firebase": "^11.8.1",
     "react": "19.0.0",
     "react-native": "0.79.2",
     "react-native-gesture-handler": "~2.24.0",

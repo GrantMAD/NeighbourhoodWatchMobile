@@ -57,6 +57,14 @@ const IncidentScreen = () => {
       }}>
         Incident Reports
       </Text>
+      <Text style={{
+        fontSize: 16,
+        textAlign: 'center',
+        marginBottom: 20,
+        color: '#4B5563', // Gray color for description
+      }}>
+        Here you can find recent incidents reported in your area. Tap on any report to see details.
+      </Text>
 
       {reports.map((report) => {
         const isExpanded = report.id === expandedReportId;
