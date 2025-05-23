@@ -5,6 +5,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import TabNavigator from './TabNavigator';
 import SettingsScreen from '../screens/SettingsScreen';
 import AboutScreen from '../screens/AboutScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Drawer = createDrawerNavigator();
 
@@ -24,11 +25,11 @@ export default function AppNavigator() {
                     }}
                 />
                 <Drawer.Screen
-                    name="Settings"
-                    component={SettingsScreen}
+                    name="Profile"
+                    component={ProfileScreen}
                     options={{
                         drawerIcon: ({ color, size }) => (
-                            <FontAwesome name="cog" size={size} color={color} />
+                            <FontAwesome name="info-circle" size={size} color={color} />
                         ),
                     }}
                 />
@@ -38,6 +39,15 @@ export default function AppNavigator() {
                     options={{
                         drawerIcon: ({ color, size }) => (
                             <FontAwesome name="info-circle" size={size} color={color} />
+                        ),
+                    }}
+                />
+                <Drawer.Screen
+                    name="Settings"
+                    component={SettingsScreen}
+                    options={{
+                        drawerIcon: ({ color, size }) => (
+                            <FontAwesome name="cog" size={size} color={color} />
                         ),
                     }}
                 />

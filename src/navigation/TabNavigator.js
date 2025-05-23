@@ -3,11 +3,10 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { TouchableOpacity } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-
 import HomeScreen from '../screens/HomeScreen';
 import IncidentsScreen from '../screens/IncidentsScreen';
 import MembersScreen from '../screens/MembersScreen';
-import ProfileScreen from '../screens/ProfileScreen';
+import EventsScreen from '../screens/EventScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -33,7 +32,7 @@ export default function TabNavigator() {
           if (route.name === 'Home') iconName = 'home';
           else if (route.name === 'Incidents') iconName = 'exclamation-triangle';
           else if (route.name === 'Members') iconName = 'users';
-          else if (route.name === 'Profile') iconName = 'user';
+          else if (route.name === 'Events') iconName = 'calendar'; // ✅ Events icon
           return <FontAwesome name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#2f95dc',
@@ -56,8 +55,8 @@ export default function TabNavigator() {
         options={{ headerLeft: () => <HamburgerMenuButton /> }}
       />
       <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
+        name="Events"
+        component={EventsScreen}
         options={{ headerLeft: () => <HamburgerMenuButton /> }}
       />
     </Tab.Navigator>
