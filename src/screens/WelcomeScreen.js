@@ -6,7 +6,7 @@ const WelcomeScreen = ({ navigation }) => {
     <View style={styles.container}>
       {/* Optional logo */}
       <Image 
-        source={require('../../assets/images/nwLogo.png')} 
+        source={{ uri: 'https://via.placeholder.com/150' }} 
         style={styles.logo} 
         resizeMode="contain"
       />
@@ -18,16 +18,16 @@ const WelcomeScreen = ({ navigation }) => {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate('CreateGroup')}
+        onPress={() => navigation.navigate('SignIn')}
       >
-        <Text style={styles.buttonText}>Create Group</Text>
+        <Text style={styles.buttonText}>Sign In</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={[styles.button, styles.joinButton]}
-        onPress={() => navigation.navigate('JoinGroup')}
+        onPress={() => navigation.navigate('SignUp')}
       >
-        <Text style={[styles.buttonText, styles.joinButtonText]}>Join Group</Text>
+        <Text style={[styles.buttonText, styles.joinButtonText]}>Sign Up</Text>
       </TouchableOpacity>
     </View>
   );
