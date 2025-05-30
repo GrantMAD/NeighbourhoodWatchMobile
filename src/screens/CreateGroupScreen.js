@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 
-const CreateGroupScreen = ({ navigation }) => {
+const CreateGroupScreen = () => {
   const [groupName, setGroupName] = useState('');
   const [creating, setCreating] = useState(false);
+  const navigation = useNavigation();
 
   const handleCreate = async () => {
     if (!groupName.trim()) {
@@ -13,9 +15,16 @@ const CreateGroupScreen = ({ navigation }) => {
     }
 
     setCreating(true);
-    const user = (await supabase.auth.getUser()).data.user;
 
-    // Create new group
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      Alert.alert('Error', 'User not logged in.');
+      setCreating(false);
+      return;
+    }
+
+    // Step 1: Create the group
     const { data: newGroup, error: groupError } = await supabase
       .from('groups')
       .insert({ name: groupName })
@@ -28,7 +37,7 @@ const CreateGroupScreen = ({ navigation }) => {
       return;
     }
 
-    // Update user profile to link to this group
+    // Step 2: Update the user profile to link group & mark as creator
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
@@ -40,9 +49,12 @@ const CreateGroupScreen = ({ navigation }) => {
 
     if (profileError) {
       Alert.alert('Error updating profile', profileError.message);
-    } else {
-      // AppNavigator will detect the updated profile and navigate accordingly
+      setCreating(false);
+      return;
     }
+
+    // Step 3: Navigate to GroupSetupScreen passing the new group's id
+    navigation.navigate('GroupSetup', { groupId: newGroup.id });
 
     setCreating(false);
   };
@@ -56,7 +68,7 @@ const CreateGroupScreen = ({ navigation }) => {
         onChangeText={setGroupName}
         style={{ borderWidth: 1, marginVertical: 10, padding: 10 }}
       />
-      <Button title={creating ? 'Creating...' : 'Create'} onPress={handleCreate} disabled={creating} />
+      <Button title={creating ? 'Creating...' : 'Create Group'} onPress={handleCreate} disabled={creating} />
     </View>
   );
 };

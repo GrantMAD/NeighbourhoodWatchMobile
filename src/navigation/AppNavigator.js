@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
+
 import TabNavigator from './TabNavigator';
 import SettingsScreen from '../screens/SettingsScreen';
 import AboutScreen from '../screens/AboutScreen';
@@ -25,12 +26,16 @@ const Stack = createNativeStackNavigator();
 
 const ICON_CONTAINER_WIDTH = 30;
 
-function MainDrawerNavigator({ isGroupCreator = false }) {
+function MainDrawerNavigator({ isGroupCreator = false, route, navigation }) {
+  // Get groupId param passed from the Stack navigator
+  const groupId = route?.params?.groupId;
+
   return (
     <Drawer.Navigator initialRouteName="HomeTabs">
       <Drawer.Screen
         name="HomeTabs"
-        component={TabNavigator}
+        // Forward groupId to TabNavigator
+        children={(props) => <TabNavigator {...props} groupId={groupId} />}
         options={{
           headerShown: false,
           title: 'Home',
