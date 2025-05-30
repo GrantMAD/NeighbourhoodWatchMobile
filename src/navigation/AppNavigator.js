@@ -1,6 +1,6 @@
+// AppNavigator.js
 import React from 'react';
 import { View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
@@ -14,15 +14,18 @@ import GroupSetupScreen from '../screens/GroupSetupScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import CreateGroupScreen from '../screens/CreateGroupScreen';
 import JoinGroupScreen from '../screens/JoinGroupScreen';
-import SignInScreen from '../screens/SignInScreen'
-import SignUpScreen from '../screens/SignUpScreen'
+import SignInScreen from '../screens/SignInScreen';
+import SignUpScreen from '../screens/SignUpScreen';
+import GroupAccessScreen from '../screens/GroupAccessScreen';
+import PendingApprovalScreen from '../screens/PendingApprovalScreen';
+import GroupRequestsScreen from '../screens/GroupRequestsScreen';
 
 const Drawer = createDrawerNavigator();
 const Stack = createNativeStackNavigator();
 
 const ICON_CONTAINER_WIDTH = 30;
 
-function MainDrawerNavigator() {
+function MainDrawerNavigator({ isGroupCreator = false }) {
   return (
     <Drawer.Navigator initialRouteName="HomeTabs">
       <Drawer.Screen
@@ -93,22 +96,48 @@ function MainDrawerNavigator() {
           ),
         }}
       />
+      {isGroupCreator && (
+        <Drawer.Screen
+          name="Group Requests"
+          component={GroupRequestsScreen}
+          options={{
+            drawerIcon: ({ color, size }) => (
+              <View style={{ width: ICON_CONTAINER_WIDTH, alignItems: 'center' }}>
+                <FontAwesome name="users" size={size} color={color} />
+              </View>
+            ),
+          }}
+        />
+      )}
     </Drawer.Navigator>
   );
 }
 
-export default function AppNavigator() {
+export default function AppNavigator({ session, profile }) {
+  const isGroupCreator = profile?.is_group_creator || false;
+
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="Welcome">
-        <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
-        <Stack.Screen name="JoinGroup" component={JoinGroupScreen} />
-        <Stack.Screen name="MainApp" component={MainDrawerNavigator} options={{ headerShown: false }} />
-        <Stack.Screen name="GroupSetup" component={GroupSetupScreen} />
-        <Stack.Screen name="SignIn" component={SignInScreen} />
-        <Stack.Screen name="SignUp" component={SignUpScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {!session ? (
+        <>
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <Stack.Screen name="SignIn" component={SignInScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+        </>
+      ) : !profile?.group_id ? (
+        <>
+          <Stack.Screen name="GroupAccessScreen" component={GroupAccessScreen} />
+          <Stack.Screen name="GroupSetup" component={GroupSetupScreen} />
+          <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
+          <Stack.Screen name="JoinGroup" component={JoinGroupScreen} />
+        </>
+      ) : profile?.group_approval_status === 'pending' ? (
+        <Stack.Screen name="PendingApproval" component={PendingApprovalScreen} />
+      ) : (
+        <Stack.Screen name="MainApp">
+          {(props) => <MainDrawerNavigator {...props} isGroupCreator={isGroupCreator} />}
+        </Stack.Screen>
+      )}
+    </Stack.Navigator>
   );
 }
