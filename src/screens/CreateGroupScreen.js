@@ -54,6 +54,19 @@ const CreateGroupScreen = ({ navigation }) => {
         setLoading(true);
 
         try {
+            // Get current user
+            const { data: userData, error: userError } = await supabase.auth.getUser();
+
+            if (userError || !userData?.user) {
+                console.error('User fetch failed:', userError);
+                Alert.alert('Error', 'User not logged in or failed to fetch user.');
+                setLoading(false);
+                return;
+            }
+
+            const user = userData.user;
+            console.log('Current user ID:', user.id);
+
             const groupPayload = {
                 name: groupName,
                 objectives,
@@ -65,6 +78,7 @@ const CreateGroupScreen = ({ navigation }) => {
                 executives_title: executivesTitle,
                 executives: JSON.stringify(executives),
                 contact_email: contactEmail,
+                created_by: user.id,
             };
 
             console.log('Inserting group with data:', JSON.stringify(groupPayload));
@@ -91,33 +105,37 @@ const CreateGroupScreen = ({ navigation }) => {
 
             console.log('New group created:', newGroup);
 
-            // Get current user
-            const { data: userData, error: userError } = await supabase.auth.getUser();
-
-            if (userError || !userData?.user) {
-                console.error('User fetch failed:', userError);
-                Alert.alert('Error', 'User not logged in or failed to fetch user.');
-                setLoading(false);
-                return;
-            }
-
-            const user = userData.user;
-            console.log('Current user ID:', user.id);
-
             // Update user profile with new group_id
             const { error: profileError } = await supabase
                 .from('profiles')
-                .update({ group_id: newGroup.id })
+                .update({
+                    group_id: newGroup.id,
+                    is_group_creator: true,
+                })
                 .eq('id', user.id);
+
 
             if (profileError) {
                 console.error('Profile update error:', profileError);
-                Alert.alert('Error', profileError.message);
+                Alert.alert('Error updating profile:', profileError.message);
                 setLoading(false);
                 return;
             }
 
             console.log('User profile updated with group_id:', newGroup.id);
+
+            // Confirm profile updated
+            const { data: updatedProfile, error: fetchProfileError } = await supabase
+                .from('profiles')
+                .select('group_id')
+                .eq('id', user.id)
+                .single();
+
+            if (fetchProfileError) {
+                console.warn('Could not confirm profile update:', fetchProfileError);
+            } else {
+                console.log('Confirmed updated group_id in profile:', updatedProfile.group_id);
+            }
 
             // Navigate to the new group instance
             navigation.reset({
