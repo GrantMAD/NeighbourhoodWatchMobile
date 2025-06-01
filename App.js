@@ -1,20 +1,44 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import SignInScreen from './src/screens/SignInScreen'
+import SignUpScreen from './src/screens/SignUpScreen'
+import GroupAccessScreen from './src/screens/GroupAccessScreen'
+import JoinGroupScreen from './src/screens/JoinGroupScreen' // you'll create soon
+import CreateGroupScreen from './src/screens/CreateGroupScreen' // you'll create soon
+import { NavigationContainer } from '@react-navigation/native'
+import MainAppScreen from './src/screens/MainAppScreen';
+
+const Stack = createNativeStackNavigator()
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="SignIn">
+        {/* Auth screens */}
+        <Stack.Screen name="SignIn" component={SignInScreen} />
+        <Stack.Screen name="SignUp" component={SignUpScreen} />
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+        {/* Group access flow */}
+        <Stack.Screen
+          name="MainApp"
+          component={MainAppScreen}
+          options={{ headerShown: false }} // or true, if you want a header
+        />
+        <Stack.Screen
+          name="GroupAccess"
+          component={GroupAccessScreen}
+          options={{ title: 'Get Started' }}
+        />
+        <Stack.Screen
+          name="JoinGroup"
+          component={JoinGroupScreen}
+          options={{ title: 'Join a Group' }}
+        />
+        <Stack.Screen
+          name="CreateGroup"
+          component={CreateGroupScreen}
+          options={{ title: 'Create a Group' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  )
+}
