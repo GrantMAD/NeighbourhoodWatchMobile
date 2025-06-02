@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
-import { View, TextInput, Button, Text, Alert } from 'react-native'
-import { supabase } from '../../lib/supabase'
+import React, { useState } from 'react';
+import { View, TextInput, Button, Text, Alert, StyleSheet } from 'react-native';
+import { supabase } from '../../lib/supabase';
 
 export default function SignInScreen({ navigation }) {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -15,7 +16,6 @@ export default function SignInScreen({ navigation }) {
     setLoading(true);
 
     try {
-      // Step 1: Sign in the user
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -23,14 +23,14 @@ export default function SignInScreen({ navigation }) {
 
       if (authError) {
         Alert.alert('Error', authError.message);
-        setLoading(false);
         return;
       }
 
-      // Step 2: Fetch the user's profile
-      const {
-        data: { user },
-      } = authData;
+      const user = authData?.user;
+      if (!user) {
+        navigation.replace('GroupAccess');
+        return;
+      }
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -38,19 +38,14 @@ export default function SignInScreen({ navigation }) {
         .eq('id', user.id)
         .single();
 
-      if (profileError) {
-        console.error('Profile fetch error:', profileError);
-        Alert.alert('Error', 'Could not fetch user profile.');
-        setLoading(false);
+      if (profileError || !profile || !profile.group_id) {
+        navigation.replace('GroupAccess');
         return;
       }
 
-      // Step 3: Navigate based on group_id
-      if (profile.group_id) {
-        navigation.replace('MainApp', { groupId: profile.group_id }); // you’ll define this screen later
-      } else {
-        navigation.replace('CreateGroup');
-      }
+      // No need to fetch the full group here, since HomeScreen fetches it
+      navigation.replace('MainApp', { groupId: profile.group_id });
+
     } catch (error) {
       console.error('Sign-in error:', error);
       Alert.alert('Error', 'An unexpected error occurred');
@@ -61,24 +56,24 @@ export default function SignInScreen({ navigation }) {
 
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
-      <Text style={{ fontSize: 24, marginBottom: 20 }}>Sign In</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Sign In</Text>
       <TextInput
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
-        style={{ borderWidth: 1, padding: 10, marginBottom: 10 }}
+        style={styles.input}
       />
       <TextInput
         placeholder="Password"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        style={{ borderWidth: 1, padding: 10, marginBottom: 20 }}
+        style={styles.input}
       />
-      <Button title="Sign In" onPress={handleSignIn} />
+      <Button title={loading ? 'Signing In...' : 'Sign In'} onPress={handleSignIn} disabled={loading} />
       <Text style={{ marginTop: 20 }}>
         Don't have an account?{' '}
         <Text style={{ color: 'blue' }} onPress={() => navigation.navigate('SignUp')}>
@@ -86,5 +81,20 @@ export default function SignInScreen({ navigation }) {
         </Text>
       </Text>
     </View>
-  )
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1, justifyContent: 'center', padding: 20
+  },
+  title: {
+    fontSize: 24, marginBottom: 20
+  },
+  input: {
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: '#fff',
+  },
+});

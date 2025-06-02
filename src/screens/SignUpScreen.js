@@ -1,68 +1,83 @@
-import React, { useState } from 'react'
-import { View, TextInput, Button, Text, Alert } from 'react-native'
-import { supabase } from '../../lib/supabase'
+import React, { useState } from 'react';
+import { View, TextInput, Button, Text, StyleSheet } from 'react-native';
+import { supabase } from '../../lib/supabase';
+import Toast from '../components/Toast';
 
 export default function SignUpScreen({ navigation }) {
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
-    const [loading, setLoading] = useState(false)
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const [toastVisible, setToastVisible] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+    const [toastType, setToastType] = useState('success');
+
+    const showToast = (message, type = 'success') => {
+        setToastMessage(message);
+        setToastType(type);
+        setToastVisible(true);
+    };
 
     const handleSignUp = async () => {
         if (!email || !password) {
-            Alert.alert('Error', 'Please fill in all fields');
+            showToast('Please fill in all fields', 'error');
             return;
         }
 
         setLoading(true);
 
         try {
-            // Step 1: Create the auth user
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email,
                 password
             });
 
             if (authError) {
-                Alert.alert('Error', authError.message);
+                showToast(authError.message, 'error');
                 setLoading(false);
                 return;
             }
 
-            // Optional: wait a bit or trigger refresh to help onAuthStateChange pick up the new session
             await supabase.auth.refreshSession();
             console.log('Triggered auth refresh to refetch profile');
+            showToast('Account created successfully!', 'success');
 
-            Alert.alert('Success', 'Account created successfully!');
-
-            // Navigate to GroupAccess screen after successful signup
-            navigation.replace('GroupAccess');
-
+            // Delay navigation slightly to allow user to see toast
+            setTimeout(() => {
+                navigation.replace('GroupAccess');
+            }, 1500);
         } catch (error) {
             console.error('Signup error:', error);
-            Alert.alert('Error', 'An unexpected error occurred');
+            showToast('An unexpected error occurred', 'error');
         } finally {
             setLoading(false);
         }
     };
 
-
     return (
-        <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
-            <Text style={{ fontSize: 24, marginBottom: 20 }}>Sign Up</Text>
+        <View style={styles.container}>
+            <Toast
+                visible={toastVisible}
+                message={toastMessage}
+                type={toastType}
+                onHide={() => setToastVisible(false)}
+            />
+
+            <Text style={styles.title}>Sign Up</Text>
             <TextInput
                 placeholder="Email"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                style={{ borderWidth: 1, padding: 10, marginBottom: 10 }}
+                style={styles.input}
             />
             <TextInput
                 placeholder="Password"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
-                style={{ borderWidth: 1, padding: 10, marginBottom: 20 }}
+                style={styles.input}
             />
             <Button
                 title={loading ? "Creating Account..." : "Sign Up"}
@@ -76,5 +91,20 @@ export default function SignUpScreen({ navigation }) {
                 </Text>
             </Text>
         </View>
-    )
+    );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1, justifyContent: 'center', padding: 20
+    },
+    title: {
+        fontSize: 24, marginBottom: 20
+    },
+    input: {
+        borderWidth: 1,
+        padding: 10,
+        marginBottom: 10,
+        backgroundColor: '#fff',
+    },
+});
