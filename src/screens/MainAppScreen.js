@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   TouchableOpacity,
@@ -7,15 +7,8 @@ import {
   Image,
   StyleSheet,
 } from "react-native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import {
-  createDrawerNavigator,
-  DrawerContentScrollView,
-  DrawerItemList,
-  DrawerItem,
-} from "@react-navigation/drawer";
+import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerItem } from "@react-navigation/drawer";
 import { FontAwesome5 } from "@expo/vector-icons";
-import { Animated } from "react-native";
 
 import HomeScreen from "../screens/HomeScreen";
 import AboutScreen from "../screens/AboutScreen";
@@ -23,101 +16,11 @@ import MembersScreen from "../screens/MembersScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import { supabase } from "../../lib/supabase";
 
-const Tab = createBottomTabNavigator();
 const Drawer = createDrawerNavigator();
-
-// Custom pulsing icon component
-function PulsingIcon({ name, size, color, focused }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (focused) {
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(scaleAnim, {
-            toValue: 1.2,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scaleAnim, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      pulse.start();
-
-      return () => pulse.stop();
-    } else {
-      scaleAnim.setValue(1);
-    }
-  }, [focused, scaleAnim]);
-
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <FontAwesome5 name={name} size={size} color={color} />
-    </Animated.View>
-  );
-}
-
-function BottomTabs({ navigation, groupId }) {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: true,
-        title: route.name,
-        tabBarIcon: ({ color, size, focused }) => {
-          let iconName = route.name === "Home" ? "home" : "users";
-          return (
-            <PulsingIcon
-              name={iconName}
-              size={size}
-              color={color}
-              focused={focused}
-            />
-          );
-        },
-        tabBarActiveTintColor: "#475569", // Slate 600 (active icon)
-        tabBarInactiveTintColor: "#1f2937", // Slate 800 (inactive icon)
-        tabBarStyle: {
-          backgroundColor: "#f9fafb",
-          borderTopColor: "#e5e7eb",
-        },
-        headerStyle: {
-          backgroundColor: "#1f2937", // Slate 800
-          borderBottomWidth: 1,
-          borderBottomColor: "#4b5563",
-        },
-        headerTintColor: "#f9fafb",
-        headerTitleStyle: { fontWeight: "700" },
-        headerTitleContainerStyle: {
-          paddingLeft: 20,
-        },
-        headerLeft: () => (
-          <TouchableOpacity
-            onPress={() => navigation.openDrawer()}
-            style={{ marginLeft: 15 }}
-          >
-            <FontAwesome5 name="bars" size={24} color="#f9fafb" />
-          </TouchableOpacity>
-        ),
-      })}
-    >
-      <Tab.Screen name="Home" component={HomeScreen} initialParams={{ groupId }} />
-      <Tab.Screen
-        name="Members"
-        component={MembersScreen}
-        initialParams={{ groupId }}
-      />
-    </Tab.Navigator>
-  );
-}
 
 function CustomDrawerContent(props) {
   const { navigation } = props;
   const [userEmail, setUserEmail] = useState("Loading...");
-
   const placeholderImage = "https://www.gravatar.com/avatar/?d=mp&s=64";
 
   useEffect(() => {
@@ -164,7 +67,7 @@ function CustomDrawerContent(props) {
   };
 
   return (
-    <DrawerContentScrollView {...props}>
+    <DrawerContentScrollView {...props} style={{ backgroundColor: "#1f2937" }}>
       <View style={styles.profileContainer}>
         <View style={styles.profileInfo}>
           <Image source={{ uri: placeholderImage }} style={styles.profileImage} />
@@ -203,10 +106,29 @@ function CustomDrawerContent(props) {
 const MainAppScreen = ({ route, navigation }) => {
   const { groupId } = route.params;
 
+  // Helper to render header left (hamburger menu) for all screens
+  const screenOptionsWithDrawerButton = ({ navigation }) => ({
+    headerShown: true,
+    headerStyle: {
+      backgroundColor: "#1f2937",
+      borderBottomWidth: 1,
+      borderBottomColor: "#4b5563",
+    },
+    headerTintColor: "#f9fafb",
+    headerTitleStyle: { fontWeight: "700" },
+    headerLeft: () => (
+      <TouchableOpacity
+        onPress={() => navigation.openDrawer()}
+        style={{ marginLeft: 15, marginRight: 10 }}
+      >
+        <FontAwesome5 name="bars" size={24} color="#f9fafb" />
+      </TouchableOpacity>
+    ),
+  });
+
   return (
     <Drawer.Navigator
       screenOptions={{
-        headerShown: false,
         drawerActiveTintColor: "#22d3ee",
         drawerInactiveTintColor: "#fff",
         drawerStyle: { backgroundColor: "#1f2937" },
@@ -215,22 +137,45 @@ const MainAppScreen = ({ route, navigation }) => {
       drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
       <Drawer.Screen
-        name="HomeTabs"
-        options={{
+        name="Home"
+        component={HomeScreen}
+        initialParams={{ groupId }}
+        options={({ navigation }) => ({
           title: "Home",
           drawerIcon: ({ color, size, focused }) => (
-            <FontAwesome5 name="home" size={size} color={focused ? "#22d3ee" : "#fff"} />
+            <FontAwesome5
+              name="home"
+              size={size}
+              color={focused ? "#22d3ee" : "#fff"}
+            />
           ),
-        }}
-      >
-        {(props) => <BottomTabs {...props} groupId={groupId} />}
-      </Drawer.Screen>
+          ...screenOptionsWithDrawerButton({ navigation }),
+        })}
+      />
+
+      <Drawer.Screen
+        name="Members"
+        component={MembersScreen}
+        initialParams={{ groupId }}
+        options={({ navigation }) => ({
+          title: "Members",
+          drawerIcon: ({ color, size, focused }) => (
+            <FontAwesome5
+              name="users"
+              size={size}
+              color={focused ? "#22d3ee" : "#fff"}
+            />
+          ),
+          ...screenOptionsWithDrawerButton({ navigation }),
+        })}
+      />
 
       <Drawer.Screen
         name="About"
         component={AboutScreen}
         initialParams={{ groupId }}
         options={({ navigation }) => ({
+          title: "About",
           drawerIcon: ({ color, size, focused }) => (
             <FontAwesome5
               name="info-circle"
@@ -238,22 +183,7 @@ const MainAppScreen = ({ route, navigation }) => {
               color={focused ? "#22d3ee" : "#fff"}
             />
           ),
-          headerShown: true,
-          headerStyle: {
-            backgroundColor: "#1f2937",
-            borderBottomWidth: 1,
-            borderBottomColor: "#4b5563",
-          },
-          headerTintColor: "#f9fafb",
-          headerTitleStyle: { fontWeight: "700" },
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => navigation.openDrawer()}
-              style={{ marginLeft: 15 }}
-            >
-              <FontAwesome5 name="bars" size={24} color="#f9fafb" />
-            </TouchableOpacity>
-          ),
+          ...screenOptionsWithDrawerButton({ navigation }),
         })}
       />
 
@@ -261,11 +191,17 @@ const MainAppScreen = ({ route, navigation }) => {
         name="Settings"
         component={SettingsScreen}
         initialParams={{ groupId }}
-        options={{
+        options={({ navigation }) => ({
+          title: "Settings",
           drawerIcon: ({ color, size, focused }) => (
-            <FontAwesome5 name="cog" size={size} color={focused ? "#22d3ee" : "#fff"} />
+            <FontAwesome5
+              name="cog"
+              size={size}
+              color={focused ? "#22d3ee" : "#fff"}
+            />
           ),
-        }}
+          ...screenOptionsWithDrawerButton({ navigation }),
+        })}
       />
     </Drawer.Navigator>
   );
