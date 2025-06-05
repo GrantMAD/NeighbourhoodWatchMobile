@@ -14,6 +14,7 @@ import HomeScreen from "../screens/HomeScreen";
 import AboutScreen from "../screens/AboutScreen";
 import MembersScreen from "../screens/MembersScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import EventsScreen from "../screens/EventsScreen";
 import { supabase } from "../../lib/supabase";
 
 const Drawer = createDrawerNavigator();
@@ -162,6 +163,23 @@ const MainAppScreen = ({ route, navigation }) => {
           drawerIcon: ({ color, size, focused }) => (
             <FontAwesome5
               name="users"
+              size={size}
+              color={focused ? "#22d3ee" : "#fff"}
+            />
+          ),
+          ...screenOptionsWithDrawerButton({ navigation }),
+        })}
+      />
+
+      <Drawer.Screen
+        name="Events"
+        component={EventsScreen}
+        initialParams={{ groupId }}
+        options={({ navigation }) => ({
+          title: "Events",
+          drawerIcon: ({ color, size, focused }) => (
+            <FontAwesome5
+              name="calendar-alt"
               size={size}
               color={focused ? "#22d3ee" : "#fff"}
             />

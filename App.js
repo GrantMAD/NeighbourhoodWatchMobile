@@ -7,6 +7,7 @@ import CreateGroupScreen from './src/screens/CreateGroupScreen'
 import { NavigationContainer } from '@react-navigation/native'
 import MainAppScreen from './src/screens/MainAppScreen'
 import WelcomeScreen from './src/screens/WelcomeScreen'
+import AddEventScreen from './src/screens/AddEventScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -20,11 +21,11 @@ export default function App() {
             backgroundColor: '#374151',
             borderBottomWidth: 1,
             borderBottomColor: '#4b5563',
-            shadowColor: 'white',           
-            shadowOpacity: 1,            
+            shadowColor: 'white',
+            shadowOpacity: 1,
             shadowOffset: { width: 0, height: 3 },
             shadowRadius: 8,
-            elevation: 5,                   
+            elevation: 5,
           },
           headerTintColor: '#f9fafb',
           headerTitleStyle: {
@@ -62,6 +63,11 @@ export default function App() {
           name="CreateGroup"
           component={CreateGroupScreen}
           options={{ title: 'Create a Group' }}
+        />
+        <Stack.Screen
+          name="AddEventScreen"
+          component={AddEventScreen}
+          options={{ title: "Add Event" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

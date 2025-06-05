@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,88 +8,68 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { supabase } from "../../lib/supabase"; // Adjust this path as needed
-
-const staticEvents = [
-  {
-    id: "1",
-    title: "Community Safety Workshop",
-    startDate: "2025-05-20",
-    endDate: "2025-05-21",
-    image:
-      "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=800&q=60",
-  },
-  {
-    id: "2",
-    title: "Neighborhood Cleanup",
-    startDate: "2025-05-25",
-    endDate: "2025-05-25",
-    image:
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=60",
-  },
-  {
-    id: "3",
-    title: "Block Watch Monthly Meeting",
-    startDate: "2025-05-30",
-    endDate: "2025-05-30",
-    image:
-      "https://images.unsplash.com/photo-1549924231-f129b911e442?auto=format&fit=crop&w=800&q=60",
-  },
-];
-
-const staticStories = [
-  {
-    id: "a",
-    title: "New Patrol Routes Launched",
-    content:
-      "We have launched new patrol routes in Sector 5 to increase safety coverage in response to recent incidents...",
-    image:
-      "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=60",
-  },
-  {
-    id: "b",
-    title: "Community Garden Project Success",
-    content:
-      "Thanks to all volunteers, the community garden project has blossomed bringing neighbors closer together...",
-    image:
-      "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=800&q=60",
-  },
-  {
-    id: "c",
-    title: "Local Crime Stats Update",
-    content:
-      "Recent statistics show a decline in petty crime thanks to neighborhood watch efforts and police collaboration...",
-    image:
-      "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=800&q=60",
-  },
-];
+import { supabase } from "../../lib/supabase";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function HomeScreen({ route, navigation }) {
   const groupId = route.params?.groupId;
   const [groupData, setGroupData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [events, setEvents] = useState([]);
 
-  useEffect(() => {
-    const fetchGroupData = async () => {
-      if (!groupId) return;
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from("groups")
-        .select("welcome_text, main_image")
-        .eq("id", groupId)
-        .single();
+  // Static stories array
+  const staticStories = [
+    {
+      id: "a",
+      title: "New Patrol Routes Launched",
+      content:
+        "We have launched new patrol routes in Sector 5 to increase safety coverage in response to recent incidents...",
+      image:
+        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=60",
+    },
+    {
+      id: "b",
+      title: "Community Garden Project Success",
+      content:
+        "Thanks to all volunteers, the community garden project has blossomed bringing neighbors closer together...",
+      image:
+        "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=800&q=60",
+    },
+    {
+      id: "c",
+      title: "Local Crime Stats Update",
+      content:
+        "Recent statistics show a decline in petty crime thanks to neighborhood watch efforts and police collaboration...",
+      image:
+        "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=800&q=60",
+    },
+  ];
 
-      if (error) {
-        console.error("Error fetching group data:", error);
-      } else {
-        setGroupData(data);
-      }
+  useFocusEffect(
+    useCallback(() => {
+      const fetchGroupData = async () => {
+        if (!groupId) return;
+        setIsLoading(true);
 
-      setIsLoading(false);
-    };
+        const { data, error } = await supabase
+          .from("groups")
+          .select("welcome_text, main_image, events")
+          .eq("id", groupId)
+          .single();
 
-    fetchGroupData();
-  }, [groupId]);
+        if (error) {
+          console.error("Error fetching group data:", error);
+        } else {
+          setGroupData(data);
+          setEvents(data.events || []);
+        }
+
+        setIsLoading(false);
+      };
+
+      fetchGroupData();
+    }, [groupId])
+  );
 
   if (isLoading) {
     return (
@@ -137,21 +117,35 @@ export default function HomeScreen({ route, navigation }) {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>EVENTS</Text>
-          <TouchableOpacity style={styles.buttonSecondary}>
+          <TouchableOpacity
+            style={styles.buttonSecondary}
+            onPress={() => navigation.navigate("AddEventScreen", { groupId })}
+          >
             <Text style={styles.buttonSecondaryText}>Add Event</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.hr} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {staticEvents.map((event) => (
-            <TouchableOpacity key={event.id} style={styles.card}>
-              <Image source={{ uri: event.image }} style={styles.cardImage} />
-              <Text style={styles.cardTitle}>{event.title}</Text>
-              <Text style={styles.cardDate}>
-                {event.startDate} - {event.endDate}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {events.length > 0 ? (
+            events.map((event, index) => (
+              <TouchableOpacity key={event.id || index} style={styles.card}>
+                {event.image ? (
+                  <Image
+                    source={{ uri: event.image }}
+                    style={styles.cardImage}
+                  />
+                ) : null}
+                <Text style={styles.cardTitle}>{event.title}</Text>
+                <Text style={styles.cardDate}>
+                  {event.startDate} - {event.endDate}
+                </Text>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <Text style={{ color: "#9ca3af", marginTop: 10 }}>
+              Currently no events.
+            </Text>
+          )}
         </ScrollView>
       </View>
 
