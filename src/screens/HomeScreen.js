@@ -16,34 +16,7 @@ export default function HomeScreen({ route, navigation }) {
   const [groupData, setGroupData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [events, setEvents] = useState([]);
-
-  // Static stories array
-  const staticStories = [
-    {
-      id: "a",
-      title: "New Patrol Routes Launched",
-      content:
-        "We have launched new patrol routes in Sector 5 to increase safety coverage in response to recent incidents...",
-      image:
-        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=60",
-    },
-    {
-      id: "b",
-      title: "Community Garden Project Success",
-      content:
-        "Thanks to all volunteers, the community garden project has blossomed bringing neighbors closer together...",
-      image:
-        "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=800&q=60",
-    },
-    {
-      id: "c",
-      title: "Local Crime Stats Update",
-      content:
-        "Recent statistics show a decline in petty crime thanks to neighborhood watch efforts and police collaboration...",
-      image:
-        "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=800&q=60",
-    },
-  ];
+  const [news, setNews] = useState([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,7 +26,7 @@ export default function HomeScreen({ route, navigation }) {
 
         const { data, error } = await supabase
           .from("groups")
-          .select("welcome_text, main_image, events")
+          .select("welcome_text, main_image, events, news")
           .eq("id", groupId)
           .single();
 
@@ -62,6 +35,7 @@ export default function HomeScreen({ route, navigation }) {
         } else {
           setGroupData(data);
           setEvents(data.events || []);
+          setNews(data.news || []);
         }
 
         setIsLoading(false);
@@ -130,10 +104,7 @@ export default function HomeScreen({ route, navigation }) {
             events.map((event, index) => (
               <TouchableOpacity key={event.id || index} style={styles.card}>
                 {event.image ? (
-                  <Image
-                    source={{ uri: event.image }}
-                    style={styles.cardImage}
-                  />
+                  <Image source={{ uri: event.image }} style={styles.cardImage} />
                 ) : null}
                 <Text style={styles.cardTitle}>{event.title}</Text>
                 <Text style={styles.cardDate}>
@@ -149,32 +120,44 @@ export default function HomeScreen({ route, navigation }) {
         </ScrollView>
       </View>
 
-      {/* News/Stories Section */}
+      {/* News Section */}
       <View style={[styles.section, { marginBottom: 80 }]}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>NEWS</Text>
-          <TouchableOpacity style={styles.buttonSecondary}>
+          <TouchableOpacity
+            style={styles.buttonSecondary}
+            onPress={() => navigation.navigate("AddNewsScreen", { groupId })}
+          >
             <Text style={styles.buttonSecondaryText}>Add Story</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.hr} />
-        {staticStories.map((story) => (
-          <TouchableOpacity key={story.id} style={styles.storyContainer}>
-            <Text style={styles.storyTitle}>{story.title}</Text>
-            <View style={styles.storyContentContainer}>
-              <Text style={styles.storyContent}>
-                {story.content.length > 150
-                  ? story.content.slice(0, 150) + "..."
-                  : story.content}
-              </Text>
-              <Image source={{ uri: story.image }} style={styles.storyImage} />
-            </View>
-          </TouchableOpacity>
-        ))}
+        {news.length > 0 ? (
+          news.map((story, index) => (
+            <TouchableOpacity key={story.id || index} style={styles.storyContainer}>
+              <Text style={styles.storyTitle}>{story.title}</Text>
+              <View style={styles.storyContentContainer}>
+                <Text style={styles.storyContent}>
+                  {story.message && story.message.length > 150
+                    ? story.message.slice(0, 150) + "..."
+                    : story.message || "No content available."}
+                </Text>
+                {story.image ? (
+                  <Image source={{ uri: story.image }} style={styles.storyImage} />
+                ) : null}
+              </View>
+            </TouchableOpacity>
+          ))
+        ) : (
+          <Text style={{ color: "#9ca3af", marginTop: 10 }}>
+            Currently no news stories.
+          </Text>
+        )}
         <TouchableOpacity
           style={[styles.buttonPrimary, { alignSelf: "center", marginTop: 20 }]}
+          onPress={() => navigation.navigate("NewsScreen", { groupId })}
         >
-          <Text style={styles.buttonText}>View All Stories</Text>
+          <Text style={styles.buttonText}>View All News</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

@@ -8,6 +8,7 @@ import { NavigationContainer } from '@react-navigation/native'
 import MainAppScreen from './src/screens/MainAppScreen'
 import WelcomeScreen from './src/screens/WelcomeScreen'
 import AddEventScreen from './src/screens/AddEventScreen'
+import AddNewsScreen from './src/screens/AddNewsScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -68,6 +69,11 @@ export default function App() {
           name="AddEventScreen"
           component={AddEventScreen}
           options={{ title: "Add Event" }}
+        />
+        <Stack.Screen
+          name="AddNewsScreen"
+          component={AddNewsScreen}
+          options={{ title: "Add News" }}
         />
       </Stack.Navigator>
     </NavigationContainer>
