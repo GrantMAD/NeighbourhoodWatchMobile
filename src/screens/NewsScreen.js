@@ -1,23 +1,32 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { supabase } from '../../lib/supabase';
+import React, { useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { supabase } from "../../lib/supabase";
+import FontAwesome from "react-native-vector-icons/FontAwesome";
 
-const NewsScreen = ({ route }) => {
+const NewsScreen = ({ route, navigation }) => {
   const { groupId } = route.params;
   const [news, setNews] = useState([]);
+  const [expandedIndex, setExpandedIndex] = useState(null);
 
   const fetchNews = async () => {
     const { data, error } = await supabase
-      .from('groups')
-      .select('news')
-      .eq('id', groupId)
+      .from("groups")
+      .select("news")
+      .eq("id", groupId)
       .single();
 
     if (data?.news) {
       setNews(data.news);
     } else if (error) {
-      console.error('Error fetching news:', error.message);
+      console.error("Error fetching news:", error.message);
     }
   };
 
@@ -27,40 +36,74 @@ const NewsScreen = ({ route }) => {
     }, [groupId])
   );
 
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.mainHeading}>News</Text>
-      <Text style={styles.description}>
-        Stay informed with the latest updates, announcements, and stories in your group.
-      </Text>
+  const toggleExpand = (index) => {
+    setExpandedIndex(expandedIndex === index ? null : index);
+  };
 
-      <Text style={styles.header}>Latest Stories</Text>
+  return (
+    <ScrollView style={[styles.container, styles.scrollPadding]}>
+      <View style={styles.headerRow}>
+        <View style={styles.headingContainer}>
+          <FontAwesome
+            name="newspaper-o"
+            size={28}
+            color="#f9fafb"
+            style={styles.headingIcon}
+          />
+          <Text style={styles.mainHeading}>News</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.buttonSecondary}
+          onPress={() => navigation.navigate("AddNewsScreen", { groupId })}
+        >
+          <Text style={styles.buttonSecondaryText}>Add Story</Text>
+        </TouchableOpacity>
+      </View>
+
       {news.length === 0 ? (
-        <Text>No news stories found.</Text>
+        <Text style={styles.noNewsText}>Currently no news stories.</Text>
       ) : (
         news.map((story, index) => {
-          console.log('Raw story.image:', story.image);
+          const isExpanded = expandedIndex === index;
 
           return (
             <View key={index} style={styles.card}>
-              <Text style={styles.title}>{story.title}</Text>
-              <Text style={styles.message}>{story.content}</Text>
-
-              {story.image && (
-                <>
-                  {console.log('Using image URL:', story.image)}
-                  <Image
-                    source={{ uri: story.image }}
-                    style={styles.image}
-                    resizeMode="cover"
+              <TouchableOpacity onPress={() => toggleExpand(index)} activeOpacity={0.7}>
+                <View style={styles.titleContainer}>
+                  <View style={styles.titleWithIcon}>
+                    <FontAwesome
+                      name="newspaper-o"
+                      size={18}
+                      color="#d1d5db"
+                      style={styles.storyIcon}
+                    />
+                    <Text style={styles.title}>{story.title}</Text>
+                  </View>
+                  <FontAwesome
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color="#9ca3af"
                   />
-                </>
-              )}
+                </View>
+              </TouchableOpacity>
 
-              {story.date && (
-                <Text style={styles.date}>
-                  {new Date(story.date).toLocaleDateString()}
-                </Text>
+              {isExpanded && (
+                <>
+                  {story.image && (
+                    <Image
+                      source={{ uri: story.image }}
+                      style={styles.image}
+                      resizeMode="cover"
+                    />
+                  )}
+                  <Text style={styles.message}>{story.content || story.message}</Text>
+                  {story.date && (
+                    <Text style={styles.date}>
+                      {new Date(story.date).toLocaleDateString()}
+                    </Text>
+                  )}
+                </>
               )}
             </View>
           );
@@ -71,38 +114,90 @@ const NewsScreen = ({ route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: "#1f2937",
+  },
+  scrollPadding: {
+    paddingTop: 40,
+    paddingHorizontal: 20,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  headingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headingIcon: {
+    marginRight: 8,
+  },
   mainHeading: {
     fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 4,
-    color: '#222',
-    textAlign: 'center',
+    fontWeight: "700",
+    color: "#f9fafb",
   },
-  description: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 20,
-    textAlign: 'center',
+  buttonSecondary: {
+    borderColor: "#ffffff",
+    borderWidth: 2,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 30,
   },
-  header: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333',
+  buttonSecondaryText: {
+    color: "#ffffff",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  noNewsText: {
+    color: "#9ca3af",
+    fontSize: 16,
+    textAlign: "center",
+    marginTop: 20,
   },
   card: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
+    backgroundColor: "#374151",
+    borderRadius: 12,
     padding: 12,
     marginBottom: 12,
-    backgroundColor: '#fff',
   },
-  title: { fontSize: 16, fontWeight: 'bold' },
-  message: { marginTop: 4 },
-  image: { height: 200, width: '100%', marginTop: 8, borderRadius: 8 },
-  date: { color: 'gray', marginTop: 4 },
+  titleContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  titleWithIcon: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  storyIcon: {
+    marginRight: 8,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#f9fafb",
+  },
+  message: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#d1d5db",
+  },
+  image: {
+    marginTop: 15,
+    marginBottom: 15,
+    borderRadius: 12,
+    width: "100%",
+    height: 200,
+  },
+  date: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#9ca3af",
+  },
 });
 
 export default NewsScreen;

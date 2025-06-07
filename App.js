@@ -9,6 +9,7 @@ import MainAppScreen from './src/screens/MainAppScreen'
 import WelcomeScreen from './src/screens/WelcomeScreen'
 import AddEventScreen from './src/screens/AddEventScreen'
 import AddNewsScreen from './src/screens/AddNewsScreen'
+import NewsScreen from './src/screens/NewsScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -74,6 +75,11 @@ export default function App() {
           name="AddNewsScreen"
           component={AddNewsScreen}
           options={{ title: "Add News" }}
+        />
+        <Stack.Screen
+          name="NewsScreen"
+          component={NewsScreen}
+          options={{ title: "News" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

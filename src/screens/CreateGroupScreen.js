@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import {
-    View, Text, TextInput, Button, ScrollView, Image, Alert, StyleSheet,
+    View, Text, TextInput, Button, ScrollView, Image, Alert, StyleSheet, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import { Buffer } from 'buffer';
 import { supabase } from '../../lib/supabase';
 
 const CreateGroupScreen = ({ navigation }) => {
+    // Your existing state declarations...
     const [groupName, setGroupName] = useState('');
     const [welcomeText, setWelcomeText] = useState('');
     const [vision, setVision] = useState('');
@@ -42,10 +45,44 @@ const CreateGroupScreen = ({ navigation }) => {
         setExecImage(null);
     };
 
-    const handleCreateGroup = async () => {
-        console.log('Create group button pressed');
-        Alert.alert('Debug', 'Creating group...');
+    // Upload helper function
+    const uploadImage = async (uri, folder = 'group-assets') => {
+        try {
+            const fileExt = uri.split('.').pop().split('?')[0] || 'jpg';
+            const fileName = `${Date.now()}.${fileExt}`;
+            const filePath = `${folder}/${fileName}`;
+            const contentType = `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
 
+            const base64 = await FileSystem.readAsStringAsync(uri, {
+                encoding: FileSystem.EncodingType.Base64,
+            });
+
+            const buffer = Buffer.from(base64, 'base64');
+
+            const { error } = await supabase.storage
+                .from('group-assets')
+                .upload(filePath, buffer, {
+                    contentType,
+                    upsert: false,
+                });
+
+            if (error) {
+                throw error;
+            }
+
+            const {
+                data: { publicUrl },
+            } = supabase.storage.from('group-assets').getPublicUrl(filePath);
+
+            return publicUrl;
+        } catch (error) {
+            console.error('Image upload error:', error.message);
+            Alert.alert('Upload Error', error.message);
+            return null;
+        }
+    };
+
+    const handleCreateGroup = async () => {
         if (!groupName) {
             Alert.alert('Error', 'Please enter a group name.');
             return;
@@ -58,15 +95,43 @@ const CreateGroupScreen = ({ navigation }) => {
             const { data: userData, error: userError } = await supabase.auth.getUser();
 
             if (userError || !userData?.user) {
-                console.error('User fetch failed:', userError);
                 Alert.alert('Error', 'User not logged in or failed to fetch user.');
                 setLoading(false);
                 return;
             }
 
             const user = userData.user;
-            console.log('Current user ID:', user.id);
 
+            // Upload main image if any
+            let mainImageUrl = null;
+            if (mainImage) {
+                mainImageUrl = await uploadImage(mainImage);
+                if (!mainImageUrl) {
+                    setLoading(false);
+                    return; // upload failed, abort
+                }
+            }
+
+            // Upload executive images and replace image URI with uploaded URL
+            const executivesWithUrls = await Promise.all(
+                executives.map(async (exec) => {
+                    let imageUrl = null;
+                    if (exec.image) {
+                        imageUrl = await uploadImage(exec.image);
+                        if (!imageUrl) {
+                            setLoading(false);
+                            Alert.alert('Error', `Failed to upload image for executive ${exec.name}`);
+                            throw new Error('Exec image upload failed');
+                        }
+                    }
+                    return {
+                        ...exec,
+                        image: imageUrl,
+                    };
+                })
+            );
+
+            // Prepare payload with URLs
             const groupPayload = {
                 name: groupName,
                 objectives,
@@ -74,22 +139,20 @@ const CreateGroupScreen = ({ navigation }) => {
                 mission,
                 vision,
                 welcome_text: welcomeText,
-                main_image: mainImage,
+                main_image: mainImageUrl,
                 executives_title: executivesTitle,
-                executives: JSON.stringify(executives),
+                executives: JSON.stringify(executivesWithUrls),
                 contact_email: contactEmail,
                 created_by: user.id,
             };
 
-            console.log('Inserting group with data:', JSON.stringify(groupPayload));
-
+            // Insert group
             const { data: insertData, error: insertError } = await supabase
                 .from('groups')
                 .insert([groupPayload])
                 .select();
 
             if (insertError) {
-                console.error('Insert error:', insertError);
                 Alert.alert('Error', insertError.message);
                 setLoading(false);
                 return;
@@ -97,15 +160,12 @@ const CreateGroupScreen = ({ navigation }) => {
 
             const newGroup = insertData?.[0];
             if (!newGroup) {
-                console.error('Insert returned no group');
                 Alert.alert('Error', 'Failed to create group.');
                 setLoading(false);
                 return;
             }
 
-            console.log('New group created:', newGroup);
-
-            // Update user profile with new group_id
+            // Update user profile
             const { error: profileError } = await supabase
                 .from('profiles')
                 .update({
@@ -114,27 +174,10 @@ const CreateGroupScreen = ({ navigation }) => {
                 })
                 .eq('id', user.id);
 
-
             if (profileError) {
-                console.error('Profile update error:', profileError);
                 Alert.alert('Error updating profile:', profileError.message);
                 setLoading(false);
                 return;
-            }
-
-            console.log('User profile updated with group_id:', newGroup.id);
-
-            // Confirm profile updated
-            const { data: updatedProfile, error: fetchProfileError } = await supabase
-                .from('profiles')
-                .select('group_id')
-                .eq('id', user.id)
-                .single();
-
-            if (fetchProfileError) {
-                console.warn('Could not confirm profile update:', fetchProfileError);
-            } else {
-                console.log('Confirmed updated group_id in profile:', updatedProfile.group_id);
             }
 
             // Navigate to the new group instance
@@ -149,7 +192,6 @@ const CreateGroupScreen = ({ navigation }) => {
             setLoading(false);
         }
     };
-
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
@@ -184,10 +226,13 @@ const CreateGroupScreen = ({ navigation }) => {
             <TextInput value={execName} onChangeText={setExecName} style={styles.input} />
             <Text style={styles.label}>Executive Role</Text>
             <TextInput value={execRole} onChangeText={setExecRole} style={styles.input} />
-            <Button title="Select Executive Image" onPress={() => pickImage(setExecImage)} />
+            <View style={{ marginBottom: 15 }}>
+                <Button title="Select Executive Image" onPress={() => pickImage(setExecImage)} />
+            </View>
             {execImage && <Image source={{ uri: execImage }} style={styles.execImage} />}
-            <Button title="Add Executive" onPress={addExecutive} />
-
+            <View style={{ marginTop: 15 }}>
+                <Button title="Add Executive" onPress={addExecutive} />
+            </View>
             {executives.length > 0 && (
                 <View style={{ marginTop: 20 }}>
                     <Text style={{ fontWeight: 'bold' }}>Current Executives:</Text>
@@ -203,7 +248,24 @@ const CreateGroupScreen = ({ navigation }) => {
                 </View>
             )}
 
-            <Button title="Create Group" onPress={handleCreateGroup} />
+            <TouchableOpacity
+                onPress={handleCreateGroup}
+                disabled={loading}
+                style={{
+                    backgroundColor: loading ? '#999' : '#2196F3',
+                    paddingVertical: 12,
+                    borderRadius: 4,
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    marginTop: 20,
+                }}
+            >
+                {loading && <ActivityIndicator size="small" color="#fff" style={{ marginRight: 10 }} />}
+                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
+                    {loading ? 'Creating Group...' : 'Create Group'}
+                </Text>
+            </TouchableOpacity>
         </ScrollView>
     );
 };
@@ -211,13 +273,12 @@ const CreateGroupScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         padding: 20,
-        paddingBottom: 40,  // <-- Add this padding to push content up from bottom
+        paddingBottom: 80,
     },
     label: { fontWeight: '600', marginTop: 10 },
     input: { borderWidth: 1, borderColor: '#ccc', padding: 8, marginBottom: 10, backgroundColor: '#fff' },
     image: { width: '100%', height: 200, marginVertical: 10 },
     execImage: { width: 60, height: 60, borderRadius: 30, marginRight: 10 },
 });
-
 
 export default CreateGroupScreen;

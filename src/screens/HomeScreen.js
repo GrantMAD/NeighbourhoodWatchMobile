@@ -138,9 +138,9 @@ export default function HomeScreen({ route, navigation }) {
               <Text style={styles.storyTitle}>{story.title}</Text>
               <View style={styles.storyContentContainer}>
                 <Text style={styles.storyContent}>
-                  {story.message && story.message.length > 150
-                    ? story.message.slice(0, 150) + "..."
-                    : story.message || "No content available."}
+                  {story.content && story.content.length > 150
+                    ? story.content.slice(0, 150) + "..."
+                    : story.content || "No content available."}
                 </Text>
                 {story.image ? (
                   <Image source={{ uri: story.image }} style={styles.storyImage} />
@@ -173,6 +173,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#e5e7eb",
+    marginBottom: 40,
   },
   headerImage: {
     width: "100%",
@@ -237,14 +238,14 @@ const styles = StyleSheet.create({
     color: "#f9fafb",
   },
   buttonSecondary: {
-    borderColor: "#4338ca",
+    borderColor: "#ffffff",
     borderWidth: 2,
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 30,
   },
   buttonSecondaryText: {
-    color: "#4338ca",
+    color: "#ffffff",
     fontWeight: "600",
     fontSize: 16,
   },
