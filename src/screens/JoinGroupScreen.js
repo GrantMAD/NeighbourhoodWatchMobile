@@ -67,7 +67,10 @@ const JoinGroupScreen = () => {
       return;
     }
 
+    const requestId = `req-${Date.now()}`;
+
     const newRequest = {
+      id: requestId,
       userId,
       requestedAt: new Date().toISOString(),
       status: 'pending',
@@ -104,6 +107,7 @@ const JoinGroupScreen = () => {
       id: `notif-${Date.now()}`,
       type: 'join_request',
       groupId: group.id,
+      requestId: requestId, // link to the request
       message: `A user requested to join your group "${group.name}"`,
       createdAt: new Date().toISOString(),
       read: false,
