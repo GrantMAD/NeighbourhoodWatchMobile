@@ -10,6 +10,8 @@ import WelcomeScreen from './src/screens/WelcomeScreen'
 import AddEventScreen from './src/screens/AddEventScreen'
 import AddNewsScreen from './src/screens/AddNewsScreen'
 import NewsScreen from './src/screens/NewsScreen'
+import NotificationScreen from './src/screens/NotificationScreen'
+import WaitingStatusScreen from './src/screens/WaitingStatusScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -80,6 +82,16 @@ export default function App() {
           name="NewsScreen"
           component={NewsScreen}
           options={{ title: "News" }}
+        />
+        <Stack.Screen
+          name="Notifications"
+          component={NotificationScreen}
+          options={{ title: "Notifications" }}
+        />
+        <Stack.Screen
+          name="WaitingStatusScreen"
+          component={WaitingStatusScreen}
+          options={{ title: "Pending Requests" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

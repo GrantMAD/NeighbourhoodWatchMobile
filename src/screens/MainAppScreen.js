@@ -6,10 +6,16 @@ import {
   Text,
   Image,
   StyleSheet,
+  FlatList,
+  TouchableWithoutFeedback,
 } from "react-native";
-import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerItem } from "@react-navigation/drawer";
+import {
+  createDrawerNavigator,
+  DrawerContentScrollView,
+  DrawerItemList,
+  DrawerItem,
+} from "@react-navigation/drawer";
 import { FontAwesome5 } from "@expo/vector-icons";
-
 import HomeScreen from "../screens/HomeScreen";
 import AboutScreen from "../screens/AboutScreen";
 import MembersScreen from "../screens/MembersScreen";
@@ -27,33 +33,23 @@ function CustomDrawerContent(props) {
 
   useEffect(() => {
     async function fetchEmail() {
-      try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-        if (userError || !user) {
-          console.error("Failed to get user:", userError?.message);
-          setUserEmail("No user found");
-          return;
-        }
-
-        const userId = user.id;
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("email")
-          .eq("id", userId)
-          .single();
-
-        if (error) {
-          console.error("Error fetching email from profiles:", error.message);
-          setUserEmail("Email not found");
-          return;
-        }
-
-        setUserEmail(data.email);
-      } catch (err) {
-        console.error("Unexpected error loading email:", err);
-        setUserEmail("Error loading email");
+      if (userError || !user) {
+        setUserEmail("No user found");
+        return;
       }
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", user.id)
+        .single();
+
+      setUserEmail(error ? "Email not found" : data.email);
     }
 
     fetchEmail();
@@ -63,9 +59,9 @@ function CustomDrawerContent(props) {
     const { error } = await supabase.auth.signOut();
     if (error) {
       Alert.alert("Sign Out Error", error.message);
-      return;
+    } else {
+      navigation.replace("SignIn");
     }
-    navigation.replace("SignIn");
   };
 
   return (
@@ -88,12 +84,10 @@ function CustomDrawerContent(props) {
       <DrawerItem
         label="Sign Out"
         icon={({ color, size }) => (
-          <FontAwesome5 name="sign-out-alt" size={size} color={color} />
+          <FontAwesome5 name="sign-out-alt" size={size} color="#f9fafb" />
         )}
         labelStyle={{ color: "#fff" }}
         style={{ backgroundColor: "transparent" }}
-        activeTintColor="#22d3ee"
-        inactiveTintColor="#fff"
         onPress={() =>
           Alert.alert("Sign Out", "Are you sure?", [
             { text: "Cancel", style: "cancel" },
@@ -105,10 +99,114 @@ function CustomDrawerContent(props) {
   );
 }
 
+const NotificationDropdown = ({ notifications, onClose, onNavigate }) => {
+  return (
+    <TouchableWithoutFeedback onPress={onClose}>
+      <View style={styles.dropdownOverlay}>
+        <View style={styles.dropdownContainer}>
+          <Text style={styles.dropdownTitle}>Notifications</Text>
+
+          {notifications.length === 0 ? (
+            <Text style={styles.noNotificationsText}>No notifications</Text>
+          ) : (
+            <FlatList
+              data={notifications}
+              keyExtractor={(item, index) => item.id ?? index.toString()}
+              style={{ maxHeight: 200 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => {
+                    onClose(); // Close dropdown
+                    onNavigate(); // Navigate to full screen
+                  }}
+                >
+                  <View style={styles.notificationItem}>
+                    <Text style={styles.notificationUserId}>
+                      {item.id ?? "Unknown User"}
+                    </Text>
+                    <Text style={styles.notificationText}>
+                      {item.message || "No message"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          )}
+
+          <TouchableOpacity style={styles.viewAllButton} onPress={onNavigate}>
+            <Text style={styles.viewAllText}>View All</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </TouchableWithoutFeedback>
+  );
+};
+
+
 const MainAppScreen = ({ route, navigation }) => {
   const { groupId } = route.params;
+  const [notifications, setNotifications] = useState([]);
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const [hasNotifications, setHasNotifications] = useState(false);
 
-  // Helper to render header left (hamburger menu) for all screens
+  useEffect(() => {
+    let userId = null;
+    let subscription = null;
+
+    async function fetchAndSubscribe() {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) return;
+
+      userId = user.id;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("notifications")
+        .eq("id", userId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching notifications:", error);
+        return;
+      }
+
+      const notifs = data.notifications ?? [];
+      setNotifications(notifs);
+      setHasNotifications(notifs.some((n) => !n.read));
+
+      // Set up real-time notifications
+      subscription = supabase
+        .channel("notifications-channel")
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "profiles",
+            filter: `id=eq.${userId}`,
+          },
+          (payload) => {
+            const updatedNotifs = payload.new.notifications ?? [];
+            setNotifications(updatedNotifs);
+            setHasNotifications(updatedNotifs.some((n) => !n.read));
+          }
+        )
+        .subscribe();
+    }
+
+    fetchAndSubscribe();
+
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
+  }, []);
+
   const screenOptionsWithDrawerButton = ({ navigation }) => ({
     headerShown: true,
     headerStyle: {
@@ -126,23 +224,59 @@ const MainAppScreen = ({ route, navigation }) => {
         <FontAwesome5 name="bars" size={24} color="#f9fafb" />
       </TouchableOpacity>
     ),
+    headerRight: () => (
+      <View style={{ marginRight: 15 }}>
+        <TouchableOpacity
+          onPress={() => setDropdownVisible(!dropdownVisible)}
+        >
+          <View>
+            <FontAwesome5 name="bell" size={20} color="#f9fafb" />
+            {hasNotifications && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -4,
+                  right: -4,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: "#f87171",
+                }}
+              />
+            )}
+          </View>
+        </TouchableOpacity>
+
+        {dropdownVisible && (
+          <NotificationDropdown
+            notifications={notifications}
+            onClose={() => setDropdownVisible(false)}
+            onNavigate={() => {
+              setDropdownVisible(false);
+              navigation.navigate("Notifications");
+            }}
+          />
+        )}
+      </View>
+    ),
   });
 
   return (
     <Drawer.Navigator
-      screenOptions={{
+      screenOptions={({ navigation }) => ({
+        ...screenOptionsWithDrawerButton({ navigation }),
         drawerActiveTintColor: "#22d3ee",
         drawerInactiveTintColor: "#fff",
         drawerStyle: { backgroundColor: "#1f2937" },
         drawerLabelStyle: { fontWeight: "600" },
-      }}
+      })}
       drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
       <Drawer.Screen
         name="Home"
         component={HomeScreen}
         initialParams={{ groupId }}
-        options={({ navigation }) => ({
+        options={{
           title: "Home",
           drawerIcon: ({ color, size, focused }) => (
             <FontAwesome5
@@ -151,15 +285,13 @@ const MainAppScreen = ({ route, navigation }) => {
               color={focused ? "#22d3ee" : "#fff"}
             />
           ),
-          ...screenOptionsWithDrawerButton({ navigation }),
-        })}
+        }}
       />
-
       <Drawer.Screen
         name="Members"
         component={MembersScreen}
         initialParams={{ groupId }}
-        options={({ navigation }) => ({
+        options={{
           title: "Members",
           drawerIcon: ({ color, size, focused }) => (
             <FontAwesome5
@@ -168,15 +300,13 @@ const MainAppScreen = ({ route, navigation }) => {
               color={focused ? "#22d3ee" : "#fff"}
             />
           ),
-          ...screenOptionsWithDrawerButton({ navigation }),
-        })}
+        }}
       />
-
       <Drawer.Screen
         name="Events"
         component={EventsScreen}
         initialParams={{ groupId }}
-        options={({ navigation }) => ({
+        options={{
           title: "Events",
           drawerIcon: ({ color, size, focused }) => (
             <FontAwesome5
@@ -185,32 +315,28 @@ const MainAppScreen = ({ route, navigation }) => {
               color={focused ? "#22d3ee" : "#fff"}
             />
           ),
-          ...screenOptionsWithDrawerButton({ navigation }),
-        })}
+        }}
       />
-
       <Drawer.Screen
         name="News"
         component={NewsScreen}
         initialParams={{ groupId }}
-        options={({ navigation }) => ({
+        options={{
           title: "News",
           drawerIcon: ({ color, size, focused }) => (
             <FontAwesome5
-              name="calendar-alt"
+              name="newspaper"
               size={size}
               color={focused ? "#22d3ee" : "#fff"}
             />
           ),
-          ...screenOptionsWithDrawerButton({ navigation }),
-        })}
+        }}
       />
-
       <Drawer.Screen
         name="About"
         component={AboutScreen}
         initialParams={{ groupId }}
-        options={({ navigation }) => ({
+        options={{
           title: "About",
           drawerIcon: ({ color, size, focused }) => (
             <FontAwesome5
@@ -219,15 +345,13 @@ const MainAppScreen = ({ route, navigation }) => {
               color={focused ? "#22d3ee" : "#fff"}
             />
           ),
-          ...screenOptionsWithDrawerButton({ navigation }),
-        })}
+        }}
       />
-
       <Drawer.Screen
         name="Settings"
         component={SettingsScreen}
         initialParams={{ groupId }}
-        options={({ navigation }) => ({
+        options={{
           title: "Settings",
           drawerIcon: ({ color, size, focused }) => (
             <FontAwesome5
@@ -236,8 +360,7 @@ const MainAppScreen = ({ route, navigation }) => {
               color={focused ? "#22d3ee" : "#fff"}
             />
           ),
-          ...screenOptionsWithDrawerButton({ navigation }),
-        })}
+        }}
       />
     </Drawer.Navigator>
   );
@@ -248,32 +371,84 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
+    padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#4b5563",
-    marginBottom: 8,
+    borderBottomColor: "#374151",
   },
   profileInfo: {
     flexDirection: "row",
     alignItems: "center",
   },
   profileImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     marginRight: 12,
-    backgroundColor: "#374151",
   },
   welcomeText: {
     color: "#f9fafb",
-    fontWeight: "700",
     fontSize: 16,
+    fontWeight: "700",
   },
   emailText: {
+    color: "#d1d5db",
+    fontSize: 12,
+  },
+  dropdownOverlay: {
+    position: "absolute",
+    top: 40,
+    right: 15,
+    left: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    zIndex: 9999,
+  },
+  dropdownContainer: {
+    position: "absolute",
+    top: 0,
+    right: 15,
+    width: 280,
+    backgroundColor: "#111827",
+    borderRadius: 8,
+    padding: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  dropdownTitle: {
     color: "#f9fafb",
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
+  noNotificationsText: {
+    color: "#9ca3af",
+    textAlign: "center",
+    marginVertical: 10,
+  },
+  notificationItem: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#374151",
+  },
+  notificationText: {
+    color: "#f9fafb",
     fontSize: 14,
-    flexShrink: 1,
+  },
+  notificationUserId: {
+    color: "#60a5fa",
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  viewAllButton: {
+    marginTop: 10,
+    alignItems: "center",
+  },
+  viewAllText: {
+    color: "#22d3ee",
+    fontWeight: "600",
   },
 });
 
