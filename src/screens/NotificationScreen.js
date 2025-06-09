@@ -146,6 +146,7 @@ const NotificationScreen = () => {
 
       if (!requestId || !groupId) throw new Error("Invalid request");
 
+      // Fetch the group
       const { data: group, error: groupError } = await supabase
         .from('groups')
         .select('id, name, requests, created_by, users')
@@ -160,29 +161,53 @@ const NotificationScreen = () => {
       const userId = targetRequest.userId;
       if (!userId) throw new Error("Missing userId");
 
+      // Remove the request from group requests
       const updatedRequests = group.requests.filter(r => r.id !== requestId);
-      await supabase.from('groups').update({ requests: updatedRequests }).eq('id', group.id);
-      // Clear requestedGroupId from requester
-      await supabase.from('profiles').update({ requestedGroupId: null }).eq('id', userId);
+      await supabase
+        .from('groups')
+        .update({ requests: updatedRequests })
+        .eq('id', group.id);
 
+      // Update user's group_id and clear requestedGroupId
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({
+          group_id: group.id,
+          requestedgroupid: null,
+        })
+        .eq('id', userId);
+      if (profileUpdateError) throw profileUpdateError;
+
+      // Add user to group's users array if not already included
       if (!group.users.includes(userId)) {
         const updatedUsers = [...group.users, userId];
-        await supabase.from('groups').update({ users: updatedUsers }).eq('id', group.id);
+        await supabase
+          .from('groups')
+          .update({ users: updatedUsers })
+          .eq('id', group.id);
       }
 
-      const { data: creatorProfile } = await supabase
+      // Remove the notification from creator's notifications
+      const { data: creatorProfile, error: creatorError } = await supabase
         .from('profiles')
         .select('notifications')
         .eq('id', creatorId)
         .single();
-      const updatedCreatorNotifs = (creatorProfile.notifications || []).filter(n => n.id !== id);
-      await supabase.from('profiles').update({ notifications: updatedCreatorNotifs }).eq('id', creatorId);
+      if (creatorError) throw creatorError;
 
-      const { data: requesterProfile } = await supabase
+      const updatedCreatorNotifs = (creatorProfile.notifications || []).filter(n => n.id !== id);
+      await supabase
+        .from('profiles')
+        .update({ notifications: updatedCreatorNotifs })
+        .eq('id', creatorId);
+
+      // Add acceptance notification to requester
+      const { data: requesterProfile, error: requesterError } = await supabase
         .from('profiles')
         .select('notifications')
         .eq('id', userId)
         .single();
+      if (requesterError) throw requesterError;
 
       const acceptanceNotif = {
         id: `notif-${Date.now()}`,
@@ -194,7 +219,10 @@ const NotificationScreen = () => {
       };
 
       const updatedRequesterNotifs = [...(requesterProfile.notifications || []), acceptanceNotif];
-      await supabase.from('profiles').update({ notifications: updatedRequesterNotifs }).eq('id', userId);
+      await supabase
+        .from('profiles')
+        .update({ notifications: updatedRequesterNotifs })
+        .eq('id', userId);
 
       fetchNotifications();
     } catch (error) {
