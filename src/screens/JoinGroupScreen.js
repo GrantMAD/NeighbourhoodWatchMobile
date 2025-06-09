@@ -89,6 +89,21 @@ const JoinGroupScreen = () => {
       return;
     }
 
+    // Fetch requesting user's profile to get name
+    const { data: requesterProfiles, error: requesterError } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', userId)
+      .single();
+
+    if (requesterError || !requesterProfiles) {
+      setLoading(false);
+      Alert.alert('Error', 'Failed to get your profile info');
+      return;
+    }
+
+    const requesterName = requesterProfiles.name;
+
     // Fetch creator's profile
     const { data: creatorProfiles, error: profileError } = await supabase
       .from('profiles')
@@ -108,7 +123,7 @@ const JoinGroupScreen = () => {
       type: 'join_request',
       groupId: group.id,
       requestId: requestId, // link to the request
-      message: `A user requested to join your group "${group.name}"`,
+      message: `${requesterName} requested to join your group "${group.name}"`,
       createdAt: new Date().toISOString(),
       read: false,
       fromUserId: userId,

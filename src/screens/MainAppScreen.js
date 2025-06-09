@@ -29,31 +29,39 @@ const Drawer = createDrawerNavigator();
 
 function CustomDrawerContent(props) {
   const { navigation } = props;
+  const [userName, setUserName] = useState("Loading...");
   const [userEmail, setUserEmail] = useState("Loading...");
   const placeholderImage = "https://www.gravatar.com/avatar/?d=mp&s=64";
 
   useEffect(() => {
-    async function fetchEmail() {
+    async function fetchUserData() {
       const {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        setUserEmail("No user found");
+        setUserName("No user found");
+        setUserEmail("");
         return;
       }
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("email")
+        .select("name, email")
         .eq("id", user.id)
         .single();
 
-      setUserEmail(error ? "Email not found" : data.email);
+      if (error) {
+        setUserName("Name not found");
+        setUserEmail("Email not found");
+      } else {
+        setUserName(data.name || "User");
+        setUserEmail(data.email || "");
+      }
     }
 
-    fetchEmail();
+    fetchUserData();
   }, []);
 
   const handleSignOut = async () => {
@@ -71,7 +79,7 @@ function CustomDrawerContent(props) {
         <View style={styles.profileInfo}>
           <Image source={{ uri: placeholderImage }} style={styles.profileImage} />
           <View>
-            <Text style={styles.welcomeText}>Welcome User</Text>
+            <Text style={styles.welcomeText}>Welcome {userName}</Text>
             <Text style={styles.emailText}>{userEmail}</Text>
           </View>
         </View>
@@ -100,6 +108,7 @@ function CustomDrawerContent(props) {
   );
 }
 
+
 const NotificationDropdown = ({ notifications, onClose, onNavigate }) => {
   return (
     <TouchableWithoutFeedback onPress={onClose}>
@@ -123,7 +132,7 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate }) => {
                 >
                   <View style={styles.notificationItem}>
                     <Text style={styles.notificationUserId}>
-                      {item.id ?? "Unknown User"}
+                      {item.type === "join_request" ? "Group Join request" : item.id ?? "Unknown User"}
                     </Text>
                     <Text style={styles.notificationText}>
                       {item.message || "No message"}
@@ -434,6 +443,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#f9fafb",
     marginBottom: 2,
+    fontSize: 16,
+    textDecorationLine: 'underline',
   },
   notificationText: {
     color: "#f9fafb",

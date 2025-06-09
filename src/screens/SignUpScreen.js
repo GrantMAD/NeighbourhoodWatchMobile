@@ -12,13 +12,14 @@ import { supabase } from '../../lib/supabase';
 import { ActivityIndicator } from 'react-native';
 
 export default function SignUpScreen({ navigation }) {
+    const [name, setName] = useState(''); // NEW: name input state
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const handleSignUp = async () => {
-        if (!email || !password) {
+        if (!name || !email || !password) {
             Alert.alert('Error', 'Please fill in all fields');
             return;
         }
@@ -26,6 +27,7 @@ export default function SignUpScreen({ navigation }) {
         setLoading(true);
 
         try {
+            // Sign up user
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email,
                 password,
@@ -33,6 +35,25 @@ export default function SignUpScreen({ navigation }) {
 
             if (authError) {
                 Alert.alert('Error', authError.message);
+                setLoading(false);
+                return;
+            }
+
+            // Wait for user id
+            const userId = authData.user?.id;
+            if (!userId) {
+                Alert.alert('Error', 'User ID not found after sign up');
+                setLoading(false);
+                return;
+            }
+
+            // Update profiles table with name for the new user
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .upsert({ id: userId, name });
+
+            if (profileError) {
+                Alert.alert('Error', 'Failed to update profile name');
                 setLoading(false);
                 return;
             }
@@ -55,6 +76,14 @@ export default function SignUpScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Sign Up</Text>
+
+            <TextInput
+                placeholder="Name"
+                value={name}
+                onChangeText={setName}
+                placeholderTextColor="#9ca3af"
+                style={styles.input}
+            />
 
             <TextInput
                 placeholder="Email"
@@ -110,6 +139,7 @@ export default function SignUpScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+    // your styles unchanged, just add styling for name input like other inputs
     container: {
         flex: 1,
         justifyContent: 'center',

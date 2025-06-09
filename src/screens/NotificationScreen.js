@@ -291,10 +291,16 @@ const NotificationScreen = () => {
     const isAcceptProcessing = processingStatus[item.id]?.accept;
     const isDeclineProcessing = processingStatus[item.id]?.decline;
 
+    let headingText = '';
+    if (isJoinRequest) {
+      headingText = 'Group Join Request';
+    }
+
     return (
       <View style={[styles.notificationCard, item.read ? styles.read : styles.unread]}>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
+            {headingText !== '' && <Text style={styles.headingText}>{headingText}</Text>}
             <Text style={styles.messageText}>{item.message}</Text>
             <Text style={styles.dateText}>{new Date(item.createdAt).toLocaleString()}</Text>
           </View>
@@ -389,7 +395,7 @@ const styles = StyleSheet.create({
   clearButton: { justifyContent: 'center' },
   clearText: { color: 'red', fontWeight: 'bold' },
   notificationCard: {
-    backgroundColor: 'white',
+    backgroundColor: '#1f2937',
     borderRadius: 8,
     padding: 12,
     marginBottom: 10,
@@ -401,8 +407,8 @@ const styles = StyleSheet.create({
   read: { opacity: 0.6 },
   unread: { opacity: 1 },
   row: { flexDirection: 'row', alignItems: 'center' },
-  messageText: { fontSize: 16, marginBottom: 4 },
-  dateText: { fontSize: 12, color: '#888' },
+  messageText: { fontSize: 16, marginBottom: 4, color: '#fff', },
+  dateText: { fontSize: 12, color: '#fff' },
   actionRow: { flexDirection: 'row', marginTop: 8, justifyContent: 'flex-end' },
   button: {
     paddingVertical: 8,
@@ -415,6 +421,13 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.7 },
   buttonText: { color: 'white', fontWeight: 'bold' },
   flatListEmpty: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
+  headingText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',    // white font color for the heading
+    marginBottom: 4,
+    textDecorationLine: 'underline',
+  },
 });
 
 export default NotificationScreen;
