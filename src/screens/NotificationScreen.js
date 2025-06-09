@@ -17,7 +17,7 @@ const NotificationScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
-  // Changed from Set to object that tracks accept and decline per notification id
+
   const [processingStatus, setProcessingStatus] = useState({});
 
   const fetchNotifications = useCallback(async () => {
@@ -206,35 +206,49 @@ const NotificationScreen = () => {
   const handleDeclineRequest = async (notification) => {
     const id = notification.id;
     setProcessing(id, 'decline', true);
-    try {
-      const userId = notification.userId;
-      const groupId = notification.groupId;
 
-      const { data: group } = await supabase
+    try {
+      const requestId = notification?.requestId;
+      const groupId = notification?.groupId;
+
+      if (!requestId || !groupId) throw new Error("Invalid request");
+
+      // Fetch group info
+      const { data: group, error: groupError } = await supabase
         .from('groups')
         .select('id, name, requests, created_by')
         .eq('id', groupId)
         .single();
+      if (groupError || !group) throw groupError;
 
       const creatorId = group.created_by;
-      const updatedRequests = (group.requests || []).filter(r => r.userId !== userId);
+      const targetRequest = (group.requests || []).find(r => r.id === requestId);
+      if (!targetRequest) throw new Error("Request not found");
+
+      const userId = targetRequest.userId;
+      if (!userId) throw new Error("Missing userId");
+
+      // 1. Remove request from group
+      const updatedRequests = group.requests.filter(r => r.id !== requestId);
       await supabase.from('groups').update({ requests: updatedRequests }).eq('id', group.id);
 
+      // 2. Remove the notification from the creator's notifications
       const { data: creatorProfile } = await supabase
         .from('profiles')
         .select('notifications')
         .eq('id', creatorId)
         .single();
-      const updatedCreatorNotifs = (creatorProfile.notifications || []).filter(
-        n => !(n.type === 'join_request' && n.userId === userId && n.groupId === group.id)
-      );
+
+      const updatedCreatorNotifs = (creatorProfile.notifications || []).filter(n => n.id !== id);
       await supabase.from('profiles').update({ notifications: updatedCreatorNotifs }).eq('id', creatorId);
 
+      // 3. Add a rejection notification to the requester
       const { data: requesterProfile } = await supabase
         .from('profiles')
         .select('notifications')
         .eq('id', userId)
         .single();
+
       const declineNotif = {
         id: `notif-${Date.now()}`,
         type: 'declined_request',
@@ -243,15 +257,33 @@ const NotificationScreen = () => {
         createdAt: new Date().toISOString(),
         read: false,
       };
+
       const updatedRequesterNotifs = [...(requesterProfile.notifications || []), declineNotif];
       await supabase.from('profiles').update({ notifications: updatedRequesterNotifs }).eq('id', userId);
 
+      // 4. Refresh notifications in UI
       fetchNotifications();
     } catch (error) {
       console.error('Decline error:', error);
+      Alert.alert('Error', error.message || 'Failed to decline request');
     } finally {
       setProcessing(id, 'decline', false);
     }
+  };
+
+  const confirmDeclineRequest = (notification) => {
+    Alert.alert(
+      'Decline Request',
+      'Are you sure you want to decline this join request?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: () => handleDeclineRequest(notification),
+        },
+      ]
+    );
   };
 
   const renderNotification = ({ item }) => {
@@ -266,13 +298,6 @@ const NotificationScreen = () => {
             <Text style={styles.messageText}>{item.message}</Text>
             <Text style={styles.dateText}>{new Date(item.createdAt).toLocaleString()}</Text>
           </View>
-          <TouchableOpacity onPress={() => toggleRead(item.id)} style={{ padding: 5 }}>
-            <Icon
-              name={item.read ? 'envelope-open' : 'envelope'}
-              size={22}
-              color={item.read ? '#888' : '#333'}
-            />
-          </TouchableOpacity>
           <TouchableOpacity onPress={() => deleteNotification(item.id)} style={{ padding: 5 }}>
             <Icon name="trash-alt" size={20} color="red" />
           </TouchableOpacity>
@@ -293,7 +318,20 @@ const NotificationScreen = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.declineButton, isDeclineProcessing && styles.disabledButton]}
-              onPress={() => handleDeclineRequest(item)}
+              onPress={() => {
+                Alert.alert(
+                  'Decline Request',
+                  'Are you sure you want to decline this join request?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Decline',
+                      style: 'destructive',
+                      onPress: () => handleDeclineRequest(item),
+                    },
+                  ]
+                );
+              }}
               disabled={isDeclineProcessing}
             >
               {isDeclineProcessing ? (

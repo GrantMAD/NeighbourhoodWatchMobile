@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   Alert,
   TouchableOpacity,
@@ -142,70 +143,71 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate }) => {
   );
 };
 
-
 const MainAppScreen = ({ route, navigation }) => {
   const { groupId } = route.params;
   const [notifications, setNotifications] = useState([]);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [hasNotifications, setHasNotifications] = useState(false);
 
-  useEffect(() => {
-    let userId = null;
-    let subscription = null;
+  // Fetch notifications and subscribe to updates
+  useFocusEffect(
+    useCallback(() => {
+      let subscription = null;
+      let userId = null;
 
-    async function fetchAndSubscribe() {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      async function fetchNotifications() {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-      if (userError || !user) return;
+        if (userError || !user) return;
 
-      userId = user.id;
+        userId = user.id;
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("notifications")
-        .eq("id", userId)
-        .single();
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("notifications")
+          .eq("id", userId)
+          .single();
 
-      if (error) {
-        console.error("Error fetching notifications:", error);
-        return;
+        if (error) {
+          console.error("Error fetching notifications:", error);
+          return;
+        }
+
+        const notifs = data.notifications ?? [];
+        setNotifications(notifs);
+        setHasNotifications(notifs.some((n) => !n.read));
+
+        subscription = supabase
+          .channel("notifications-channel")
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "profiles",
+              filter: `id=eq.${userId}`,
+            },
+            (payload) => {
+              const updatedNotifs = payload.new.notifications ?? [];
+              setNotifications(updatedNotifs);
+              setHasNotifications(updatedNotifs.some((n) => !n.read));
+            }
+          )
+          .subscribe();
       }
 
-      const notifs = data.notifications ?? [];
-      setNotifications(notifs);
-      setHasNotifications(notifs.some((n) => !n.read));
+      fetchNotifications();
 
-      // Set up real-time notifications
-      subscription = supabase
-        .channel("notifications-channel")
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "profiles",
-            filter: `id=eq.${userId}`,
-          },
-          (payload) => {
-            const updatedNotifs = payload.new.notifications ?? [];
-            setNotifications(updatedNotifs);
-            setHasNotifications(updatedNotifs.some((n) => !n.read));
-          }
-        )
-        .subscribe();
-    }
-
-    fetchAndSubscribe();
-
-    return () => {
-      if (subscription) {
-        supabase.removeChannel(subscription);
-      }
-    };
-  }, []);
+      return () => {
+        if (subscription) {
+          supabase.removeChannel(subscription);
+        }
+      };
+    }, [])
+  );
 
   const screenOptionsWithDrawerButton = ({ navigation }) => ({
     headerShown: true,
@@ -226,9 +228,7 @@ const MainAppScreen = ({ route, navigation }) => {
     ),
     headerRight: () => (
       <View style={{ marginRight: 15 }}>
-        <TouchableOpacity
-          onPress={() => setDropdownVisible(!dropdownVisible)}
-        >
+        <TouchableOpacity onPress={() => setDropdownVisible(!dropdownVisible)}>
           <View>
             <FontAwesome5 name="bell" size={20} color="#f9fafb" />
             {hasNotifications && (
@@ -369,86 +369,85 @@ const MainAppScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   profileContainer: {
     flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#374151",
+    borderBottomColor: "#4b5563",
+    marginBottom: 10,
   },
   profileInfo: {
     flexDirection: "row",
     alignItems: "center",
   },
   profileImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    marginRight: 12,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 15,
   },
   welcomeText: {
     color: "#f9fafb",
-    fontSize: 16,
     fontWeight: "700",
+    fontSize: 14,
   },
   emailText: {
-    color: "#d1d5db",
+    color: "#f9fafb",
     fontSize: 12,
   },
   dropdownOverlay: {
     position: "absolute",
     top: 40,
     right: 15,
-    left: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    zIndex: 9999,
+    width: 300,
+    backgroundColor: "#374151",
+    borderRadius: 8,
+    padding: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
   },
   dropdownContainer: {
-    position: "absolute",
-    top: 0,
-    right: 15,
-    width: 280,
-    backgroundColor: "#111827",
-    borderRadius: 8,
-    padding: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 10,
+    maxHeight: 250,
   },
   dropdownTitle: {
-    color: "#f9fafb",
-    fontSize: 16,
     fontWeight: "700",
+    fontSize: 16,
+    color: "#f9fafb",
     marginBottom: 10,
   },
   noNotificationsText: {
-    color: "#9ca3af",
-    textAlign: "center",
-    marginVertical: 10,
+    color: "#d1d5db",
+    fontStyle: "italic",
   },
   notificationItem: {
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#374151",
+    backgroundColor: "#4b5563",
+    borderRadius: 6,
+    padding: 10,
+    marginVertical: 4,
+  },
+  notificationUserId: {
+    fontWeight: "600",
+    color: "#f9fafb",
+    marginBottom: 2,
   },
   notificationText: {
     color: "#f9fafb",
-    fontSize: 14,
-  },
-  notificationUserId: {
-    color: "#60a5fa",
-    fontSize: 12,
-    marginBottom: 2,
   },
   viewAllButton: {
     marginTop: 10,
-    alignItems: "center",
+    paddingVertical: 6,
+    backgroundColor: "#22d3ee",
+    borderRadius: 6,
   },
   viewAllText: {
-    color: "#22d3ee",
-    fontWeight: "600",
+    textAlign: "center",
+    fontWeight: "700",
+    color: "#1f2937",
   },
 });
 
