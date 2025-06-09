@@ -162,7 +162,8 @@ const NotificationScreen = () => {
 
       const updatedRequests = group.requests.filter(r => r.id !== requestId);
       await supabase.from('groups').update({ requests: updatedRequests }).eq('id', group.id);
-      await supabase.from('profiles').update({ group_id: group.id }).eq('id', userId);
+      // Clear requestedGroupId from requester
+      await supabase.from('profiles').update({ requestedGroupId: null }).eq('id', userId);
 
       if (!group.users.includes(userId)) {
         const updatedUsers = [...group.users, userId];
@@ -222,8 +223,36 @@ const NotificationScreen = () => {
       if (groupError || !group) throw groupError;
 
       const creatorId = group.created_by;
+
+      // Defensive: check if the request exists before proceeding
       const targetRequest = (group.requests || []).find(r => r.id === requestId);
-      if (!targetRequest) throw new Error("Request not found");
+
+      if (!targetRequest) {
+        console.warn(`Decline failed: Request ID ${requestId} not found in group ${groupId}`);
+        // Still clear requestedGroupId in user profile and remove notification to keep UI consistent?
+        // Let's do that safely:
+
+        // Try clearing requestedGroupId for the user if possible
+        // But how to get userId if request not found? fallback to notification.userId?
+        const fallbackUserId = notification.userId || null;
+        if (fallbackUserId) {
+          await supabase.from('profiles').update({ requestedGroupId: null }).eq('id', fallbackUserId);
+        }
+
+        // Remove this notification from creator's notifications anyway
+        const { data: creatorProfile } = await supabase
+          .from('profiles')
+          .select('notifications')
+          .eq('id', creatorId)
+          .single();
+
+        const updatedCreatorNotifs = (creatorProfile.notifications || []).filter(n => n.id !== id);
+        await supabase.from('profiles').update({ notifications: updatedCreatorNotifs }).eq('id', creatorId);
+
+        fetchNotifications();
+        setProcessing(id, 'decline', false);
+        return;
+      }
 
       const userId = targetRequest.userId;
       if (!userId) throw new Error("Missing userId");
@@ -232,7 +261,10 @@ const NotificationScreen = () => {
       const updatedRequests = group.requests.filter(r => r.id !== requestId);
       await supabase.from('groups').update({ requests: updatedRequests }).eq('id', group.id);
 
-      // 2. Remove the notification from the creator's notifications
+      // 2. Clear requestedGroupId from requester
+      await supabase.from('profiles').update({ requestedgroupid: null }).eq('id', userId);
+
+      // 3. Remove the notification from the creator's notifications
       const { data: creatorProfile } = await supabase
         .from('profiles')
         .select('notifications')
@@ -242,7 +274,7 @@ const NotificationScreen = () => {
       const updatedCreatorNotifs = (creatorProfile.notifications || []).filter(n => n.id !== id);
       await supabase.from('profiles').update({ notifications: updatedCreatorNotifs }).eq('id', creatorId);
 
-      // 3. Add a rejection notification to the requester
+      // 4. Add a rejection notification to the requester
       const { data: requesterProfile } = await supabase
         .from('profiles')
         .select('notifications')
@@ -261,7 +293,7 @@ const NotificationScreen = () => {
       const updatedRequesterNotifs = [...(requesterProfile.notifications || []), declineNotif];
       await supabase.from('profiles').update({ notifications: updatedRequesterNotifs }).eq('id', userId);
 
-      // 4. Refresh notifications in UI
+      // 5. Refresh notifications in UI
       fetchNotifications();
     } catch (error) {
       console.error('Decline error:', error);

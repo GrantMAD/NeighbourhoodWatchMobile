@@ -140,6 +140,16 @@ const JoinGroupScreen = () => {
       .update({ notifications: updatedNotifications })
       .eq('id', group.created_by);
 
+    // Update requesting user's profile with requestedGroupId
+    const { error: updateRequesterError } = await supabase
+      .from('profiles')
+      .update({ requestedgroupid: selectedGroupId })
+      .eq('id', userId);
+
+    if (updateRequesterError) {
+      console.error('Failed to update requestedGroupId in profile:', updateRequesterError);
+    }
+
     setLoading(false);
 
     if (notifyError) {

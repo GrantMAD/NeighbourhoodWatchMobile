@@ -22,6 +22,7 @@ import AboutScreen from "../screens/AboutScreen";
 import MembersScreen from "../screens/MembersScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import EventsScreen from "../screens/EventsScreen";
+import NoGroupScreen from "../screens/NoGroupScreen";
 import NewsScreen from "../screens/NewsScreen";
 import { supabase } from "../../lib/supabase";
 
@@ -269,6 +270,32 @@ const MainAppScreen = ({ route, navigation }) => {
       </View>
     ),
   });
+
+  if (!groupId) {
+    return (
+      <Drawer.Navigator
+        screenOptions={({ navigation }) => ({
+          ...screenOptionsWithDrawerButton({ navigation }),
+          drawerActiveTintColor: "#22d3ee",
+          drawerInactiveTintColor: "#fff",
+          drawerStyle: { backgroundColor: "#1f2937" },
+          drawerLabelStyle: { fontWeight: "600" },
+        })}
+        drawerContent={(props) => <CustomDrawerContent {...props} />}
+      >
+        <Drawer.Screen
+          name="NoGroupScreen"
+          component={NoGroupScreen}
+          options={{
+            title: "NoGroupScreen",
+            drawerIcon: ({ color, size }) => (
+              <FontAwesome5 name="exclamation-circle" size={size} color={color} />
+            ),
+          }}
+        />
+      </Drawer.Navigator>
+    );
+  }
 
   return (
     <Drawer.Navigator

@@ -39,7 +39,7 @@ export default function SignInScreen({ navigation }) {
 
       const user = authData?.user;
       if (!user) {
-        navigation.replace('GroupAccess');
+        navigation.replace('NoGroupScreen');
         return;
       }
 
@@ -50,7 +50,7 @@ export default function SignInScreen({ navigation }) {
         .single();
 
       if (profileError || !profile || !profile.group_id) {
-        navigation.replace('GroupAccess');
+        navigation.replace('NoGroupScreen');
         return;
       }
 

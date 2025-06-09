@@ -12,6 +12,7 @@ import AddNewsScreen from './src/screens/AddNewsScreen'
 import NewsScreen from './src/screens/NewsScreen'
 import NotificationScreen from './src/screens/NotificationScreen'
 import WaitingStatusScreen from './src/screens/WaitingStatusScreen'
+import NoGroupScreen from './src/screens/NoGroupScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -41,6 +42,11 @@ export default function App() {
         <Stack.Screen
           name="Welcome"
           component={WelcomeScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="NoGroupScreen"
+          component={NoGroupScreen}
           options={{ headerShown: false }}
         />
         {/* Auth screens */}
