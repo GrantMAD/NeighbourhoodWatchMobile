@@ -33,37 +33,43 @@ function CustomDrawerContent(props) {
   const [userName, setUserName] = useState("Loading...");
   const [userEmail, setUserEmail] = useState("Loading...");
   const placeholderImage = "https://www.gravatar.com/avatar/?d=mp&s=64";
+  const [avatarUrl, setAvatarUrl] = useState(placeholderImage);
 
-  useEffect(() => {
-    async function fetchUserData() {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+  useFocusEffect(
+    useCallback(() => {
+      async function fetchUserData() {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-      if (userError || !user) {
-        setUserName("No user found");
-        setUserEmail("");
-        return;
+        if (userError || !user) {
+          setUserName("No user found");
+          setUserEmail("");
+          setAvatarUrl(placeholderImage);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("name, email, avatar_url")
+          .eq("id", user.id)
+          .single();
+
+        if (error || !data) {
+          setUserName("Name not found");
+          setUserEmail("Email not found");
+          setAvatarUrl(placeholderImage);
+        } else {
+          setUserName(data.name || "User");
+          setUserEmail(data.email || "");
+          setAvatarUrl(data.avatar_url ? `${data.avatar_url}?t=${Date.now()}` : placeholderImage);
+        }
       }
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("name, email")
-        .eq("id", user.id)
-        .single();
-
-      if (error) {
-        setUserName("Name not found");
-        setUserEmail("Email not found");
-      } else {
-        setUserName(data.name || "User");
-        setUserEmail(data.email || "");
-      }
-    }
-
-    fetchUserData();
-  }, []);
+      fetchUserData();
+    }, [])
+  );
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -78,15 +84,12 @@ function CustomDrawerContent(props) {
     <DrawerContentScrollView {...props} style={{ backgroundColor: "#1f2937" }}>
       <View style={styles.profileContainer}>
         <View style={styles.profileInfo}>
-          <Image source={{ uri: placeholderImage }} style={styles.profileImage} />
+          <Image source={{ uri: avatarUrl }} style={styles.profileImage} />
           <View>
             <Text style={styles.welcomeText}>Welcome {userName}</Text>
             <Text style={styles.emailText}>{userEmail}</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
-          <FontAwesome5 name="cog" size={20} color="#f9fafb" />
-        </TouchableOpacity>
       </View>
 
       <DrawerItemList {...props} />
@@ -108,7 +111,6 @@ function CustomDrawerContent(props) {
     </DrawerContentScrollView>
   );
 }
-
 
 const NotificationDropdown = ({ notifications, onClose, onNavigate }) => {
   return (

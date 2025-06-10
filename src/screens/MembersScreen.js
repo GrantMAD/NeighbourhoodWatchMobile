@@ -12,7 +12,7 @@ import {
 import { supabase } from '../../lib/supabase'; // Adjust path if needed
 
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faChevronUp, faEnvelope, faPhone, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
 
 const defaultAvatar = require('../../assets/Images/user.png'); // Your default image
 
@@ -49,7 +49,7 @@ const MembersScreen = ({ route }) => {
     // Step 2: Fetch profiles for users in the array
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, name, email, avatar_url')
+      .select('id, name, email, avatar_url, number, street')
       .in('id', userIds);
 
     if (profilesError) {
@@ -114,9 +114,21 @@ const MembersScreen = ({ route }) => {
 
         {isExpanded && (
           <View style={styles.dropdown}>
-            <Text style={styles.detailLabel}>Email:</Text>
-            <Text style={styles.detailText}>{item.email}</Text>
-            {/* Add more details here if needed */}
+            <View style={styles.detailRow}>
+              <FontAwesomeIcon icon={faEnvelope} size={16} color="#555" style={styles.icon} />
+              <Text style={styles.detailLabel}>Email:</Text>
+              <Text style={styles.detailText}>{item.email || '-'}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <FontAwesomeIcon icon={faPhone} size={16} color="#555" style={styles.icon} />
+              <Text style={styles.detailLabel}>Contact Number:</Text>
+              <Text style={styles.detailText}>{item.number || '-'}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <FontAwesomeIcon icon={faMapMarkerAlt} size={16} color="#555" style={styles.icon} />
+              <Text style={styles.detailLabel}>Street:</Text>
+              <Text style={styles.detailText}>{item.street || '-'}</Text>
+            </View>
           </View>
         )}
       </TouchableOpacity>
@@ -166,14 +178,14 @@ const styles = StyleSheet.create({
   memberCard: {
     borderRadius: 8,
     marginVertical: 6,
-    backgroundColor: '#333', // darker background for main row + dropdown bg is lighter below
+    backgroundColor: '#333', 
     overflow: 'hidden',
   },
   mainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#333',
+    backgroundColor: '#1f2937',
   },
   avatar: {
     width: 40,
@@ -187,18 +199,37 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-  dropdown: {
-    backgroundColor: '#e0e0e0',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
   detailLabel: {
     fontWeight: '700',
     marginBottom: 4,
   },
-  detailText: {
-    fontSize: 14,
+  dropdown: {
+    backgroundColor: '#f9f9f9',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#ccc',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  icon: {
+    marginRight: 8,
+    width: 20,
+    textAlign: 'center',
+  },
+  detailLabel: {
+    fontWeight: '600',
+    marginRight: 6,
     color: '#333',
+    width: 120,
+  },
+  detailText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
   },
 });
 

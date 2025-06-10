@@ -8,7 +8,6 @@ import { Buffer } from 'buffer';
 import { supabase } from '../../lib/supabase';
 
 const CreateGroupScreen = ({ navigation }) => {
-    // Your existing state declarations...
     const [groupName, setGroupName] = useState('');
     const [welcomeText, setWelcomeText] = useState('');
     const [vision, setVision] = useState('');
@@ -144,9 +143,10 @@ const CreateGroupScreen = ({ navigation }) => {
                 executives: JSON.stringify(executivesWithUrls),
                 contact_email: contactEmail,
                 created_by: user.id,
+                users: [user.id],  // <-- Add creator user ID here on insert to avoid extra update!
             };
 
-            // Insert group
+            // Insert group with creator as first user
             const { data: insertData, error: insertError } = await supabase
                 .from('groups')
                 .insert([groupPayload])
@@ -165,7 +165,7 @@ const CreateGroupScreen = ({ navigation }) => {
                 return;
             }
 
-            // Update user profile
+            // Update user profile with new group id and creator flag
             const { error: profileError } = await supabase
                 .from('profiles')
                 .update({

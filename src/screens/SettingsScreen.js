@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 
-function SettingsScreen({ route }) {
+function SettingsScreen({ route, navigation }) {
   const { groupId } = route.params;
 
   const handleOptionPress = (optionName) => {
@@ -15,31 +15,24 @@ function SettingsScreen({ route }) {
       <Text style={styles.sectionHeader}>Account</Text>
       <TouchableOpacity
         style={styles.option}
-        onPress={() => handleOptionPress("Profile")}
+        onPress={() => navigation.navigate("ProfileScreen")}  // navigate to ProfileScreen
       >
         <Text style={styles.optionText}>Profile</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.option}
-        onPress={() => handleOptionPress("Change Password")}
+        onPress={() => navigation.navigate("ChangePasswordScreen")}
       >
         <Text style={styles.optionText}>Change Password</Text>
       </TouchableOpacity>
 
-      <Text style={styles.sectionHeader}>Notifications</Text>
+      <Text style={styles.sectionHeader}>Group Settings</Text>
       <TouchableOpacity
         style={styles.option}
-        onPress={() => handleOptionPress("Push Notifications")}
+        onPress={() => navigation.navigate("GroupDataScreen")}
       >
-        <Text style={styles.optionText}>Push Notifications</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.option}
-        onPress={() => handleOptionPress("Email Notifications")}
-      >
-        <Text style={styles.optionText}>Email Notifications</Text>
+        <Text style={styles.optionText}>Group Data</Text>
       </TouchableOpacity>
 
       <Text style={styles.footerText}>Group ID: {groupId}</Text>

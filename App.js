@@ -13,6 +13,9 @@ import NewsScreen from './src/screens/NewsScreen'
 import NotificationScreen from './src/screens/NotificationScreen'
 import WaitingStatusScreen from './src/screens/WaitingStatusScreen'
 import NoGroupScreen from './src/screens/NoGroupScreen'
+import ProfileScreen from './src/screens/ProfileScreen'
+import ChangePasswordScreen from './src/screens/ChangePasswordScreen'
+import GroupDataScreen from './src/screens/GroupDataScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -98,6 +101,21 @@ export default function App() {
           name="WaitingStatusScreen"
           component={WaitingStatusScreen}
           options={{ title: "Pending Requests" }}
+        />
+        <Stack.Screen
+          name="ProfileScreen"
+          component={ProfileScreen}
+          options={{ title: "Profile" }}
+        />
+        <Stack.Screen
+          name="ChangePasswordScreen"
+          component={ChangePasswordScreen}
+          options={{ title: "Change Password" }}
+        />
+        <Stack.Screen
+          name="GroupDataScreen"
+          component={GroupDataScreen}
+          options={{ title: "Group Data" }}
         />
       </Stack.Navigator>
     </NavigationContainer>
