@@ -16,6 +16,7 @@ import NoGroupScreen from './src/screens/NoGroupScreen'
 import ProfileScreen from './src/screens/ProfileScreen'
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen'
 import GroupDataScreen from './src/screens/GroupDataScreen'
+import AddReportScreen from './src/screens/AddReportScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -86,6 +87,11 @@ export default function App() {
           name="AddNewsScreen"
           component={AddNewsScreen}
           options={{ title: "Add News" }}
+        />
+        <Stack.Screen
+          name="AddReportScreen"
+          component={AddReportScreen}
+          options={{ title: "Add Report" }}
         />
         <Stack.Screen
           name="NewsScreen"

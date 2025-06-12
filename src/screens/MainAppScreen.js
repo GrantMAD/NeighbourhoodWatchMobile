@@ -25,6 +25,7 @@ import EventsScreen from "../screens/EventsScreen";
 import NoGroupScreen from "../screens/NoGroupScreen";
 import NewsScreen from "../screens/NewsScreen";
 import { supabase } from "../../lib/supabase";
+import IncidentsScreen from "../screens/IncidentsScreen";
 
 const Drawer = createDrawerNavigator();
 
@@ -379,6 +380,21 @@ const MainAppScreen = ({ route, navigation }) => {
           drawerIcon: ({ color, size, focused }) => (
             <FontAwesome5
               name="info-circle"
+              size={size}
+              color={focused ? "#22d3ee" : "#fff"}
+            />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="Incidents"
+        component={IncidentsScreen}
+        initialParams={{ groupId }}
+        options={{
+          title: "Incidents",
+          drawerIcon: ({ color, size, focused }) => (
+            <FontAwesome5
+              name="exclamation-triangle"
               size={size}
               color={focused ? "#22d3ee" : "#fff"}
             />
