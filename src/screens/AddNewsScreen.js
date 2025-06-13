@@ -128,6 +128,7 @@ export default function AddNewsScreen({ navigation, route }) {
         content: content.trim(),
         image: imageUrl,
         date: new Date().toISOString(),
+        views: 0,  // <-- add this field here
       });
 
       const { error: updateError } = await supabase

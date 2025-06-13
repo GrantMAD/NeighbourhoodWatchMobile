@@ -12,7 +12,7 @@ import {
 import { supabase } from '../../lib/supabase'; // Adjust path if needed
 
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faChevronDown, faChevronUp, faEnvelope, faPhone, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faChevronUp, faPhone, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
 
 const defaultAvatar = require('../../assets/Images/user.png'); // Your default image
 
@@ -49,7 +49,7 @@ const MembersScreen = ({ route }) => {
     // Step 2: Fetch profiles for users in the array
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, name, email, avatar_url, number, street')
+      .select('id, name, email, avatar_url, number, street, emergency_contact')
       .in('id', userIds);
 
     if (profilesError) {
@@ -103,26 +103,29 @@ const MembersScreen = ({ route }) => {
             source={item.avatar_url ? { uri: item.avatar_url } : defaultAvatar}
             style={styles.avatar}
           />
-          <Text style={styles.name}>{item.name || 'No Name'}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name}>{item.name || 'No Name'}</Text>
+            <Text style={styles.email}>{item.email || '-'}</Text>
+          </View>
           <FontAwesomeIcon
             icon={isExpanded ? faChevronUp : faChevronDown}
             size={18}
             color="#fff"
-            style={{ marginLeft: 'auto' }}
           />
         </View>
 
         {isExpanded && (
           <View style={styles.dropdown}>
-            <View style={styles.detailRow}>
-              <FontAwesomeIcon icon={faEnvelope} size={16} color="#555" style={styles.icon} />
-              <Text style={styles.detailLabel}>Email:</Text>
-              <Text style={styles.detailText}>{item.email || '-'}</Text>
-            </View>
+            <Text style={styles.dropdownHeading}>User Information</Text>
             <View style={styles.detailRow}>
               <FontAwesomeIcon icon={faPhone} size={16} color="#555" style={styles.icon} />
               <Text style={styles.detailLabel}>Contact Number:</Text>
               <Text style={styles.detailText}>{item.number || '-'}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <FontAwesomeIcon icon={faPhone} size={16} color="#555" style={styles.icon} />
+              <Text style={styles.detailLabel}>Emergency Contact:</Text>
+              <Text style={styles.detailText}>{item.emergency_contact ? item.emergency_contact : '-'}</Text>
             </View>
             <View style={styles.detailRow}>
               <FontAwesomeIcon icon={faMapMarkerAlt} size={16} color="#555" style={styles.icon} />
@@ -178,7 +181,7 @@ const styles = StyleSheet.create({
   memberCard: {
     borderRadius: 8,
     marginVertical: 6,
-    backgroundColor: '#333', 
+    backgroundColor: '#333',
     overflow: 'hidden',
   },
   mainRow: {
@@ -230,6 +233,18 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#666',
+  },
+  email: {
+    fontSize: 12,
+    color: '#ccc',
+    marginTop: 2,
+  },
+  dropdownHeading: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: '#333',
+    textDecorationLine: 'underline',
   },
 });
 

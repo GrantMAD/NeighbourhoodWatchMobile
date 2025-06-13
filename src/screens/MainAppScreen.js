@@ -26,6 +26,7 @@ import NoGroupScreen from "../screens/NoGroupScreen";
 import NewsScreen from "../screens/NewsScreen";
 import { supabase } from "../../lib/supabase";
 import IncidentsScreen from "../screens/IncidentsScreen";
+import ContactScreen from "../screens/ContactScreen";
 
 const Drawer = createDrawerNavigator();
 
@@ -307,7 +308,9 @@ const MainAppScreen = ({ route, navigation }) => {
         drawerActiveTintColor: "#22d3ee",
         drawerInactiveTintColor: "#fff",
         drawerStyle: { backgroundColor: "#1f2937" },
-        drawerLabelStyle: { fontWeight: "600" },
+        drawerLabelStyle: { 
+          fontWeight: "600",  
+        },
       })}
       drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
@@ -402,6 +405,21 @@ const MainAppScreen = ({ route, navigation }) => {
         }}
       />
       <Drawer.Screen
+        name="ContactScreen"
+        component={ContactScreen}
+        initialParams={{ groupId }}
+        options={{
+          title: "Contact",
+          drawerIcon: ({ color, size, focused }) => (
+            <FontAwesome5
+              name="envelope"
+              size={size}
+              color={focused ? "#22d3ee" : "#fff"}
+            />
+          ),
+        }}
+      />
+      <Drawer.Screen
         name="Settings"
         component={SettingsScreen}
         initialParams={{ groupId }}
@@ -440,6 +458,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     marginRight: 15,
+    borderColor: "#22d3ee",
+    borderWidth: 1,
   },
   welcomeText: {
     color: "#f9fafb",

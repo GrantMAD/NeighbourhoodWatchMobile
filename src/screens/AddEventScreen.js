@@ -23,7 +23,7 @@ const AddEventScreen = ({ route, navigation }) => {
   const [message, setMessage] = useState('');
   const [imageUri, setImageUri] = useState('');
   const [uploading, setUploading] = useState(false);
-
+  const [location, setLocation] = useState('');
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [markedDates, setMarkedDates] = useState({});
@@ -149,7 +149,7 @@ const AddEventScreen = ({ route, navigation }) => {
   };
 
   const handleAddEvent = async () => {
-    if (!title || !message || !startDate || !endDate) {
+    if (!title || !message || !startDate || !endDate || !location) {
       Alert.alert('Missing info', 'Please fill in all required fields.');
       return;
     }
@@ -167,6 +167,7 @@ const AddEventScreen = ({ route, navigation }) => {
       image: imageUrl,
       startDate,
       endDate,
+      location,
     };
 
     try {
@@ -232,7 +233,13 @@ const AddEventScreen = ({ route, navigation }) => {
           numberOfLines={4}
           textAlignVertical="top"
         />
-
+        <Text style={styles.label}>Location *</Text>
+        <TextInput
+          style={styles.input}
+          value={location}
+          onChangeText={setLocation}
+          placeholder="Enter location of the event"
+        />
         <Text style={styles.label}>Image</Text>
         <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
           {imageUri ? (

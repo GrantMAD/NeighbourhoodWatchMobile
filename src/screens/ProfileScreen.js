@@ -22,6 +22,7 @@ function ProfileScreen() {
         number: "",
         street: "",
         avatar_url: "",
+        emergency_contact: "",
     });
     const [uploading, setUploading] = useState(false);
     const [avatarLocalUri, setAvatarLocalUri] = useState(null);
@@ -35,7 +36,7 @@ function ProfileScreen() {
 
         try {
             const url = new URL(avatarUrl);
-            const path = url.pathname; // e.g., /storage/v1/object/public/group-assets/userData/...
+            const path = url.pathname; 
             const prefix = "/storage/v1/object/public/group-assets/";
             if (!path.startsWith(prefix)) return; // safety check
             const filePath = path.slice(prefix.length);
@@ -62,7 +63,7 @@ function ProfileScreen() {
 
             const { data, error } = await supabase
                 .from("profiles")
-                .select("name, number, street, avatar_url")
+                .select("name, number, street, avatar_url, emergency_contact")
                 .eq("id", user.id)
                 .single();
 
@@ -225,6 +226,12 @@ function ProfileScreen() {
                 keyboardType="phone-pad"
                 value={profile.number}
                 onChangeText={(text) => setProfile({ ...profile, number: text })}
+            />
+            <TextInput
+                style={styles.input}
+                placeholder="Emergency Contact"
+                value={profile.emergency_contact}
+                onChangeText={(text) => setProfile({ ...profile, emergency_contact: text })}
             />
             <TextInput
                 style={styles.input}

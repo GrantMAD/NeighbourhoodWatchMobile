@@ -101,9 +101,6 @@ const IncidentScreen = ({ navigation, route }) => {
                         Sort: {sortOrder === "newest" ? "Newest First" : "Oldest First"}
                     </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
-                    <Text style={styles.exportButtonText}>📤 Export</Text>
-                </TouchableOpacity>
             </View>
 
             {loading && <Text style={styles.loadingText}>Loading reports...</Text>}
@@ -235,17 +232,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "500",
     },
-    exportButton: {
-        backgroundColor: "#10b981",
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-    },
-    exportButtonText: {
-        color: "#fff",
-        fontSize: 14,
-        fontWeight: "600",
-    },
     loadingText: {
         textAlign: "center",
         color: "#6b7280",
@@ -274,12 +260,12 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         gap: 8,
-        backgroundColor: "#1f2937",  // dark background
+        backgroundColor: "#1f2937",  
         paddingVertical: 12,
         paddingHorizontal: 16,
         borderTopLeftRadius: 12,
         borderTopRightRadius: 12,
-        borderBottomLeftRadius: 12,   // default rounded bottom corners
+        borderBottomLeftRadius: 12,   
         borderBottomRightRadius: 12,
     },
 
@@ -289,17 +275,17 @@ const styles = StyleSheet.create({
     },
     cardArrow: {
         fontSize: 16,
-        color: "#d1d5db", // lighter gray for arrow on dark bg
+        color: "#d1d5db", 
         fontWeight: "bold",
     },
     cardTitle: {
         fontSize: 16,
         fontWeight: "700",
-        color: "#f9fafb", // almost white
+        color: "#f9fafb", 
     },
     cardSubtitle: {
         fontSize: 12,
-        color: "#9ca3af", // lighter gray
+        color: "#9ca3af", 
     },
     severityTag: {
         paddingHorizontal: 8,
