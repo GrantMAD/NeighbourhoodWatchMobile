@@ -9,23 +9,23 @@ import {
   TouchableOpacity,
 } from 'react-native';
 
-import { supabase } from '../../lib/supabase'; // Adjust path if needed
-
+import { supabase } from '../../lib/supabase';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faChevronDown, faChevronUp, faPhone, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
 
-const defaultAvatar = require('../../assets/Images/user.png'); // Your default image
+const defaultAvatar = require('../../assets/Images/user.png');
 
 const MembersScreen = ({ route }) => {
   const { groupId } = route.params;
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedMemberIds, setExpandedMemberIds] = useState([]);
+  const [checkInExpanded, setCheckInExpanded] = useState({});
+  const [checkOutExpanded, setCheckOutExpanded] = useState({});
 
   const fetchGroupMembers = async () => {
     setLoading(true);
 
-    // Step 1: Get users array from groups table
     const { data: groupData, error: groupError } = await supabase
       .from('groups')
       .select('users')
@@ -46,10 +46,9 @@ const MembersScreen = ({ route }) => {
       return;
     }
 
-    // Step 2: Fetch profiles for users in the array
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, name, email, avatar_url, number, street, emergency_contact')
+      .select('id, name, email, avatar_url, number, street, emergency_contact, check_in_time, check_out_time')
       .in('id', userIds);
 
     if (profilesError) {
@@ -72,25 +71,44 @@ const MembersScreen = ({ route }) => {
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
-        <Text>Loading members...</Text>
-      </View>
-    );
-  }
+  const toggleCheckIn = (id) => {
+    setCheckInExpanded((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
-  if (members.length === 0) {
-    return (
-      <View style={styles.centered}>
-        <Text>No members found.</Text>
-      </View>
-    );
-  }
+  const toggleCheckOut = (id) => {
+    setCheckOutExpanded((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const groupByDayWithDate = (timestamps) => {
+    if (!Array.isArray(timestamps)) return {};
+
+    return timestamps.reduce((acc, ts) => {
+      const date = new Date(ts);
+      const day = date.toLocaleDateString('en-US', { weekday: 'long' });
+      const fullDate = date.toLocaleDateString('en-ZA', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+      const key = `${day} - ${fullDate}`;
+      const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(formattedTime);
+      return acc;
+    }, {});
+  };
 
   const renderItem = ({ item }) => {
     const isExpanded = expandedMemberIds.includes(item.id);
+    const isCheckInOpen = checkInExpanded[item.id];
+    const isCheckOutOpen = checkOutExpanded[item.id];
 
     return (
       <TouchableOpacity
@@ -125,13 +143,59 @@ const MembersScreen = ({ route }) => {
             <View style={styles.detailRow}>
               <FontAwesomeIcon icon={faPhone} size={16} color="#555" style={styles.icon} />
               <Text style={styles.detailLabel}>Emergency Contact:</Text>
-              <Text style={styles.detailText}>{item.emergency_contact ? item.emergency_contact : '-'}</Text>
+              <Text style={styles.detailText}>{item.emergency_contact || '-'}</Text>
             </View>
             <View style={styles.detailRow}>
               <FontAwesomeIcon icon={faMapMarkerAlt} size={16} color="#555" style={styles.icon} />
               <Text style={styles.detailLabel}>Street:</Text>
               <Text style={styles.detailText}>{item.street || '-'}</Text>
             </View>
+
+            <TouchableOpacity onPress={() => toggleCheckIn(item.id)} style={styles.toggleHeader}>
+              <Text style={styles.dropdownSubHeading}>Check-in Times</Text>
+              <FontAwesomeIcon icon={isCheckInOpen ? faChevronUp : faChevronDown} />
+            </TouchableOpacity>
+            {isCheckInOpen && (
+              <View style={{ marginLeft: 10, marginBottom: 10 }}>
+                {(Array.isArray(item.check_in_time) && item.check_in_time.length > 0) ? (
+                  Object.entries(groupByDayWithDate(item.check_in_time)).map(([dayKey, times]) => (
+                    <View key={dayKey} style={{ marginBottom: 6 }}>
+                      <Text style={{ fontWeight: '700', color: '#555' }}>{dayKey}</Text>
+                      {times.map((time, idx) => (
+                        <Text key={idx} style={{ color: '#666', marginLeft: 10 }}>
+                          • {time}
+                        </Text>
+                      ))}
+                    </View>
+                  ))
+                ) : (
+                  <Text style={{ color: '#999' }}>No check-ins</Text>
+                )}
+              </View>
+            )}
+
+            <TouchableOpacity onPress={() => toggleCheckOut(item.id)} style={styles.toggleHeader}>
+              <Text style={styles.dropdownSubHeading}>Check-out Times</Text>
+              <FontAwesomeIcon icon={isCheckOutOpen ? faChevronUp : faChevronDown} />
+            </TouchableOpacity>
+            {isCheckOutOpen && (
+              <View style={{ marginLeft: 10 }}>
+                {(Array.isArray(item.check_out_time) && item.check_out_time.length > 0) ? (
+                  Object.entries(groupByDayWithDate(item.check_out_time)).map(([dayKey, times]) => (
+                    <View key={dayKey} style={{ marginBottom: 6 }}>
+                      <Text style={{ fontWeight: '700', color: '#555' }}>{dayKey}</Text>
+                      {times.map((time, idx) => (
+                        <Text key={idx} style={{ color: '#666', marginLeft: 10 }}>
+                          • {time}
+                        </Text>
+                      ))}
+                    </View>
+                  ))
+                ) : (
+                  <Text style={{ color: '#999' }}>No check-outs</Text>
+                )}
+              </View>
+            )}
           </View>
         )}
       </TouchableOpacity>
@@ -141,9 +205,7 @@ const MembersScreen = ({ route }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Members</Text>
-      <Text style={styles.description}>
-        Here you can see all the members of this group.
-      </Text>
+      <Text style={styles.description}>Here you can see all the members of this group.</Text>
 
       <FlatList
         data={members}
@@ -156,11 +218,6 @@ const MembersScreen = ({ route }) => {
 };
 
 const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   container: {
     flex: 1,
     padding: 16,
@@ -202,9 +259,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-  detailLabel: {
-    fontWeight: '700',
-    marginBottom: 4,
+  email: {
+    fontSize: 12,
+    color: '#ccc',
+    marginTop: 2,
   },
   dropdown: {
     backgroundColor: '#f9f9f9',
@@ -212,6 +270,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderTopWidth: 1,
     borderTopColor: '#ccc',
+  },
+  dropdownHeading: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: '#333',
+    textDecorationLine: 'underline',
+  },
+  dropdownSubHeading: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#444',
+    marginRight: 6,
+  },
+  toggleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 6,
+    paddingVertical: 4,
   },
   detailRow: {
     flexDirection: 'row',
@@ -233,18 +312,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#666',
-  },
-  email: {
-    fontSize: 12,
-    color: '#ccc',
-    marginTop: 2,
-  },
-  dropdownHeading: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 12,
-    color: '#333',
-    textDecorationLine: 'underline',
   },
 });
 

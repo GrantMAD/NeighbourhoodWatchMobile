@@ -27,6 +27,7 @@ import NewsScreen from "../screens/NewsScreen";
 import { supabase } from "../../lib/supabase";
 import IncidentsScreen from "../screens/IncidentsScreen";
 import ContactScreen from "../screens/ContactScreen";
+import CheckedInScreen from "../screens/CheckedInScreen";
 
 const Drawer = createDrawerNavigator();
 
@@ -162,8 +163,9 @@ const MainAppScreen = ({ route, navigation }) => {
   const [notifications, setNotifications] = useState([]);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [hasNotifications, setHasNotifications] = useState(false);
+  const [checkedIn, setCheckedIn] = useState(false);
+  const [checkedInCount, setCheckedInCount] = useState(0);
 
-  // Fetch notifications and subscribe to updates
   useFocusEffect(
     useCallback(() => {
       let subscription = null;
@@ -181,7 +183,7 @@ const MainAppScreen = ({ route, navigation }) => {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("notifications")
+          .select("notifications, checked_in")
           .eq("id", userId)
           .single();
 
@@ -193,6 +195,7 @@ const MainAppScreen = ({ route, navigation }) => {
         const notifs = data.notifications ?? [];
         setNotifications(notifs);
         setHasNotifications(notifs.some((n) => !n.read));
+        setCheckedIn(data.checked_in ?? false);
 
         subscription = supabase
           .channel("notifications-channel")
@@ -208,6 +211,7 @@ const MainAppScreen = ({ route, navigation }) => {
               const updatedNotifs = payload.new.notifications ?? [];
               setNotifications(updatedNotifs);
               setHasNotifications(updatedNotifs.some((n) => !n.read));
+              setCheckedIn(payload.new.checked_in ?? false);
             }
           )
           .subscribe();
@@ -222,6 +226,27 @@ const MainAppScreen = ({ route, navigation }) => {
       };
     }, [])
   );
+
+  useFocusEffect(
+    useCallback(() => {
+      async function fetchCheckedInCount() {
+        const { count, error } = await supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("checked_in", true);
+
+        if (!error) {
+          setCheckedInCount(count ?? 0);
+        } else {
+          
+          console.error("Error fetching checked-in count:", error);
+        }
+      }
+
+      fetchCheckedInCount();
+    }, [])
+  );
+
 
   const screenOptionsWithDrawerButton = ({ navigation }) => ({
     headerShown: true,
@@ -241,7 +266,69 @@ const MainAppScreen = ({ route, navigation }) => {
       </TouchableOpacity>
     ),
     headerRight: () => (
-      <View style={{ marginRight: 15 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", marginRight: 15 }}>
+        {/* Check In/Out Button */}
+        <TouchableOpacity
+          onPress={async () => {
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Get current checked_in status
+            const { data, error } = await supabase
+              .from("profiles")
+              .select("checked_in")
+              .eq("id", user.id)
+              .single();
+
+            if (error || !data) {
+              Alert.alert("Error", "Unable to fetch current check-in status.");
+              return;
+            }
+
+            const newCheckedIn = !data.checked_in;
+            const timestampField = newCheckedIn ? "check_in_time" : "check_out_time";
+
+            // First update checked_in status
+            const { error: updateStatusError } = await supabase
+              .from("profiles")
+              .update({ checked_in: newCheckedIn })
+              .eq("id", user.id);
+
+            if (updateStatusError) {
+              Alert.alert("Error", "Failed to update check-in status.");
+              return;
+            }
+
+            // Then append timestamp to appropriate array field using RPC
+            const { error: appendError } = await supabase.rpc("append_check_time", {
+              field_name: timestampField,
+              user_id: user.id,
+            });
+
+            if (appendError) {
+              Alert.alert("Error", "Failed to update check-in/check-out time.");
+              return;
+            }
+
+            setCheckedIn(newCheckedIn);
+          }}
+          style={{
+            marginRight: 20,
+            backgroundColor: checkedIn ? "#ef4444" : "#22c55e",
+            paddingVertical: 6,
+            paddingHorizontal: 12,
+            borderRadius: 6,
+            marginLeft: 15,
+          }}
+        >
+          <Text style={{ color: "#f9fafb", fontWeight: "bold" }}>
+            {checkedIn ? "Check Out" : "Check In"}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Notification Bell */}
         <TouchableOpacity onPress={() => setDropdownVisible(!dropdownVisible)}>
           <View>
             <FontAwesome5 name="bell" size={20} color="#f9fafb" />
@@ -308,8 +395,8 @@ const MainAppScreen = ({ route, navigation }) => {
         drawerActiveTintColor: "#22d3ee",
         drawerInactiveTintColor: "#fff",
         drawerStyle: { backgroundColor: "#1f2937" },
-        drawerLabelStyle: { 
-          fontWeight: "600",  
+        drawerLabelStyle: {
+          fontWeight: "600",
         },
       })}
       drawerContent={(props) => <CustomDrawerContent {...props} />}
@@ -323,6 +410,30 @@ const MainAppScreen = ({ route, navigation }) => {
           drawerIcon: ({ color, size, focused }) => (
             <FontAwesome5
               name="home"
+              size={size}
+              color={focused ? "#22d3ee" : "#fff"}
+            />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="CheckedIn"
+        component={CheckedInScreen}
+        initialParams={{ groupId }}
+        options={{
+          drawerLabel: ({ focused }) => (
+            <Text
+              style={{
+                color: focused ? "#22d3ee" : "#fff",
+                fontWeight: "600",
+              }}
+            >
+              {`Checked In (${checkedInCount})`}
+            </Text>
+          ),
+          drawerIcon: ({ size, focused }) => (
+            <FontAwesome5
+              name="check-circle"
               size={size}
               color={focused ? "#22d3ee" : "#fff"}
             />
