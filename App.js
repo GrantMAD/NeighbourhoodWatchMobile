@@ -17,6 +17,7 @@ import ProfileScreen from './src/screens/ProfileScreen'
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen'
 import GroupDataScreen from './src/screens/GroupDataScreen'
 import AddReportScreen from './src/screens/AddReportScreen'
+import SessionLoaderScreen from './src/screens/SessionLoaderScreen';
 
 const Stack = createNativeStackNavigator()
 
@@ -24,7 +25,7 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Welcome"
+        initialRouteName="SessionLoader"
         screenOptions={{
           headerStyle: {
             backgroundColor: '#374151',
@@ -42,6 +43,12 @@ export default function App() {
           },
         }}
       >
+        {/* Session check screen */}
+        <Stack.Screen
+          name="SessionLoader"
+          component={SessionLoaderScreen}
+          options={{ headerShown: false }}
+        />
         {/* Welcome screen */}
         <Stack.Screen
           name="Welcome"

@@ -116,6 +116,17 @@ function CustomDrawerContent(props) {
 }
 
 const NotificationDropdown = ({ notifications, onClose, onNavigate }) => {
+  const getTypeIconName = (type) => {
+    switch (type) {
+      case "join_request":
+        return "users"; // group icon
+      case "check_status":
+        return "info-circle"; // info icon
+      default:
+        return "bell"; // fallback
+    }
+  };
+
   return (
     <TouchableWithoutFeedback onPress={onClose}>
       <View style={styles.dropdownOverlay}>
@@ -132,17 +143,42 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate }) => {
               renderItem={({ item }) => (
                 <TouchableOpacity
                   onPress={() => {
-                    onClose(); // Close dropdown
-                    onNavigate(); // Navigate to full screen
+                    onClose();
+                    onNavigate();
                   }}
                 >
                   <View style={styles.notificationItem}>
-                    <Text style={styles.notificationUserId}>
-                      {item.type === "join_request" ? "Group Join request" : item.id ?? "Unknown User"}
-                    </Text>
-                    <Text style={styles.notificationText}>
-                      {item.message || "No message"}
-                    </Text>
+                    <View style={{ flex: 1 }}>
+                      {/* Type row: icon + type label inline */}
+                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+                        <FontAwesome5
+                          name={getTypeIconName(item.type)}
+                          size={14}
+                          color="white"
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text style={styles.notificationUserId}>
+                          {item.type === "join_request"
+                            ? "Group Join Request"
+                            : item.type === "check_status"
+                              ? "Status Update"
+                              : "Notification"}
+                        </Text>
+                      </View>
+
+                      {/* Message row: envelope + message */}
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <FontAwesome5
+                          name="envelope"
+                          size={13}
+                          color="gray"
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text style={styles.notificationText}>
+                          {item.message || "No message"}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
                 </TouchableOpacity>
               )}
@@ -238,7 +274,7 @@ const MainAppScreen = ({ route, navigation }) => {
         if (!error) {
           setCheckedInCount(count ?? 0);
         } else {
-          
+
           console.error("Error fetching checked-in count:", error);
         }
       }
@@ -275,10 +311,10 @@ const MainAppScreen = ({ route, navigation }) => {
             } = await supabase.auth.getUser();
             if (!user) return;
 
-            // Get current checked_in status
+            // Get current checked_in status AND group_id
             const { data, error } = await supabase
               .from("profiles")
-              .select("checked_in")
+              .select("checked_in, group_id")
               .eq("id", user.id)
               .single();
 
@@ -290,7 +326,7 @@ const MainAppScreen = ({ route, navigation }) => {
             const newCheckedIn = !data.checked_in;
             const timestampField = newCheckedIn ? "check_in_time" : "check_out_time";
 
-            // First update checked_in status
+            // Update checked_in status
             const { error: updateStatusError } = await supabase
               .from("profiles")
               .update({ checked_in: newCheckedIn })
@@ -301,7 +337,7 @@ const MainAppScreen = ({ route, navigation }) => {
               return;
             }
 
-            // Then append timestamp to appropriate array field using RPC
+            // Append timestamp via RPC
             const { error: appendError } = await supabase.rpc("append_check_time", {
               field_name: timestampField,
               user_id: user.id,
@@ -313,6 +349,11 @@ const MainAppScreen = ({ route, navigation }) => {
             }
 
             setCheckedIn(newCheckedIn);
+
+            // --- NEW: Notify group users ---
+            if (data.group_id) {
+              notifyGroupUsersAboutCheckStatus(user.id, data.group_id, newCheckedIn ? "checked in" : "checked out");
+            }
           }}
           style={{
             marginRight: 20,
@@ -360,7 +401,79 @@ const MainAppScreen = ({ route, navigation }) => {
         )}
       </View>
     ),
+
   });
+
+  async function notifyGroupUsersAboutCheckStatus(userId, groupId, status) {
+    try {
+      // Step 1: Get name of the user who triggered the action
+      const { data: senderProfile, error: senderError } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", userId)
+        .single();
+
+      if (senderError || !senderProfile) {
+        console.error("Failed to fetch sender's name", senderError);
+        return;
+      }
+
+      const senderName = senderProfile.name || "A member";
+
+      // Step 2: Get all other users in the group
+      const { data: groupData, error: groupError } = await supabase
+        .from("groups")
+        .select("users")
+        .eq("id", groupId)
+        .single();
+
+      if (groupError || !groupData?.users) {
+        console.error("Failed to fetch group users", groupError);
+        return;
+      }
+
+      const otherUserIds = groupData.users.filter(id => id !== userId);
+      if (otherUserIds.length === 0) return;
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, notifications")
+        .in("id", otherUserIds);
+
+      if (profilesError || !profiles) {
+        console.error("Failed to fetch profiles for notifications", profilesError);
+        return;
+      }
+
+      const timestamp = new Date().toISOString();
+      const notification = {
+        id: generateUniqueId(),
+        type: "check_status",
+        message: `${senderName} has ${status}.`,
+        timestamp,
+        seen: false,
+      };
+
+      // Step 3: Append to each recipient's notifications
+      const updates = profiles.map((profile) => {
+        const updatedNotifications = [...(profile.notifications || []), notification];
+        return supabase
+          .from("profiles")
+          .update({ notifications: updatedNotifications })
+          .eq("id", profile.id);
+      });
+
+      await Promise.all(updates);
+    } catch (err) {
+      console.error("Error in notifyGroupUsersAboutCheckStatus:", err);
+    }
+  }
+
+  // Simple unique ID generator
+  function generateUniqueId() {
+    return Math.random().toString(36).substr(2, 9);
+  }
+
 
   if (!groupId) {
     return (
@@ -617,7 +730,7 @@ const styles = StyleSheet.create({
   },
   notificationUserId: {
     fontWeight: "600",
-    color: "#f9fafb",
+    color: "#90caf9",
     marginBottom: 2,
     fontSize: 16,
     textDecorationLine: 'underline',

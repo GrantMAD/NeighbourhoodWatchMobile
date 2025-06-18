@@ -348,21 +348,42 @@ const NotificationScreen = () => {
 
   const renderNotification = ({ item }) => {
     const isJoinRequest = item.type === 'join_request';
+    const isCheckStatus = item.type === 'check_status';
+
     const isAcceptProcessing = processingStatus[item.id]?.accept;
     const isDeclineProcessing = processingStatus[item.id]?.decline;
 
+    // Optional: show heading for join_request only, or also for check_status
     let headingText = '';
     if (isJoinRequest) {
       headingText = 'Group Join Request';
+    } else if (isCheckStatus) {
+      headingText = 'Status Update'; // or just leave empty if you don't want heading
     }
 
     return (
       <View style={[styles.notificationCard, item.read ? styles.read : styles.unread]}>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
-            {headingText !== '' && <Text style={styles.headingText}>{headingText}</Text>}
-            <Text style={styles.messageText}>{item.message}</Text>
-            <Text style={styles.dateText}>{new Date(item.createdAt).toLocaleString()}</Text>
+            {headingText !== '' && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <Icon name="bell" size={16} color="white" style={{ marginRight: 6 }} />
+                <Text style={styles.headingText}>{headingText}</Text>
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Icon name="envelope" size={16} color="white" style={{ marginRight: 6 }} />
+              <Text style={styles.messageText}>{item.message}</Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+              <Icon name="clock" size={14} color="white" style={{ marginRight: 6 }} />
+              <View>
+                <Text style={styles.timeText}>{new Date(item.timestamp).toLocaleTimeString()}</Text>
+                <Text style={styles.dateText}>{new Date(item.timestamp).toLocaleDateString()}</Text>
+              </View>
+            </View>
           </View>
           <TouchableOpacity onPress={() => deleteNotification(item.id)} style={{ padding: 5 }}>
             <Icon name="trash-alt" size={20} color="red" />
@@ -384,20 +405,7 @@ const NotificationScreen = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.declineButton, isDeclineProcessing && styles.disabledButton]}
-              onPress={() => {
-                Alert.alert(
-                  'Decline Request',
-                  'Are you sure you want to decline this join request?',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Decline',
-                      style: 'destructive',
-                      onPress: () => handleDeclineRequest(item),
-                    },
-                  ]
-                );
-              }}
+              onPress={() => confirmDeclineRequest(item)}
               disabled={isDeclineProcessing}
             >
               {isDeclineProcessing ? (
@@ -423,7 +431,13 @@ const NotificationScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.headerText}>Notifications</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerText}>Notifications</Text>
+          <Text style={styles.headerDescription}>
+            Here you can review your notifications to stay informed.
+          </Text>
+        </View>
+
         {notifications.length > 0 && (
           <TouchableOpacity onPress={clearAllNotifications} style={styles.clearButton}>
             <Text style={styles.clearText}>Clear All</Text>
@@ -451,7 +465,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 12, backgroundColor: '#f7f7f7' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  headerText: { fontSize: 22, fontWeight: 'bold' },
+  headerText: { fontSize: 22, fontWeight: 'bold', textAlign: 'center' },
+  headerDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
   clearButton: { justifyContent: 'center' },
   clearText: { color: 'red', fontWeight: 'bold' },
   notificationCard: {
@@ -467,8 +486,13 @@ const styles = StyleSheet.create({
   read: { opacity: 0.6 },
   unread: { opacity: 1 },
   row: { flexDirection: 'row', alignItems: 'center' },
-  messageText: { fontSize: 16, marginBottom: 4, color: '#fff', },
-  dateText: { fontSize: 12, color: '#fff' },
+  messageText: { fontSize: 16, marginBottom: 4, color: '#e3f2fd', },
+  dateText: { fontSize: 12, color: '#90a4ae' },
+  timeText: {
+    fontSize: 12,
+    color: '#90a4ae',
+    marginBottom: 2,
+  },
   actionRow: { flexDirection: 'row', marginTop: 8, justifyContent: 'flex-end' },
   button: {
     paddingVertical: 8,
@@ -484,7 +508,7 @@ const styles = StyleSheet.create({
   headingText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',    // white font color for the heading
+    color: '#90caf9',  
     marginBottom: 4,
     textDecorationLine: 'underline',
   },
