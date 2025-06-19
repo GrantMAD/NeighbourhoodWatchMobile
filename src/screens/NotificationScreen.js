@@ -379,14 +379,17 @@ const NotificationScreen = () => {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
               <Icon name="clock" size={14} color="white" style={{ marginRight: 6 }} />
-              <View>
-                <Text style={styles.timeText}>{new Date(item.timestamp).toLocaleTimeString()}</Text>
-                <Text style={styles.dateText}>{new Date(item.timestamp).toLocaleDateString()}</Text>
-              </View>
+              <Text style={styles.timeText}>{new Date(item.timestamp).toLocaleTimeString()}</Text>
+              <Text style={[styles.dateText, { marginLeft: 12 }]}>{new Date(item.timestamp).toLocaleDateString()}</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={() => deleteNotification(item.id)} style={{ padding: 5 }}>
-            <Icon name="trash-alt" size={20} color="red" />
+          <TouchableOpacity onPress={() => deleteNotification(item.id)}
+            style={{
+              padding: 6,
+              borderRadius: 20,
+              backgroundColor: 'rgba(255, 0, 0, 0.15)',
+            }}>
+            <Icon name="trash" size={20} color="#ff4444" />
           </TouchableOpacity>
         </View>
 
@@ -436,13 +439,12 @@ const NotificationScreen = () => {
           <Text style={styles.headerDescription}>
             Here you can review your notifications to stay informed.
           </Text>
+          {notifications.length > 0 && (
+            <TouchableOpacity onPress={clearAllNotifications} style={styles.clearButtonBelow}>
+              <Text style={styles.clearText}>Clear All</Text>
+            </TouchableOpacity>
+          )}
         </View>
-
-        {notifications.length > 0 && (
-          <TouchableOpacity onPress={clearAllNotifications} style={styles.clearButton}>
-            <Text style={styles.clearText}>Clear All</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       <FlatList
@@ -471,8 +473,21 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
-  clearButton: { justifyContent: 'center' },
-  clearText: { color: 'red', fontWeight: 'bold' },
+  clearButton: { justifyContent: 'center'},
+  clearButtonBelow: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#e53935', // red background
+    borderRadius: 20,
+  },
+
+  clearText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
   notificationCard: {
     backgroundColor: '#1f2937',
     borderRadius: 8,
@@ -508,7 +523,7 @@ const styles = StyleSheet.create({
   headingText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#90caf9',  
+    color: '#90caf9',
     marginBottom: 4,
     textDecorationLine: 'underline',
   },

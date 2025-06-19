@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
+  Modal,
   Alert,
   TouchableOpacity,
   View,
@@ -115,7 +116,7 @@ function CustomDrawerContent(props) {
   );
 }
 
-const NotificationDropdown = ({ notifications, onClose, onNavigate }) => {
+const NotificationDropdown = ({ notifications, onClose, onNavigate, visible }) => {
   const getTypeIconName = (type) => {
     switch (type) {
       case "join_request":
@@ -128,69 +129,93 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate }) => {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={onClose}>
-      <View style={styles.dropdownOverlay}>
-        <View style={styles.dropdownContainer}>
-          <Text style={styles.dropdownTitle}>Notifications</Text>
-
-          {notifications.length === 0 ? (
-            <Text style={styles.noNotificationsText}>No notifications</Text>
-          ) : (
-            <FlatList
-              data={notifications}
-              keyExtractor={(item, index) => item.id ?? index.toString()}
-              style={{ maxHeight: 200 }}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() => {
-                    onClose();
-                    onNavigate();
+    <Modal
+      transparent
+      animationType="fade"
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback>
+            <View style={styles.modalContent}>
+              <View style={{ flexDirection: 'row', marginTop: 10, }}>
+                <Text style={styles.dropdownTitle}>Notifications</Text>
+                <View
+                  style={{
+                    backgroundColor: '#f87171',
+                    borderRadius: 10,
+                    paddingHorizontal: 6,
+                    marginLeft: 6,
+                    minWidth: 20,
+                    height: 20,
+                    justifyContent: 'center',
+                    alignItems: 'center',
                   }}
                 >
-                  <View style={styles.notificationItem}>
-                    <View style={{ flex: 1 }}>
-                      {/* Type row: icon + type label inline */}
-                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
-                        <FontAwesome5
-                          name={getTypeIconName(item.type)}
-                          size={14}
-                          color="white"
-                          style={{ marginRight: 6 }}
-                        />
-                        <Text style={styles.notificationUserId}>
-                          {item.type === "join_request"
-                            ? "Group Join Request"
-                            : item.type === "check_status"
-                              ? "Status Update"
-                              : "Notification"}
-                        </Text>
-                      </View>
+                  <Text style={{ color: 'white', fontWeight: '700', fontSize: 12 }}>
+                    {notifications.length}
+                  </Text>
+                </View>
+              </View>
 
-                      {/* Message row: envelope + message */}
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <FontAwesome5
-                          name="envelope"
-                          size={13}
-                          color="gray"
-                          style={{ marginRight: 6 }}
-                        />
-                        <Text style={styles.notificationText}>
-                          {item.message || "No message"}
-                        </Text>
+              {notifications.length === 0 ? (
+                <Text style={styles.noNotificationsText}>No notifications</Text>
+              ) : (
+                <FlatList
+                  data={notifications}
+                  keyExtractor={(item, index) => item.id ?? index.toString()}
+                  contentContainerStyle={{ paddingBottom: 10 }}
+                  showsVerticalScrollIndicator
+                  style={{ maxHeight: 240 }}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      onPress={() => {
+                        onClose();
+                        onNavigate();
+                      }}
+                    >
+                      <View style={styles.notificationItem}>
+                        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+                          <FontAwesome5
+                            name={getTypeIconName(item.type)}
+                            size={14}
+                            color="white"
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text style={styles.notificationUserId}>
+                            {item.type === "join_request"
+                              ? "Group Join Request"
+                              : item.type === "check_status"
+                                ? "Status Update"
+                                : "Notification"}
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <FontAwesome5
+                            name="envelope"
+                            size={13}
+                            color="gray"
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text style={styles.notificationText}>
+                            {item.message || "No message"}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
+                    </TouchableOpacity>
+                  )}
+                />
               )}
-            />
-          )}
 
-          <TouchableOpacity style={styles.viewAllButton} onPress={onNavigate}>
-            <Text style={styles.viewAllText}>View All</Text>
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.viewAllButton} onPress={onNavigate}>
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
         </View>
-      </View>
-    </TouchableWithoutFeedback>
+      </TouchableWithoutFeedback>
+    </Modal>
   );
 };
 
@@ -391,6 +416,7 @@ const MainAppScreen = ({ route, navigation }) => {
 
         {dropdownVisible && (
           <NotificationDropdown
+            visible={dropdownVisible}
             notifications={notifications}
             onClose={() => setDropdownVisible(false)}
             onNavigate={() => {
@@ -694,6 +720,21 @@ const styles = StyleSheet.create({
     color: "#f9fafb",
     fontSize: 12,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 55,
+    paddingRight: 15,
+  },
+  modalContent: {
+    width: 300,
+    backgroundColor: "#374151",
+    borderRadius: 8,
+    padding: 10,
+    maxHeight: 350,
+  },
   dropdownOverlay: {
     position: "absolute",
     top: 40,
@@ -710,7 +751,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   dropdownContainer: {
-    maxHeight: 250,
+    maxHeight: 300,
   },
   dropdownTitle: {
     fontWeight: "700",
@@ -737,6 +778,9 @@ const styles = StyleSheet.create({
   },
   notificationText: {
     color: "#f9fafb",
+  },
+  notificationList: {
+    maxHeight: 220,
   },
   viewAllButton: {
     marginTop: 10,
