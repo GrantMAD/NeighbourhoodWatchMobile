@@ -129,6 +129,12 @@ export default function NoGroupScreen({ navigation }) {
                     </ScrollView>
                 )
             )}
+            <TouchableOpacity
+                style={styles.statusButton}
+                onPress={() => navigation.navigate('WaitingStatusScreen')}
+            >
+                <Text style={styles.statusButtonText}>View Join Request Status</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
                 <Text style={styles.signOutText}>Sign Out</Text>
             </TouchableOpacity>
@@ -142,19 +148,20 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         paddingHorizontal: 20,
-        backgroundColor: '#fff',
+        backgroundColor: '#1f2937',
     },
     title: {
         fontSize: 22,
         fontWeight: 'bold',
         textAlign: 'center',
         marginBottom: 10,
+        color: 'white',
     },
     description: {
         fontSize: 16,
         textAlign: 'center',
         marginBottom: 30,
-        color: '#6b7280',
+        color: 'white',
     },
     notificationsContainer: {
         maxHeight: 200,
@@ -204,12 +211,12 @@ const styles = StyleSheet.create({
     },
     noNotifications: {
         fontStyle: 'italic',
-        color: '#999',
+        color: 'white',
         marginBottom: 20,
         textAlign: 'center',
     },
     button: {
-        backgroundColor: '#007AFF',
+        backgroundColor: '#14b8a6',
         paddingVertical: 15,
         borderRadius: 8,
         alignItems: 'center',
@@ -220,7 +227,7 @@ const styles = StyleSheet.create({
     },
     pendingText: {
         fontSize: 16,
-        color: '#d97706',
+        color: 'white',
         fontWeight: '500',
         marginBottom: 20,
         textAlign: 'center',
@@ -234,6 +241,18 @@ const styles = StyleSheet.create({
     },
 
     signOutText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    statusButton: {
+        marginTop: 20,
+        paddingVertical: 12,
+        backgroundColor: '#14b8a6', 
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    statusButtonText: {
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',

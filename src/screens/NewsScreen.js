@@ -154,7 +154,16 @@ const NewsScreen = ({ route, navigation }) => {
                 onPress={() => toggleExpand(index)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.title}>{story.title || "Untitled"}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <FontAwesome
+                    name="file-text-o"
+                    size={20}
+                    color="#f9fafb"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.title}>{story.title || "Untitled"}</Text>
+                </View>
+
                 <FontAwesome
                   name={isExpanded ? "caret-up" : "caret-down"}
                   size={18}
@@ -220,15 +229,14 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   buttonSecondary: {
-    borderColor: "#111827",
-    borderWidth: 2,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
+    backgroundColor: "#22d3ee", // bright cyan background
+    paddingVertical: 10,
+    paddingHorizontal: 24,
     borderRadius: 30,
   },
   buttonSecondaryText: {
-    color: "#111827",
-    fontWeight: "600",
+    color: "#1f2937", // dark text for contrast
+    fontWeight: "700",
     fontSize: 16,
   },
   description: {

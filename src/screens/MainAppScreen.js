@@ -461,9 +461,10 @@ const MainAppScreen = ({ route, navigation }) => {
       const otherUserIds = groupData.users.filter(id => id !== userId);
       if (otherUserIds.length === 0) return;
 
+      // Step 3: Get profiles of users who have not opted out
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, notifications")
+        .select("id, notifications, receive_check_notifications")
         .in("id", otherUserIds);
 
       if (profilesError || !profiles) {
@@ -480,14 +481,16 @@ const MainAppScreen = ({ route, navigation }) => {
         seen: false,
       };
 
-      // Step 3: Append to each recipient's notifications
-      const updates = profiles.map((profile) => {
-        const updatedNotifications = [...(profile.notifications || []), notification];
-        return supabase
-          .from("profiles")
-          .update({ notifications: updatedNotifications })
-          .eq("id", profile.id);
-      });
+      // Step 4: Append to each recipient's notifications ONLY if they opted in
+      const updates = profiles
+        .filter(profile => profile.receive_check_notifications !== false) // opt-in only
+        .map(profile => {
+          const updatedNotifications = [...(profile.notifications || []), notification];
+          return supabase
+            .from("profiles")
+            .update({ notifications: updatedNotifications })
+            .eq("id", profile.id);
+        });
 
       await Promise.all(updates);
     } catch (err) {

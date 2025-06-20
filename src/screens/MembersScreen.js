@@ -2,16 +2,23 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  ActivityIndicator,
   FlatList,
   StyleSheet,
   Image,
   TouchableOpacity,
+  Animated,
+  Easing,
+  Platform,
+  UIManager
 } from 'react-native';
 
 import { supabase } from '../../lib/supabase';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faChevronDown, faChevronUp, faPhone, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faChevronUp, faPhone, faMapMarkerAlt, faUser, faEnvelope, faIdCard, faClock } from '@fortawesome/free-solid-svg-icons';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const defaultAvatar = require('../../assets/Images/user.png');
 
@@ -20,8 +27,8 @@ const MembersScreen = ({ route }) => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedMemberIds, setExpandedMemberIds] = useState([]);
-  const [checkInExpanded, setCheckInExpanded] = useState({});
-  const [checkOutExpanded, setCheckOutExpanded] = useState({});
+  const [checkInAnimations, setCheckInAnimations] = useState({});
+  const [checkOutAnimations, setCheckOutAnimations] = useState({});
 
   const fetchGroupMembers = async () => {
     setLoading(true);
@@ -58,6 +65,14 @@ const MembersScreen = ({ route }) => {
     }
 
     setMembers(profiles);
+    const newCheckInAnims = {};
+    const newCheckOutAnims = {};
+    profiles.forEach(profile => {
+      newCheckInAnims[profile.id] = new Animated.Value(0);
+      newCheckOutAnims[profile.id] = new Animated.Value(0);
+    });
+    setCheckInAnimations(newCheckInAnims);
+    setCheckOutAnimations(newCheckOutAnims);
     setLoading(false);
   };
 
@@ -72,17 +87,27 @@ const MembersScreen = ({ route }) => {
   };
 
   const toggleCheckIn = (id) => {
-    setCheckInExpanded((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    const anim = checkInAnimations[id];
+    const toValue = anim._value === 0 ? 1 : 0;
+
+    Animated.timing(anim, {
+      toValue,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: false, // must be false for height animation
+    }).start();
   };
 
   const toggleCheckOut = (id) => {
-    setCheckOutExpanded((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    const anim = checkOutAnimations[id];
+    const toValue = anim._value === 0 ? 1 : 0;
+
+    Animated.timing(anim, {
+      toValue,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: false,
+    }).start();
   };
 
   const groupByDayWithDate = (timestamps) => {
@@ -107,8 +132,6 @@ const MembersScreen = ({ route }) => {
 
   const renderItem = ({ item }) => {
     const isExpanded = expandedMemberIds.includes(item.id);
-    const isCheckInOpen = checkInExpanded[item.id];
-    const isCheckOutOpen = checkOutExpanded[item.id];
 
     return (
       <TouchableOpacity
@@ -122,8 +145,8 @@ const MembersScreen = ({ route }) => {
             style={styles.avatar}
           />
           <View style={{ flex: 1 }}>
+            <FontAwesomeIcon icon={faUser} size={16} color="#fff" style={{ marginRight: 6 }} />
             <Text style={styles.name}>{item.name || 'No Name'}</Text>
-            <Text style={styles.email}>{item.email || '-'}</Text>
           </View>
           <FontAwesomeIcon
             icon={isExpanded ? faChevronUp : faChevronDown}
@@ -141,7 +164,12 @@ const MembersScreen = ({ route }) => {
               <Text style={styles.detailText}>{item.number || '-'}</Text>
             </View>
             <View style={styles.detailRow}>
-              <FontAwesomeIcon icon={faPhone} size={16} color="#555" style={styles.icon} />
+              <FontAwesomeIcon icon={faEnvelope} size={16} color="#555" style={styles.icon} />
+              <Text style={styles.detailLabel}>Email:</Text>
+              <Text style={styles.email}>{item.email || '-'}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <FontAwesomeIcon icon={faIdCard} size={16} color="#555" style={styles.icon} />
               <Text style={styles.detailLabel}>Emergency Contact:</Text>
               <Text style={styles.detailText}>{item.emergency_contact || '-'}</Text>
             </View>
@@ -152,50 +180,86 @@ const MembersScreen = ({ route }) => {
             </View>
 
             <TouchableOpacity onPress={() => toggleCheckIn(item.id)} style={styles.toggleHeader}>
-              <Text style={styles.dropdownSubHeading}>Check-in Times</Text>
-              <FontAwesomeIcon icon={isCheckInOpen ? faChevronUp : faChevronDown} />
-            </TouchableOpacity>
-            {isCheckInOpen && (
-              <View style={{ marginLeft: 10, marginBottom: 10 }}>
-                {(Array.isArray(item.check_in_time) && item.check_in_time.length > 0) ? (
-                  Object.entries(groupByDayWithDate(item.check_in_time)).map(([dayKey, times]) => (
-                    <View key={dayKey} style={{ marginBottom: 6 }}>
-                      <Text style={{ fontWeight: '700', color: '#555' }}>{dayKey}</Text>
-                      {times.map((time, idx) => (
-                        <Text key={idx} style={{ color: '#666', marginLeft: 10 }}>
-                          • {time}
-                        </Text>
-                      ))}
-                    </View>
-                  ))
-                ) : (
-                  <Text style={{ color: '#999' }}>No check-ins</Text>
-                )}
+              <View style={styles.iconTextRow}>
+                <FontAwesomeIcon icon={faClock} size={16} color="#444" style={styles.icon} />
+                <Text style={styles.dropdownSubHeading}>Check-in Times</Text>
               </View>
-            )}
+              <FontAwesomeIcon
+                icon={checkInAnimations[item.id]?._value === 1 ? faChevronUp : faChevronDown}
+              />
+            </TouchableOpacity>
+
+            <Animated.View
+              style={{
+                overflow: 'hidden',
+                height: checkInAnimations[item.id]?.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 150], // Adjust 150 based on how much content you expect
+                }),
+                opacity: checkInAnimations[item.id]?.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 1],
+                }),
+                marginLeft: 10,
+                marginBottom: 10,
+              }}
+            >
+              {(Array.isArray(item.check_in_time) && item.check_in_time.length > 0) ? (
+                Object.entries(groupByDayWithDate(item.check_in_time)).map(([dayKey, times]) => (
+                  <View key={dayKey} style={{ marginBottom: 6 }}>
+                    <Text style={{ fontWeight: '700', color: '#555' }}>{dayKey}</Text>
+                    {times.map((time, idx) => (
+                      <Text key={idx} style={{ color: '#666', marginLeft: 10 }}>
+                        • {time}
+                      </Text>
+                    ))}
+                  </View>
+                ))
+              ) : (
+                <Text style={{ color: '#999' }}>No check-ins</Text>
+              )}
+            </Animated.View>
 
             <TouchableOpacity onPress={() => toggleCheckOut(item.id)} style={styles.toggleHeader}>
-              <Text style={styles.dropdownSubHeading}>Check-out Times</Text>
-              <FontAwesomeIcon icon={isCheckOutOpen ? faChevronUp : faChevronDown} />
-            </TouchableOpacity>
-            {isCheckOutOpen && (
-              <View style={{ marginLeft: 10 }}>
-                {(Array.isArray(item.check_out_time) && item.check_out_time.length > 0) ? (
-                  Object.entries(groupByDayWithDate(item.check_out_time)).map(([dayKey, times]) => (
-                    <View key={dayKey} style={{ marginBottom: 6 }}>
-                      <Text style={{ fontWeight: '700', color: '#555' }}>{dayKey}</Text>
-                      {times.map((time, idx) => (
-                        <Text key={idx} style={{ color: '#666', marginLeft: 10 }}>
-                          • {time}
-                        </Text>
-                      ))}
-                    </View>
-                  ))
-                ) : (
-                  <Text style={{ color: '#999' }}>No check-outs</Text>
-                )}
+              <View style={styles.iconTextRow}>
+                <FontAwesomeIcon icon={faClock} size={16} color="#444" style={styles.icon} />
+                <Text style={styles.dropdownSubHeading}>Check-out Times</Text>
               </View>
-            )}
+              <FontAwesomeIcon
+                icon={checkOutAnimations[item.id]?._value === 1 ? faChevronUp : faChevronDown}
+              />
+            </TouchableOpacity>
+
+            <Animated.View
+              style={{
+                overflow: 'hidden',
+                height: checkOutAnimations[item.id]?.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 150], // adjust this value based on your expected content height
+                }),
+                opacity: checkOutAnimations[item.id]?.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 1],
+                }),
+                marginLeft: 10,
+                marginBottom: 10,
+              }}
+            >
+              {(Array.isArray(item.check_out_time) && item.check_out_time.length > 0) ? (
+                Object.entries(groupByDayWithDate(item.check_out_time)).map(([dayKey, times]) => (
+                  <View key={dayKey} style={{ marginBottom: 6 }}>
+                    <Text style={{ fontWeight: '700', color: '#555' }}>{dayKey}</Text>
+                    {times.map((time, idx) => (
+                      <Text key={idx} style={{ color: '#666', marginLeft: 10 }}>
+                        • {time}
+                      </Text>
+                    ))}
+                  </View>
+                ))
+              ) : (
+                <Text style={{ color: '#999' }}>No check-outs</Text>
+              )}
+            </Animated.View>
           </View>
         )}
       </TouchableOpacity>
@@ -260,8 +324,8 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   email: {
-    fontSize: 12,
-    color: '#ccc',
+    fontSize: 13,
+    color: '#666',
     marginTop: 2,
   },
   dropdown: {
@@ -312,6 +376,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#666',
+  },
+  iconTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
 

@@ -28,22 +28,23 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#1f2937',
   },
   title: {
     fontSize: 22,
     marginBottom: 30,
     textAlign: 'center',
     fontWeight: 'bold',
+    color: 'white',
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#14b8a6',
     paddingVertical: 15,
     borderRadius: 8,
     marginBottom: 20,
   },
   createButton: {
-    backgroundColor: '#34C759',
+    backgroundColor: '#f97316',
   },
   buttonText: {
     color: '#fff',

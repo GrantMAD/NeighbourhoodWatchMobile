@@ -353,13 +353,14 @@ const NotificationScreen = () => {
     const isAcceptProcessing = processingStatus[item.id]?.accept;
     const isDeclineProcessing = processingStatus[item.id]?.decline;
 
-    // Optional: show heading for join_request only, or also for check_status
     let headingText = '';
     if (isJoinRequest) {
       headingText = 'Group Join Request';
     } else if (isCheckStatus) {
-      headingText = 'Status Update'; // or just leave empty if you don't want heading
+      headingText = 'Status Update';
     }
+
+    const notificationDate = new Date(item.timestamp || item.createdAt || Date.now());
 
     return (
       <View style={[styles.notificationCard, item.read ? styles.read : styles.unread]}>
@@ -379,16 +380,20 @@ const NotificationScreen = () => {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
               <Icon name="clock" size={14} color="white" style={{ marginRight: 6 }} />
-              <Text style={styles.timeText}>{new Date(item.timestamp).toLocaleTimeString()}</Text>
-              <Text style={[styles.dateText, { marginLeft: 12 }]}>{new Date(item.timestamp).toLocaleDateString()}</Text>
+              <Text style={styles.timeText}>{notificationDate.toLocaleTimeString()}</Text>
+              <Text style={[styles.dateText]}>{notificationDate.toLocaleDateString()}</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={() => deleteNotification(item.id)}
+
+          <TouchableOpacity
+            onPress={() => deleteNotification(item.id)}
             style={{
               padding: 6,
               borderRadius: 20,
               backgroundColor: 'rgba(255, 0, 0, 0.15)',
-            }}>
+              marginLeft:'30'
+            }}
+          >
             <Icon name="trash" size={20} color="#ff4444" />
           </TouchableOpacity>
         </View>
@@ -473,7 +478,7 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
-  clearButton: { justifyContent: 'center'},
+  clearButton: { justifyContent: 'center' },
   clearButtonBelow: {
     alignSelf: 'flex-end',
     marginTop: 4,
@@ -502,7 +507,12 @@ const styles = StyleSheet.create({
   unread: { opacity: 1 },
   row: { flexDirection: 'row', alignItems: 'center' },
   messageText: { fontSize: 16, marginBottom: 4, color: '#e3f2fd', },
-  dateText: { fontSize: 12, color: '#90a4ae' },
+  dateText: { 
+    fontSize: 12, 
+    color: '#90a4ae',
+    marginLeft: '8',
+    paddingBottom: '2'
+  },
   timeText: {
     fontSize: 12,
     color: '#90a4ae',

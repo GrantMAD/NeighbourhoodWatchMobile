@@ -35,6 +35,14 @@ function SettingsScreen({ route, navigation }) {
         <Text style={styles.optionText}>Group Data</Text>
       </TouchableOpacity>
 
+      <Text style={styles.sectionHeader}>Notification Settings</Text>
+      <TouchableOpacity
+        style={styles.option}
+        onPress={() => navigation.navigate("NotificationSetting")}
+      >
+        <Text style={styles.optionText}>Notifications</Text>
+      </TouchableOpacity>
+
       <Text style={styles.footerText}>Group ID: {groupId}</Text>
     </View>
   );

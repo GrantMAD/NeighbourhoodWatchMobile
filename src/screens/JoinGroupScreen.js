@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Alert, StyleSheet, Button, ActivityIndicator } from 'react-native';
+import { View, Text, Alert, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
@@ -163,31 +163,68 @@ const JoinGroupScreen = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Join a Group</Text>
+      <Text style={styles.description}>
+        Choose a group from the list below and send a request to join.
+      </Text>
 
       {groups.length === 0 ? (
         <ActivityIndicator size="large" />
       ) : (
-        <Picker
-          selectedValue={selectedGroupId}
-          onValueChange={(value) => setSelectedGroupId(value)}
-          style={styles.picker}
-        >
-          <Picker.Item label="Select a group..." value={null} />
-          {groups.map((group) => (
-            <Picker.Item key={group.id} label={group.name} value={group.id} />
-          ))}
-        </Picker>
+        <View style={styles.pickerWrapper}>
+          <Picker
+            selectedValue={selectedGroupId}
+            onValueChange={(value) => setSelectedGroupId(value)}
+            style={styles.picker}
+          >
+            <Picker.Item label="Select a group..." value={null} />
+            {groups.map((group) => (
+              <Picker.Item key={group.id} label={group.name} value={group.id} />
+            ))}
+          </Picker>
+        </View>
       )}
 
-      <Button title="Request to Join" onPress={handleJoinRequest} disabled={loading} />
+      <TouchableOpacity
+        onPress={handleJoinRequest}
+        disabled={loading}
+        style={styles.joinButton}
+      >
+        <Text style={styles.joinButtonText}>Request to Join</Text>
+      </TouchableOpacity>
+
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-  picker: { marginBottom: 20 },
+  container: { flex: 1, padding: 20, justifyContent: 'center', backgroundColor: '#1f2937' },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, color: 'white' },
+  pickerWrapper: {
+    marginBottom: 20,
+    borderRadius: 8,
+    backgroundColor: 'white',
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 60,
+  },
+  joinButton: {
+    backgroundColor: '#14b8a6',
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  joinButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  description: {
+    fontSize: 16,
+    color: '#d1d5db', 
+    marginBottom: 20,
+  },
 });
 
 export default JoinGroupScreen;

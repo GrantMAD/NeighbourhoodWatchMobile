@@ -18,6 +18,7 @@ import ChangePasswordScreen from './src/screens/ChangePasswordScreen'
 import GroupDataScreen from './src/screens/GroupDataScreen'
 import AddReportScreen from './src/screens/AddReportScreen'
 import SessionLoaderScreen from './src/screens/SessionLoaderScreen';
+import NotificationSetting from './src/screens/NotificationSetting';
 
 const Stack = createNativeStackNavigator()
 
@@ -129,6 +130,11 @@ export default function App() {
           name="GroupDataScreen"
           component={GroupDataScreen}
           options={{ title: "Group Data" }}
+        />
+        <Stack.Screen
+          name="NotificationSetting"
+          component={NotificationSetting}
+          options={{ title: "Notification Setting" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

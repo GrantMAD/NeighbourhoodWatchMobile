@@ -10,12 +10,14 @@ import {
   RefreshControl,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import { useNavigation } from '@react-navigation/native';
 
 const WaitingStatusScreen = () => {
   const [userRequests, setUserRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const navigation = useNavigation();
 
   const fetchUserRequests = useCallback(async () => {
     setLoading(true);
@@ -123,18 +125,32 @@ const WaitingStatusScreen = () => {
     );
   };
 
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      Alert.alert('Error', 'Failed to sign out');
+    } else {
+      navigation.reset({ index: 0, routes: [{ name: 'SignIn' }] });
+    }
+  };
+
+
   const renderRequest = ({ item }) => (
     <View style={styles.requestCard}>
       <View style={{ flex: 1 }}>
         <Text style={styles.groupName}>{item.groupName}</Text>
-        <Text>Status: <Text style={styles.statusText(item.status)}>{item.status}</Text></Text>
-        <Text>Requested on: {new Date(item.requestedAt).toLocaleString()}</Text>
+        <Text style={styles.requestInfoLabel}>Status:</Text>
+        <Text style={styles.statusText(item.status)}>{item.status}</Text>
+        <Text style={styles.requestInfoLabel}>Requested on:</Text>
+        <Text style={styles.requestDate}>
+          {new Date(item.requestedAt).toLocaleString()}
+        </Text>
       </View>
       <TouchableOpacity
         style={styles.cancelButton}
         onPress={() => cancelRequest(item.groupId)}
       >
-        <Text style={styles.cancelButtonText}>Cancel</Text>
+        <Text style={styles.cancelButtonText}>Cancel Request</Text>
       </TouchableOpacity>
     </View>
   );
@@ -158,6 +174,9 @@ const WaitingStatusScreen = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Your Join Requests</Text>
+      <Text style={styles.description}>
+        Here you can track the status of your group join requests and cancel them if needed.
+      </Text>
       <FlatList
         data={userRequests}
         keyExtractor={(item) => item.groupId}
@@ -167,6 +186,9 @@ const WaitingStatusScreen = () => {
         }
         contentContainerStyle={{ paddingBottom: 16 }}
       />
+      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <Text style={styles.signOutButtonText}>Sign Out</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -174,42 +196,84 @@ const WaitingStatusScreen = () => {
 export default WaitingStatusScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f9fafb' },
+  container: { flex: 1, padding: 16, backgroundColor: '#1f2937' },
   center: { justifyContent: 'center', alignItems: 'center' },
-  heading: { fontSize: 22, fontWeight: '700', marginBottom: 16 },
-  requestCard: {
-    backgroundColor: '#e0e7ff',
-    padding: 16,
-    borderRadius: 12,
+  heading: { fontSize: 22, fontWeight: '700', marginBottom: 16, color: 'white' },
+  description: {
+    fontSize: 16,
+    color: '#d1d5db',
     marginBottom: 12,
+  },
+  requestCard: {
+    backgroundColor: '#f9fafb',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 14,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   groupName: {
     fontWeight: '700',
     fontSize: 18,
-    marginBottom: 4,
+    color: '#111827',
+    marginBottom: 8,
+  },
+
+  requestInfoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 4,
   },
   statusText: (status) => ({
     fontWeight: '700',
+    fontSize: 14,
     color:
-      status === 'approved' ? '#22c55e' :
-      status === 'rejected' ? '#ef4444' :
-      '#fbbf24', // pending = yellow
+      status === 'approved'
+        ? '#16a34a'
+        : status === 'rejected'
+          ? '#dc2626'
+          : '#d97706',
+    marginBottom: 4,
   }),
+  requestDate: {
+    fontSize: 14,
+    color: '#4b5563',
+  },
   cancelButton: {
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 12,
+    backgroundColor: '#dc2626',
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginLeft: 12,
   },
   cancelButtonText: {
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: '600',
+    fontSize: 14,
   },
   emptyText: {
     fontSize: 16,
     fontStyle: 'italic',
     color: '#6b7280',
+  },
+  signOutButton: {
+    backgroundColor: '#14b8a6',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  signOutButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
