@@ -14,7 +14,7 @@ import {
 import { supabase } from '../../lib/supabase'; // Adjust the path if needed
 
 const ContactScreen = ({ route }) => {
-  const { group_id } = route.params;
+  const { groupId } = route.params;
 
   const [form, setForm] = useState({
     name: '',
@@ -27,10 +27,16 @@ const ContactScreen = ({ route }) => {
 
   useEffect(() => {
     const fetchGroupContact = async () => {
+      if (!groupId) {
+        Alert.alert('Error', 'No group ID provided.');
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('groups')
         .select('contact_email')
-        .eq('id', group_id)
+        .eq('id', groupId)
         .single();
 
       if (error) {
@@ -44,7 +50,7 @@ const ContactScreen = ({ route }) => {
     };
 
     fetchGroupContact();
-  }, [group_id]);
+  }, [groupId]);
 
   const handleChange = (key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));

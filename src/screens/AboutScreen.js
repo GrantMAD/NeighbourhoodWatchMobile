@@ -1,6 +1,17 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, Image, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
+import React, { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  Dimensions,
+} from "react-native";
 import { supabase } from "../../lib/supabase";
+
+const screenHeight = Dimensions.get("window").height;
 
 const AboutScreen = ({ route }) => {
   const { groupId } = route.params;
@@ -9,57 +20,57 @@ const AboutScreen = ({ route }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    async function fetchGroup() {
-      setLoading(true);
-      setError(null);
+  useFocusEffect(
+    useCallback(() => {
+      async function fetchGroup() {
+        setLoading(true);
+        setError(null);
 
-      try {
-        const { data, error } = await supabase
-          .from("groups")
-          .select("*")
-          .eq("id", groupId)
-          .single();
+        try {
+          const { data, error } = await supabase
+            .from("groups")
+            .select("*")
+            .eq("id", groupId)
+            .single();
 
-        if (error) {
-          setError(error.message);
-          setLoading(false);
-          return;
-        }
-
-        console.log("Group data fetched:", data);
-
-        let parsedExecutives = [];
-        if (data.executives) {
-          if (typeof data.executives === "string") {
-            try {
-              parsedExecutives = JSON.parse(data.executives);
-            } catch {
-              parsedExecutives = [];
-            }
-          } else if (Array.isArray(data.executives)) {
-            parsedExecutives = data.executives;
+          if (error) {
+            setError(error.message);
+            setLoading(false);
+            return;
           }
+
+          let parsedExecutives = [];
+          if (data.executives) {
+            if (typeof data.executives === "string") {
+              try {
+                parsedExecutives = JSON.parse(data.executives);
+              } catch {
+                parsedExecutives = [];
+              }
+            } else if (Array.isArray(data.executives)) {
+              parsedExecutives = data.executives;
+            }
+          }
+
+          setGroupData({
+            ...data,
+            executives: parsedExecutives,
+          });
+        } catch (err) {
+          setError("Unexpected error: " + err.message);
+        } finally {
+          setLoading(false);
         }
-
-        setGroupData({
-          ...data,
-          executives: parsedExecutives,
-        });
-      } catch (err) {
-        setError("Unexpected error: " + err.message);
-      } finally {
-        setLoading(false);
       }
-    }
 
-    fetchGroup();
-  }, [groupId]);
+      fetchGroup();
+    }, [groupId])
+  );
 
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#22d3ee" />
+        <ActivityIndicator size="large" color="#4338ca" />
       </View>
     );
   }
@@ -80,54 +91,51 @@ const AboutScreen = ({ route }) => {
     );
   }
 
-  const {
-    vision,
-    mission,
-    objectives,
-    values,
-    executives = [],
-  } = groupData;
+  const { vision, mission, objectives, values, executives = [] } = groupData;
 
   return (
     <ScrollView style={styles.container}>
-      {/* New About Heading at the top */}
-      <Text style={styles.aboutHeading}>About Us</Text>
-      <Text style={styles.aboutExplanation}>
-        Learn more about this group’s vision, mission, objectives, values, and leadership team.
-      </Text>
+      <View style={styles.innerWrapper}>
+        <View style={styles.aboutBox}>
+          <Text style={styles.aboutHeading}>About Us</Text>
+          <Text style={styles.aboutExplanation}>
+            Learn more about this group’s vision, mission, objectives, values, and leadership team.
+          </Text>
 
-      <Text style={styles.sectionTitle}>Vision</Text>
-      <Text style={styles.text}>{vision || "Vision not provided."}</Text>
+          <Text style={styles.sectionTitle}>Vision</Text>
+          <Text style={styles.text}>{vision || "Vision not provided."}</Text>
 
-      <Text style={styles.sectionTitle}>Mission</Text>
-      <Text style={styles.text}>{mission || "Mission not provided."}</Text>
+          <Text style={styles.sectionTitle}>Mission</Text>
+          <Text style={styles.text}>{mission || "Mission not provided."}</Text>
 
-      <Text style={styles.sectionTitle}>Objectives</Text>
-      <Text style={styles.text}>{objectives || "Objectives not provided."}</Text>
+          <Text style={styles.sectionTitle}>Objectives</Text>
+          <Text style={styles.text}>{objectives || "Objectives not provided."}</Text>
 
-      <Text style={styles.sectionTitle}>Values</Text>
-      <Text style={styles.text}>{values || "Values not provided."}</Text>
+          <Text style={styles.sectionTitle}>Values</Text>
+          <Text style={styles.text}>{values || "Values not provided."}</Text>
 
-      <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Executives</Text>
-      <Text style={styles.execStaticTitle}>Executive Committee</Text>
+          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Executives</Text>
+          <Text style={styles.execStaticTitle}>Executive Committee</Text>
 
-      {Array.isArray(executives) && executives.length > 0 ? (
-        executives.map((exec, index) => (
-          <View key={index} style={styles.execContainer}>
-            {exec.image ? (
-              <Image source={{ uri: exec.image }} style={styles.execImage} />
-            ) : (
-              <View style={[styles.execImage, styles.execImagePlaceholder]} />
-            )}
-            <View style={styles.execTextContainer}>
-              <Text style={styles.execName}>{exec.name || "Name not provided"}</Text>
-              <Text style={styles.execTitle}>{exec.role || "Title not provided"}</Text>
-            </View>
-          </View>
-        ))
-      ) : (
-        <Text style={styles.text}>No executives data available.</Text>
-      )}
+          {Array.isArray(executives) && executives.length > 0 ? (
+            executives.map((exec, index) => (
+              <View key={index} style={styles.execContainer}>
+                {exec.image ? (
+                  <Image source={{ uri: exec.image }} style={styles.execImage} />
+                ) : (
+                  <View style={[styles.execImage, styles.execImagePlaceholder]} />
+                )}
+                <View style={styles.execTextContainer}>
+                  <Text style={styles.execName}>{exec.name || "Name not provided"}</Text>
+                  <Text style={styles.execTitle}>{exec.role || "Title not provided"}</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.text}>No executives data available.</Text>
+          )}
+        </View>
+      </View>
     </ScrollView>
   );
 };
@@ -135,20 +143,29 @@ const AboutScreen = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#e5e7eb", // light background
+  },
+  innerWrapper: {
+    paddingTop: 40,
+    paddingHorizontal: 20,
+  },
+  aboutBox: {
     backgroundColor: "#1f2937",
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 40,
+    minHeight: screenHeight - 80,
   },
   aboutHeading: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#22d3ee",
+    color: "#f9fafb",
     marginBottom: 20,
     textAlign: "center",
   },
   aboutExplanation: {
     fontSize: 16,
-    color: "#a5b4fc",
+    color: "#d1d5db",
     marginBottom: 20,
     textAlign: "center",
     lineHeight: 22,
@@ -156,7 +173,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#22d3ee",
+    color: "#f9fafb",
     marginBottom: 6,
   },
   text: {

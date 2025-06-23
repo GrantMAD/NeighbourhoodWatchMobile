@@ -9,6 +9,7 @@ import {
     Alert,
     Image,
     ActivityIndicator,
+    TouchableOpacity,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
@@ -24,11 +25,17 @@ export default function GroupDataScreen() {
         mission: "",
         objectives: "",
         main_image: null,
+        executives: [],
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [groupId, setGroupId] = useState(null);
-    const [newImage, setNewImage] = useState(null); // local URI of newly picked image
+    const [newImage, setNewImage] = useState(null);
+
+    // Inputs for adding a new executive
+    const [execName, setExecName] = useState("");
+    const [execRole, setExecRole] = useState("");
+    const [execImage, setExecImage] = useState(null);
 
     useEffect(() => {
         const fetchGroupData = async () => {
@@ -61,9 +68,7 @@ export default function GroupDataScreen() {
 
                 const { data: group, error: groupError } = await supabase
                     .from("groups")
-                    .select(
-                        "name, contact_email, welcome_text, vision, mission, objectives, main_image"
-                    )
+                    .select("name, contact_email, welcome_text, vision, mission, objectives, main_image, executives")
                     .eq("id", profile.group_id)
                     .single();
 
@@ -73,7 +78,10 @@ export default function GroupDataScreen() {
                     return;
                 }
 
-                setGroupData(group);
+                setGroupData({
+                    ...group,
+                    executives: Array.isArray(group.executives) ? group.executives : [],
+                });
             } catch (error) {
                 Alert.alert("Error", "Unexpected error: " + error.message);
             } finally {
@@ -88,65 +96,43 @@ export default function GroupDataScreen() {
         setGroupData((prev) => ({ ...prev, [field]: value }));
     };
 
-    // Delete previous image from supabase storage
     const deleteOldImage = async (imageUrl) => {
         if (!imageUrl) return;
-
         try {
-            // Supabase Storage base URL (adjust this if your project has a custom domain)
             const baseURL = "https://epegetangczhtouixwfc.supabase.co/storage/v1/object/public/group-assets/";
-
-            // Extract the relative file path from the full public URL
             const filePath = imageUrl.replace(baseURL, "");
-
-            // Ensure filePath is valid
             if (filePath) {
-                const { error } = await supabase.storage
-                    .from("group-assets")
-                    .remove([filePath]);
-
-                if (error) {
-                    console.error("Failed to delete old image:", error.message);
-                } else {
-                    console.log("Old image deleted from storage.");
-                }
+                const { error } = await supabase.storage.from("group-assets").remove([filePath]);
+                if (error) console.error("Failed to delete old image:", error.message);
             }
         } catch (err) {
             console.error("Error deleting old image:", err.message);
         }
     };
 
-    const pickImage = async () => {
+    const pickImage = async (callback) => {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
         if (!permissionResult.granted) {
             Alert.alert("Permission denied", "Permission to access gallery is required!");
             return;
         }
-
         const pickerResult = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             quality: 0.8,
         });
-
         if (!pickerResult.canceled) {
-            // For SDK 48+, result is pickerResult.assets, not pickerResult.uri
-            const uri = pickerResult.assets[0].uri;
-            setNewImage(uri);
+            callback(pickerResult.assets[0].uri);
         }
     };
 
-    const uploadImage = async (uri, groupId) => {
+    const uploadImage = async (uri, filenamePrefix) => {
         try {
             const response = await FileSystem.readAsStringAsync(uri, {
                 encoding: FileSystem.EncodingType.Base64,
             });
-
             const buffer = Buffer.from(response, "base64");
-
-            // Use timestamp + random suffix to avoid overwriting files with same name
             const fileExt = uri.split(".").pop();
-            const fileName = `${groupId}_${Date.now()}.${fileExt}`;
+            const fileName = `${filenamePrefix}_${Date.now()}.${fileExt}`;
 
             const { data, error } = await supabase.storage
                 .from("group-assets")
@@ -155,11 +141,8 @@ export default function GroupDataScreen() {
                     upsert: true,
                 });
 
-            if (error) {
-                throw error;
-            }
+            if (error) throw error;
 
-            // Get public URL
             const { data: publicUrlData } = supabase.storage
                 .from("group-assets")
                 .getPublicUrl(`group-assets/${fileName}`);
@@ -171,37 +154,50 @@ export default function GroupDataScreen() {
         }
     };
 
+    const handleAddExecutive = () => {
+        if (!execName || !execRole) {
+            Alert.alert("Missing Fields", "Please fill in both name and role.");
+            return;
+        }
+        const newExec = { name: execName, role: execRole, image: execImage };
+        setGroupData((prev) => ({ ...prev, executives: [...prev.executives, newExec] }));
+        setExecName("");
+        setExecRole("");
+        setExecImage(null);
+    };
+
     const handleSave = async () => {
         if (!groupId) return;
-
         setSaving(true);
-
         try {
-            let updatedMainImage = groupData.main_image; // default to existing
-
-            // If new image selected, delete old image first and upload new one
+            let updatedMainImage = groupData.main_image;
             if (newImage) {
                 await deleteOldImage(groupData.main_image);
                 const uploadedUrl = await uploadImage(newImage, groupId);
-                if (uploadedUrl) {
-                    updatedMainImage = uploadedUrl; // update local var, not state yet
-                }
+                if (uploadedUrl) updatedMainImage = uploadedUrl;
             }
 
-            // Prepare payload with updated main_image url
-            const updatePayload = { ...groupData, main_image: updatedMainImage };
+            const updatedExecutives = await Promise.all(
+                groupData.executives.map(async (exec) => {
+                    if (exec.image && exec.image.startsWith("file://")) {
+                        const url = await uploadImage(exec.image, `${groupId}_exec`);
+                        return { ...exec, image: url };
+                    }
+                    return exec;
+                })
+            );
 
-            // Send update to Supabase
-            const { error } = await supabase
-                .from("groups")
-                .update(updatePayload)
-                .eq("id", groupId);
+            const updatePayload = {
+                ...groupData,
+                main_image: updatedMainImage,
+                executives: updatedExecutives,
+            };
 
+            const { error } = await supabase.from("groups").update(updatePayload).eq("id", groupId);
             if (error) {
                 Alert.alert("Error", "Failed to update group data.");
             } else {
-                // Update state only after successful update
-                setGroupData((prev) => ({ ...prev, main_image: updatedMainImage }));
+                setGroupData((prev) => ({ ...prev, main_image: updatedMainImage, executives: updatedExecutives }));
                 setNewImage(null);
                 Alert.alert("Success", "Group data updated.");
             }
@@ -225,22 +221,15 @@ export default function GroupDataScreen() {
         <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
             <Text style={styles.title}>Edit Group Info</Text>
 
-            {[
-                { key: "name", label: "Group Name" },
-                { key: "contact_email", label: "Contact Email" },
-                { key: "welcome_text", label: "Welcome Text", multiline: true },
-                { key: "vision", label: "Vision", multiline: true },
-                { key: "mission", label: "Mission", multiline: true },
-                { key: "objectives", label: "Objectives", multiline: true },
-            ].map(({ key, label, multiline }) => (
+            {["name", "contact_email", "welcome_text", "vision", "mission", "objectives"].map((key) => (
                 <View key={key} style={styles.inputContainer}>
-                    <Text style={styles.label}>{label}</Text>
+                    <Text style={styles.label}>{key.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}</Text>
                     <TextInput
-                        style={[styles.input, multiline && styles.textArea]}
+                        style={[styles.input, ["welcome_text", "vision", "mission", "objectives"].includes(key) && styles.textArea]}
                         value={groupData[key]}
                         onChangeText={(text) => handleChange(key, text)}
-                        multiline={multiline}
-                        numberOfLines={multiline ? 4 : 1}
+                        multiline={["welcome_text", "vision", "mission", "objectives"].includes(key)}
+                        numberOfLines={4}
                     />
                 </View>
             ))}
@@ -254,13 +243,60 @@ export default function GroupDataScreen() {
                 ) : (
                     <Text>No image uploaded.</Text>
                 )}
-                <Button title="Pick/Change Image" onPress={pickImage} />
+                <Button title="Pick/Change Image" onPress={() => pickImage(setNewImage)} />
             </View>
+
+            {/* Executive inputs */}
+            <View style={styles.inputContainer}>
+                <Text style={styles.label}>Add Executive</Text>
+                <TextInput
+                    style={styles.executiveInput}
+                    placeholder="Name"
+                    value={execName}
+                    onChangeText={setExecName}
+                />
+                <TextInput
+                    style={styles.executiveInput}
+                    placeholder="Role"
+                    value={execRole}
+                    onChangeText={setExecRole}
+                />
+                <View style={styles.imageLocal}>
+                    {execImage && <Image source={{ uri: execImage }} style={styles.execImage} />}
+                </View>
+
+                <View style={{ marginBottom: 10 }}>
+                    <Button title="Pick Executive Image" onPress={() => pickImage(setExecImage)} />
+                </View>
+                <Button title="Add Executive" onPress={handleAddExecutive} />
+            </View>
+
+            {/* Display executives as cards */}
+            {groupData.executives.length > 0 && (
+                <View style={styles.inputContainer}>
+                    <Text style={styles.label}>Executives</Text>
+                    {groupData.executives.map((exec, index) => (
+                        <View key={index} style={styles.execCard}>
+                            {exec.image ? (
+                                <Image source={{ uri: exec.image }} style={styles.execImage} />
+                            ) : (
+                                <View style={[styles.execImage, styles.execImagePlaceholder]} />
+                            )}
+                            <View style={styles.execTextContainer}>
+                                <Text style={styles.execName}>{exec.name}</Text>
+                                <Text style={styles.execRole}>{exec.role}</Text>
+                            </View>
+                        </View>
+                    ))}
+                </View>
+            )}
 
             {saving ? (
                 <ActivityIndicator size="large" color="#4338ca" />
             ) : (
-                <Button title="Save Changes" onPress={handleSave} />
+                <View style={{ paddingBottom: 30 }}>
+                    <Button title="Save Changes" onPress={handleSave} />
+                </View>
             )}
         </ScrollView>
     );
@@ -284,6 +320,7 @@ const styles = StyleSheet.create({
     label: {
         marginBottom: 6,
         fontWeight: "600",
+        color: "#4338ca",
     },
     input: {
         borderWidth: 1,
@@ -304,5 +341,50 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         marginBottom: 10,
         resizeMode: "cover",
+    },
+    execCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#1f2937",
+        padding: 12,
+        borderRadius: 10,
+        marginBottom: 12,
+    },
+    execImage: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: "#ccc",
+        marginRight: 14,
+    },
+    execImagePlaceholder: {
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    execTextContainer: {
+        flexShrink: 1,
+    },
+    execName: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: "white",
+    },
+    execRole: {
+        fontSize: 14,
+        color: "white",
+    },
+    imageLocal: {
+        marginBottom: 10,
+        marginTop: 10,
+    },
+    executiveInput: {
+        borderWidth: 1,
+        borderColor: "#999",
+        borderRadius: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        fontSize: 16,
+        backgroundColor: "#f9f9f9",
+        marginBottom: 10,
     },
 });

@@ -144,8 +144,8 @@ const MembersScreen = ({ route }) => {
             source={item.avatar_url ? { uri: item.avatar_url } : defaultAvatar}
             style={styles.avatar}
           />
-          <View style={{ flex: 1 }}>
-            <FontAwesomeIcon icon={faUser} size={16} color="#fff" style={{ marginRight: 6 }} />
+          <View style={{ flex: 1, flexDirection: 'row' }}>
+            <FontAwesomeIcon icon={faUser} size={16} color="#fff" style={{ marginRight: 6, marginTop: 2 }} />
             <Text style={styles.name}>{item.name || 'No Name'}</Text>
           </View>
           <FontAwesomeIcon
