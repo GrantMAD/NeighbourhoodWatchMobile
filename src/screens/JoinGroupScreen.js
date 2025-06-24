@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Alert, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  Alert,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  TextInput,
+} from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
@@ -7,6 +15,8 @@ import { supabase } from '../../lib/supabase';
 const JoinGroupScreen = () => {
   const [groups, setGroups] = useState([]);
   const [selectedGroupId, setSelectedGroupId] = useState(null);
+  const [groupPasswordInput, setGroupPasswordInput] = useState('');
+  const [actualGroupPassword, setActualGroupPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
 
@@ -22,9 +32,36 @@ const JoinGroupScreen = () => {
     fetchGroups();
   }, []);
 
+  const fetchGroupPassword = async (groupId) => {
+    const { data, error } = await supabase
+      .from('groups')
+      .select('group_password')
+      .eq('id', groupId)
+      .single();
+
+    if (error || !data?.group_password) {
+      Alert.alert('Error', 'Failed to fetch group password');
+      setActualGroupPassword('');
+      return;
+    }
+
+    setActualGroupPassword(data.group_password);
+  };
+
+  const handleGroupChange = (groupId) => {
+    setSelectedGroupId(groupId);
+    setGroupPasswordInput('');
+    if (groupId) fetchGroupPassword(groupId);
+  };
+
   const handleJoinRequest = async () => {
     if (!selectedGroupId) {
       Alert.alert('Please select a group to join');
+      return;
+    }
+
+    if (!groupPasswordInput || groupPasswordInput.trim() !== actualGroupPassword) {
+      Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
       return;
     }
 
@@ -39,7 +76,6 @@ const JoinGroupScreen = () => {
       return;
     }
 
-    // Get selected group
     const { data: group, error: groupError } = await supabase
       .from('groups')
       .select('id, name, requests, created_by')
@@ -89,7 +125,6 @@ const JoinGroupScreen = () => {
       return;
     }
 
-    // Fetch requesting user's profile to get name
     const { data: requesterProfiles, error: requesterError } = await supabase
       .from('profiles')
       .select('name')
@@ -104,7 +139,6 @@ const JoinGroupScreen = () => {
 
     const requesterName = requesterProfiles.name;
 
-    // Fetch creator's profile
     const { data: creatorProfiles, error: profileError } = await supabase
       .from('profiles')
       .select('id, notifications')
@@ -122,7 +156,7 @@ const JoinGroupScreen = () => {
       id: `notif-${Date.now()}`,
       type: 'join_request',
       groupId: group.id,
-      requestId: requestId, // link to the request
+      requestId,
       message: `${requesterName} requested to join your group "${group.name}"`,
       createdAt: new Date().toISOString(),
       read: false,
@@ -140,7 +174,6 @@ const JoinGroupScreen = () => {
       .update({ notifications: updatedNotifications })
       .eq('id', group.created_by);
 
-    // Update requesting user's profile with requestedGroupId
     const { error: updateRequesterError } = await supabase
       .from('profiles')
       .update({ requestedgroupid: selectedGroupId })
@@ -155,7 +188,6 @@ const JoinGroupScreen = () => {
     if (notifyError) {
       Alert.alert('Error', 'Failed to notify group creator');
     } else {
-      // Navigate to WaitingStatusScreen
       navigation.navigate('WaitingStatusScreen', { groupId: selectedGroupId });
     }
   };
@@ -164,7 +196,7 @@ const JoinGroupScreen = () => {
     <View style={styles.container}>
       <Text style={styles.title}>Join a Group</Text>
       <Text style={styles.description}>
-        Choose a group from the list below and send a request to join.
+        Choose a group from the list below and enter the group password to request to join.
       </Text>
 
       {groups.length === 0 ? (
@@ -173,7 +205,7 @@ const JoinGroupScreen = () => {
         <View style={styles.pickerWrapper}>
           <Picker
             selectedValue={selectedGroupId}
-            onValueChange={(value) => setSelectedGroupId(value)}
+            onValueChange={handleGroupChange}
             style={styles.picker}
           >
             <Picker.Item label="Select a group..." value={null} />
@@ -184,14 +216,27 @@ const JoinGroupScreen = () => {
         </View>
       )}
 
+      {selectedGroupId && (
+        <>
+          <TextInput
+            placeholder="Enter group password"
+            secureTextEntry
+            style={styles.passwordInput}
+            value={groupPasswordInput}
+            onChangeText={setGroupPasswordInput}
+          />
+        </>
+      )}
+
       <TouchableOpacity
         onPress={handleJoinRequest}
         disabled={loading}
         style={styles.joinButton}
       >
-        <Text style={styles.joinButtonText}>Request to Join</Text>
+        <Text style={styles.joinButtonText}>
+          {loading ? 'Requesting...' : 'Request to Join'}
+        </Text>
       </TouchableOpacity>
-
     </View>
   );
 };
@@ -208,6 +253,14 @@ const styles = StyleSheet.create({
   picker: {
     height: 60,
   },
+  passwordInput: {
+    backgroundColor: 'white',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 8,
+    fontSize: 16,
+    marginBottom: 20,
+  },
   joinButton: {
     backgroundColor: '#14b8a6',
     paddingVertical: 15,
@@ -222,7 +275,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: '#d1d5db', 
+    color: '#d1d5db',
     marginBottom: 20,
   },
 });

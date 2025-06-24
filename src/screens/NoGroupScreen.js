@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    StyleSheet,
+    ScrollView,
+    Alert,
+} from 'react-native';
 import { supabase } from '../../lib/supabase';
 
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faTrash, faBell } from '@fortawesome/free-solid-svg-icons';
+
 export default function NoGroupScreen({ navigation }) {
-    console.log('NoGroupScreen mounted');
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [pendingGroupName, setPendingGroupName] = useState(null);
@@ -17,7 +26,7 @@ export default function NoGroupScreen({ navigation }) {
                 if (!user) {
                     setNotifications([]);
                     setLoading(false);
-                    setPendingGroupName(null); // Ensure it's cleared
+                    setPendingGroupName(null);
                     return;
                 }
 
@@ -31,7 +40,7 @@ export default function NoGroupScreen({ navigation }) {
                     console.error('Error fetching profile:', profileError);
                     setNotifications([]);
                     setLoading(false);
-                    setPendingGroupName(null); // Ensure it's cleared
+                    setPendingGroupName(null);
                     return;
                 }
 
@@ -47,10 +56,10 @@ export default function NoGroupScreen({ navigation }) {
                     if (!groupError && groupData) {
                         setPendingGroupName(groupData.name);
                     } else {
-                        setPendingGroupName(''); // Set to empty string if error
+                        setPendingGroupName('');
                     }
                 } else {
-                    setPendingGroupName(null); // Clear if no request
+                    setPendingGroupName(null);
                 }
 
                 setLoading(false);
@@ -65,6 +74,33 @@ export default function NoGroupScreen({ navigation }) {
         fetchUserStatus();
     }, []);
 
+    const handleDeleteNotification = async (notifId) => {
+        try {
+            const userResponse = await supabase.auth.getUser();
+            const user = userResponse.data?.user || null;
+            if (!user) return;
+
+            // Remove notification locally
+            const newNotifications = notifications.filter((n) => n.id !== notifId);
+            setNotifications(newNotifications);
+
+            // Update notifications array in profile in Supabase
+            const { error } = await supabase
+                .from('profiles')
+                .update({ notifications: newNotifications })
+                .eq('id', user.id);
+
+            if (error) {
+                Alert.alert('Error', 'Failed to delete notification.');
+                // Optionally revert state on failure:
+                setNotifications(notifications);
+            }
+        } catch (error) {
+            console.error('Error deleting notification:', error);
+            Alert.alert('Error', 'Failed to delete notification.');
+        }
+    };
+
     const handleSignOut = async () => {
         try {
             await supabase.auth.signOut();
@@ -77,16 +113,65 @@ export default function NoGroupScreen({ navigation }) {
         }
     };
 
+    const hasDeclinedRequest = notifications.some(
+        (notif) => notif.type === 'declined_request'
+    );
+
+
     return (
         <View style={styles.container}>
             <Text style={styles.title}>You're not part of a group yet.</Text>
 
-            {/* Only show description and button if no pending request */}
             {!pendingGroupName && (
                 <>
                     <Text style={styles.description}>
-                        To get started, you can either join an existing group or create your own.
+                        To get started, you can either join an existing group or create your
+                        own.
                     </Text>
+
+                    {/* Notification area below the "To get started" text */}
+                    {!loading && notifications.length > 0 && (
+                        <View style={styles.notificationsSection}>
+                            <Text style={styles.notificationsHeading}>You have a notification</Text>
+                            <ScrollView style={styles.notificationsContainer}>
+                                {notifications.map((notif) => (
+                                    <View key={notif.id} style={styles.notificationCard}>
+                                        <View style={styles.notificationContent}>
+                                            <FontAwesomeIcon
+                                                icon={faBell}
+                                                size={18}
+                                                color="#14b8a6"
+                                                style={styles.notificationIcon}
+                                            />
+                                            <Text
+                                                style={[
+                                                    styles.notificationText,
+                                                    !notif.read && styles.unreadNotificationText,
+                                                ]}
+                                            >
+                                                {notif.message}
+                                            </Text>
+                                            <TouchableOpacity
+                                                onPress={() => handleDeleteNotification(notif.id)}
+                                                style={styles.deleteIcon}
+                                            >
+                                                <FontAwesomeIcon icon={faTrash} size={20} color="#ef4444" />
+                                            </TouchableOpacity>
+                                        </View>
+                                        <Text style={styles.notificationDate}>
+                                            {new Date(notif.createdAt).toLocaleString()}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    )}
+
+                    {hasDeclinedRequest && (
+                        <Text style={styles.declinedMessage}>
+                            If you'd like to request to join another group, press Continue.
+                        </Text>
+                    )}
 
                     <TouchableOpacity
                         style={styles.button}
@@ -103,44 +188,20 @@ export default function NoGroupScreen({ navigation }) {
                 </Text>
             )}
 
-            {!loading && (
-                notifications.length === 0 ? (
-                    <Text style={styles.noNotifications}>You currently have no notifications.</Text>
-                ) : (
-                    <ScrollView style={styles.notificationsContainer}>
-                        {notifications.map((notif, index) => (
-                            <View key={notif.id || index} style={styles.notification}>
-                                <View style={styles.notificationHeader}>
-                                    <Text
-                                        style={[
-                                            styles.notificationText,
-                                            !notif.read && styles.unreadNotificationText,
-                                        ]}
-                                    >
-                                        {notif.message}
-                                    </Text>
-                                    {!notif.read && <View style={styles.unreadDot} />}
-                                </View>
-                                <Text style={styles.notificationDate}>
-                                    {new Date(notif.createdAt).toLocaleString()}
-                                </Text>
-                            </View>
-                        ))}
-                    </ScrollView>
-                )
+            {!hasDeclinedRequest && (
+                <TouchableOpacity
+                    style={styles.statusButton}
+                    onPress={() => navigation.navigate('WaitingStatusScreen')}
+                >
+                    <Text style={styles.statusButtonText}>View Join Request Status</Text>
+                </TouchableOpacity>
             )}
-            <TouchableOpacity
-                style={styles.statusButton}
-                onPress={() => navigation.navigate('WaitingStatusScreen')}
-            >
-                <Text style={styles.statusButtonText}>View Join Request Status</Text>
-            </TouchableOpacity>
+
             <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
                 <Text style={styles.signOutText}>Sign Out</Text>
             </TouchableOpacity>
         </View>
     );
-
 }
 
 const styles = StyleSheet.create({
@@ -160,60 +221,59 @@ const styles = StyleSheet.create({
     description: {
         fontSize: 16,
         textAlign: 'center',
-        marginBottom: 30,
+        marginBottom: 20,
         color: 'white',
+    },
+
+    notificationsSection: {
+        marginBottom: 20,
+    },
+    notificationsHeading: {
+        fontSize: 18,
+        fontWeight: '700',
+        marginBottom: 10,
+        color: 'white',
+        textAlign: 'center',
     },
     notificationsContainer: {
         maxHeight: 200,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 12,
+    },
+    notificationCard: {
+        backgroundColor: '#fefefe',
         padding: 15,
-        backgroundColor: '#fafafa',
+        borderRadius: 12,
+        marginBottom: 12,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 5,
     },
-    notification: {
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
-        marginBottom: 8,
-    },
-    notificationHeader: {
+    notificationContent: {
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    notificationIcon: {
+        marginRight: 10,
     },
     notificationText: {
         fontSize: 15,
         color: '#333',
         flex: 1,
+        paddingRight: 10,
     },
     unreadNotificationText: {
         fontWeight: 'bold',
     },
-    unreadDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        backgroundColor: '#007AFF',
-        marginLeft: 8,
-    },
     notificationDate: {
         fontSize: 12,
-        color: '#888',
-        marginTop: 4,
+        color: '#666',
+        marginTop: 6,
         fontStyle: 'italic',
     },
-    noNotifications: {
-        fontStyle: 'italic',
-        color: 'white',
-        marginBottom: 20,
-        textAlign: 'center',
+    deleteIcon: {
+        padding: 4,
     },
     button: {
         backgroundColor: '#14b8a6',
@@ -239,7 +299,6 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         alignItems: 'center',
     },
-
     signOutText: {
         color: '#fff',
         fontSize: 16,
@@ -248,7 +307,7 @@ const styles = StyleSheet.create({
     statusButton: {
         marginTop: 20,
         paddingVertical: 12,
-        backgroundColor: '#14b8a6', 
+        backgroundColor: '#14b8a6',
         borderRadius: 8,
         alignItems: 'center',
     },
@@ -256,5 +315,11 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
+    },
+    declinedMessage: {
+        marginBottom: 12,
+        fontSize: 16,
+        color: 'white',
+        textAlign: 'center',
     },
 });
