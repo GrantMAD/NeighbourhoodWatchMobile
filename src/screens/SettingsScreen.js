@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  FlatList,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 
@@ -129,12 +130,21 @@ function SettingsScreen({ route, navigation }) {
       <Text style={styles.sectionHeader}>Group Settings</Text>
 
       {isGroupCreator && (
-        <TouchableOpacity
-          style={styles.option}
-          onPress={() => navigation.navigate("GroupDataScreen")}
-        >
-          <Text style={styles.optionText}>Group Data</Text>
-        </TouchableOpacity>
+        <>
+          <TouchableOpacity
+            style={styles.option}
+            onPress={() => navigation.navigate("GroupDataScreen")}
+          >
+            <Text style={styles.optionText}>Group Data</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.option}
+            onPress={() => navigation.navigate("ManageMembersScreen", { groupId })}
+          >
+            <Text style={styles.optionText}>Manage Members</Text>
+          </TouchableOpacity>
+        </>
       )}
 
       <TouchableOpacity style={styles.option} onPress={togglePasswordVisibility}>

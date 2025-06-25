@@ -31,6 +31,7 @@
     "react-native": "0.79.4",
     "react-native-calendars": "^1.1312.1",
     "react-native-get-random-values": "^1.11.0",
+    "react-native-simple-toast": "^3.3.2",
     "react-native-toast-message": "^2.3.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-vector-icons": "^10.2.0"

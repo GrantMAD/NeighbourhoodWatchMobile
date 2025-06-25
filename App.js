@@ -18,6 +18,7 @@ import ChangePasswordScreen from './src/screens/ChangePasswordScreen'
 import GroupDataScreen from './src/screens/GroupDataScreen'
 import AddReportScreen from './src/screens/AddReportScreen'
 import SessionLoaderScreen from './src/screens/SessionLoaderScreen';
+import ManageMembersScreen from './src/screens/ManageMembersScreen'
 import NotificationSetting from './src/screens/NotificationSetting';
 
 const Stack = createNativeStackNavigator()
@@ -135,6 +136,11 @@ export default function App() {
           name="NotificationSetting"
           component={NotificationSetting}
           options={{ title: "Notification Setting" }}
+        />
+        <Stack.Screen
+          name="ManageMembersScreen"
+          component={ManageMembersScreen}
+          options={{ title: "Manage Members" }}
         />
       </Stack.Navigator>
     </NavigationContainer>
