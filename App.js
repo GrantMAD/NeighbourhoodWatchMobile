@@ -1,3 +1,4 @@
+import 'react-native-gesture-handler';
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import SignInScreen from './src/screens/SignInScreen'
 import SignUpScreen from './src/screens/SignUpScreen'

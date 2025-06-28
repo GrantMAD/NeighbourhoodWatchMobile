@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import {
   Modal,
   Alert,
@@ -17,6 +17,7 @@ import {
   DrawerItemList,
   DrawerItem,
 } from "@react-navigation/drawer";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { FontAwesome5 } from "@expo/vector-icons";
 import HomeScreen from "../screens/HomeScreen";
 import AboutScreen from "../screens/AboutScreen";
@@ -31,6 +32,7 @@ import ContactScreen from "../screens/ContactScreen";
 import CheckedInScreen from "../screens/CheckedInScreen";
 
 const Drawer = createDrawerNavigator();
+const Tab = createBottomTabNavigator();
 
 function CustomDrawerContent(props) {
   const { navigation } = props;
@@ -219,6 +221,41 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate, visible }) =
   );
 };
 
+function BottomTabNavigator({ route }) {
+    const { groupId } = route.params;
+    return (
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName;
+            if (route.name === 'Home') {
+              iconName = 'home';
+            } else if (route.name === 'Members') {
+              iconName = 'users';
+            } else if (route.name === 'Events') {
+              iconName = 'calendar-alt';
+            } else if (route.name === 'News') {
+              iconName = 'newspaper';
+            } else if (route.name === 'Incidents') {
+              iconName = 'exclamation-triangle';
+            }
+            return <FontAwesome5 name={iconName} size={size} color={color} />;
+          },
+          tabBarActiveTintColor: "#22d3ee",
+          tabBarInactiveTintColor: "#fff",
+          tabBarStyle: { backgroundColor: "#1f2937", borderTopWidth: 0 },
+          headerShown: false,
+        })}
+      >
+        <Tab.Screen name="Home" component={HomeScreen} initialParams={{ groupId }} />
+        <Tab.Screen name="Members" component={MembersScreen} initialParams={{ groupId }} />
+        <Tab.Screen name="Events" component={EventsScreen} initialParams={{ groupId }} />
+        <Tab.Screen name="News" component={NewsScreen} initialParams={{ groupId }} />
+        <Tab.Screen name="Incidents" component={IncidentsScreen} initialParams={{ groupId }} />
+      </Tab.Navigator>
+    );
+  }
+
 const MainAppScreen = ({ route, navigation }) => {
   const { groupId } = route.params;
   const [notifications, setNotifications] = useState([]);
@@ -309,7 +346,7 @@ const MainAppScreen = ({ route, navigation }) => {
   );
 
 
-  const screenOptionsWithDrawerButton = ({ navigation }) => ({
+  const screenOptionsWithDrawerButton = ({ navigation, route }) => ({
     headerShown: true,
     headerStyle: {
       backgroundColor: "#1f2937",
@@ -503,12 +540,27 @@ const MainAppScreen = ({ route, navigation }) => {
     return Math.random().toString(36).substr(2, 9);
   }
 
+  const getHeaderTitle = (route) => {
+    const routeName = getFocusedRouteNameFromRoute(route) ?? route.name;
+
+    if (routeName === 'MainTabs') {
+        return 'Home';
+    }
+    if (routeName === 'ContactScreen') {
+        return 'Contact';
+    }
+    if (routeName === 'CheckedIn') {
+        return 'Checked In';
+    }
+    return routeName;
+  };
+
 
   if (!groupId) {
     return (
       <Drawer.Navigator
-        screenOptions={({ navigation }) => ({
-          ...screenOptionsWithDrawerButton({ navigation }),
+        screenOptions={({ navigation, route }) => ({
+          ...screenOptionsWithDrawerButton({ navigation, route }),
           drawerActiveTintColor: "#22d3ee",
           drawerInactiveTintColor: "#fff",
           drawerStyle: { backgroundColor: "#1f2937" },
@@ -532,20 +584,21 @@ const MainAppScreen = ({ route, navigation }) => {
 
   return (
     <Drawer.Navigator
-      screenOptions={({ navigation }) => ({
-        ...screenOptionsWithDrawerButton({ navigation }),
+      screenOptions={({ navigation, route }) => ({
+        ...screenOptionsWithDrawerButton({ navigation, route }),
         drawerActiveTintColor: "#22d3ee",
         drawerInactiveTintColor: "#fff",
         drawerStyle: { backgroundColor: "#1f2937" },
         drawerLabelStyle: {
           fontWeight: "600",
         },
+        headerTitle: getHeaderTitle(route),
       })}
       drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
       <Drawer.Screen
-        name="Home"
-        component={HomeScreen}
+        name="MainTabs"
+        component={BottomTabNavigator}
         initialParams={{ groupId }}
         options={{
           title: "Home",
@@ -583,51 +636,6 @@ const MainAppScreen = ({ route, navigation }) => {
         }}
       />
       <Drawer.Screen
-        name="Members"
-        component={MembersScreen}
-        initialParams={{ groupId }}
-        options={{
-          title: "Members",
-          drawerIcon: ({ color, size, focused }) => (
-            <FontAwesome5
-              name="users"
-              size={size}
-              color={focused ? "#22d3ee" : "#fff"}
-            />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="Events"
-        component={EventsScreen}
-        initialParams={{ groupId }}
-        options={{
-          title: "Events",
-          drawerIcon: ({ color, size, focused }) => (
-            <FontAwesome5
-              name="calendar-alt"
-              size={size}
-              color={focused ? "#22d3ee" : "#fff"}
-            />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="News"
-        component={NewsScreen}
-        initialParams={{ groupId }}
-        options={{
-          title: "News",
-          drawerIcon: ({ color, size, focused }) => (
-            <FontAwesome5
-              name="newspaper"
-              size={size}
-              color={focused ? "#22d3ee" : "#fff"}
-            />
-          ),
-        }}
-      />
-      <Drawer.Screen
         name="About"
         component={AboutScreen}
         initialParams={{ groupId }}
@@ -636,21 +644,6 @@ const MainAppScreen = ({ route, navigation }) => {
           drawerIcon: ({ color, size, focused }) => (
             <FontAwesome5
               name="info-circle"
-              size={size}
-              color={focused ? "#22d3ee" : "#fff"}
-            />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="Incidents"
-        component={IncidentsScreen}
-        initialParams={{ groupId }}
-        options={{
-          title: "Incidents",
-          drawerIcon: ({ color, size, focused }) => (
-            <FontAwesome5
-              name="exclamation-triangle"
               size={size}
               color={focused ? "#22d3ee" : "#fff"}
             />

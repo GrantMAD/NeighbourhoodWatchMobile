@@ -26,7 +26,7 @@ export default function HomeScreen({ route, navigation }) {
 
         const { data, error } = await supabase
           .from("groups")
-          .select("welcome_text, main_image, events, news")
+          .select("welcome_text, main_image, events, news, name")
           .eq("id", groupId)
           .single();
 
@@ -72,7 +72,7 @@ export default function HomeScreen({ route, navigation }) {
 
       {/* Welcome Section */}
       <View style={styles.welcomeSection}>
-        <Text style={styles.welcomeTitle}>WELCOME</Text>
+        <Text style={styles.welcomeTitle}>Welcome to {groupData.name} neighborhood watch.</Text>
         <View style={styles.hr} />
         <Text style={styles.welcomeText}>
           {groupData.welcome_text ||
@@ -121,7 +121,7 @@ export default function HomeScreen({ route, navigation }) {
       </View>
 
       {/* News Section */}
-      <View style={[styles.section, { marginBottom: 80 }]}>
+      <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>NEWS</Text>
           <TouchableOpacity
@@ -173,7 +173,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#e5e7eb",
-    marginBottom: 40,
   },
   headerImage: {
     width: "100%",
@@ -192,7 +191,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
   },
   welcomeTitle: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: "700",
     color: "#f9fafb",
     marginBottom: 6,
