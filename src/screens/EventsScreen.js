@@ -6,18 +6,82 @@ import {
     StyleSheet,
     Image,
     TouchableOpacity,
+    Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
-import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faChevronDown, faChevronUp, faCalendarAlt, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
+
+
+const EventModal = ({ visible, onClose, event }) => {
+    if (!event) return null;
+
+    return (
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={visible}
+            onRequestClose={onClose}
+        >
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                        <Text style={styles.closeButtonText}>X</Text>
+                    </TouchableOpacity>
+                    <ScrollView>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 24, marginRight: 10 }}>🗓️</Text>
+                            <Text style={styles.modalTitle}>{event.title}</Text>
+                        </View>
+                        <View style={styles.modalHr} />
+                        {event.image && (
+                            <Image source={{ uri: event.image }} style={styles.modalImage} />
+                        )}
+                        {event.location && (
+                            <View style={styles.row}>
+                                <Text style={{ fontSize: 16, marginRight: 6 }}>📍</Text>
+                                <Text style={styles.modalLocation}>{event.location}</Text>
+                            </View>
+                        )}
+                        <Text style={styles.modalMessage}>{event.message}</Text>
+                        <View style={styles.row}>
+                            <Text style={{ fontSize: 14, marginRight: 5 }}>⏱️</Text>
+                            <Text style={styles.modalDate}>
+                                {new Date(event.startDate).toLocaleDateString('en-US', {
+                                    weekday: 'long',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                })}{' '}
+                                •{' '}
+                                {new Date(event.startDate).toLocaleTimeString('en-US', {
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                    hour12: true,
+                                })}{' '}
+                                -{' '}
+                                {new Date(event.endDate).toLocaleTimeString('en-US', {
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                    hour12: true,
+                                })}
+                            </Text>
+                        </View>
+                        <View style={styles.row}>
+                            <Text style={{ fontSize: 14, marginRight: 5 }}>👁️</Text>
+                            <Text style={styles.modalViews}>Views: {event.views || 0}</Text>
+                        </View>
+                    </ScrollView>
+                </View>
+            </View>
+        </Modal>
+    );
+};
 
 const EventsScreen = ({ route, navigation }) => {
     const { groupId } = route.params;
     const [events, setEvents] = useState([]);
-    const [expandedEventIndexes, setExpandedEventIndexes] = useState([]);
+    const [selectedEvent, setSelectedEvent] = useState(null);
 
     const fetchEvents = async () => {
         const { data, error } = await supabase
@@ -33,26 +97,58 @@ const EventsScreen = ({ route, navigation }) => {
         }
     };
 
+    const incrementEventViews = async (eventId) => {
+        try {
+            const { data, error } = await supabase
+                .from("groups")
+                .select("events")
+                .eq("id", groupId)
+                .single();
+
+            if (error) {
+                console.error("Error fetching events before updating views:", error.message);
+                return null;
+            }
+
+            if (!data?.events) return null;
+
+            const eventsCopy = [...data.events];
+            const eventIndex = eventsCopy.findIndex((e) => e.id === eventId);
+            if (eventIndex === -1) return null;
+
+            eventsCopy[eventIndex].views = (eventsCopy[eventIndex].views || 0) + 1;
+
+            const { error: updateError } = await supabase
+                .from("groups")
+                .update({ events: eventsCopy })
+                .eq("id", groupId);
+
+            if (updateError) {
+                console.error("Error updating views:", updateError.message);
+                return null;
+            }
+
+            return eventsCopy[eventIndex].views;
+        } catch (err) {
+            console.error("Unexpected error updating views:", err);
+            return null;
+        }
+    };
+
     useFocusEffect(
         useCallback(() => {
             fetchEvents();
         }, [groupId])
     );
 
-    const toggleExpand = (index) => {
-        setExpandedEventIndexes((prev) =>
-            prev.includes(index)
-                ? prev.filter((i) => i !== index)
-                : [...prev, index]
-        );
-    };
+    
 
     return (
         <ScrollView style={styles.container}>
             {/* Header styled like NewsScreen */}
             <View style={styles.headerRow}>
                 <View style={styles.headingContainer}>
-                    <FontAwesome name="calendar" size={28} color="#111827" style={styles.headingIcon} />
+                    <Text style={styles.headingIcon}>🗓️</Text>
                     <Text style={styles.mainHeading}>Events</Text>
                 </View>
 
@@ -73,68 +169,37 @@ const EventsScreen = ({ route, navigation }) => {
                 <Text style={styles.noEventsText}>No events found.</Text>
             ) : (
                 events.map((event, index) => {
-                    const isExpanded = expandedEventIndexes.includes(index);
                     return (
                         <TouchableOpacity
                             key={index}
-                            onPress={() => toggleExpand(index)}
+                            onPress={async () => {
+                                const updatedViews = await incrementEventViews(event.id);
+                                if (updatedViews !== null) {
+                                    const updatedEvent = { ...event, views: updatedViews };
+                                    setSelectedEvent(updatedEvent);
+                                } else {
+                                    setSelectedEvent(event);
+                                }
+                            }}
                             activeOpacity={0.8}
                             style={styles.eventCard}
                         >
-                            <View style={styles.mainRow}>
-                                <FontAwesomeIcon
-                                    icon={faCalendarAlt}
-                                    size={18}
-                                    color="#fff"
-                                    style={{ marginRight: 8 }}
-                                />
-                                <Text style={styles.title}>{event.title}</Text>
-                                <FontAwesomeIcon
-                                    icon={isExpanded ? faChevronUp : faChevronDown}
-                                    size={18}
-                                    color="#fff"
-                                />
-                            </View>
-
-                            {isExpanded && (
-                                <View style={styles.dropdown}>
-                                    <Text style={styles.dropdownHeading}>Event Details</Text>
-                                    {event.location && (
-                                        <View style={styles.row}>
-                                            <FontAwesomeIcon icon={faMapMarkerAlt} size={16} color="#666" style={{ marginRight: 6 }} />
-                                            <Text style={styles.locationText}>{event.location}</Text>
-                                        </View>
-                                    )}
-                                    <Text style={styles.message}>{event.message}</Text>
-                                    {event.image && (
-                                        <Image source={{ uri: event.image }} style={styles.image} />
-                                    )}
-                                    <Text style={styles.date}>
-                                        {new Date(event.startDate).toLocaleDateString('en-US', {
-                                            weekday: 'long',
-                                            month: 'long',
-                                            day: 'numeric',
-                                            year: 'numeric',
-                                        })}{' '}
-                                        •{' '}
-                                        {new Date(event.startDate).toLocaleTimeString('en-US', {
-                                            hour: 'numeric',
-                                            minute: '2-digit',
-                                            hour12: true,
-                                        })}{' '}
-                                        -{' '}
-                                        {new Date(event.endDate).toLocaleTimeString('en-US', {
-                                            hour: 'numeric',
-                                            minute: '2-digit',
-                                            hour12: true,
-                                        })}
-                                    </Text>
-                                </View>
+                            {event.image && (
+                                <Image source={{ uri: event.image }} style={styles.eventImage} />
                             )}
+                            <View style={styles.eventTitleContainer}>
+                                <Text style={{ fontSize: 18, marginRight: 8 }}>🗓️</Text>
+                                <Text style={styles.eventCardTitle}>{event.title}</Text>
+                            </View>
                         </TouchableOpacity>
                     );
                 })
             )}
+            <EventModal
+                visible={!!selectedEvent}
+                onClose={() => setSelectedEvent(null)}
+                event={selectedEvent}
+            />
         </ScrollView>
     );
 };
@@ -192,6 +257,12 @@ const styles = StyleSheet.create({
         marginVertical: 6,
         backgroundColor: '#333',
         overflow: 'hidden',
+        position: 'relative',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
     },
     mainRow: {
         flexDirection: 'row',
@@ -250,6 +321,109 @@ const styles = StyleSheet.create({
     locationText: {
         color: '#666',
         fontSize: 14,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: '#1f2937',
+        borderRadius: 10,
+        padding: 20,
+        width: '90%',
+        maxHeight: '80%',
+        paddingTop: 40, // Make space for the absolute close button
+        
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        padding: 5,
+        zIndex: 1,
+    },
+    closeButtonText: {
+        color: '#f9fafb',
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        color: '#f9fafb',
+        paddingTop: 10,
+    },
+    modalHr: {
+        height: 1,
+        backgroundColor: '#4b5563',
+        marginVertical: 10,
+    },
+    modalImage: {
+        width: '100%',
+        height: 200,
+        borderRadius: 8,
+        marginBottom: 15,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
+    },
+    modalLocation: {
+        fontSize: 16,
+        color: '#d1d5db',
+        marginBottom: 8,
+        paddingTop: 8,
+    },
+    modalMessage: {
+        fontSize: 16,
+        color: '#e5e7eb',
+        marginBottom: 15,
+        lineHeight: 22,
+    },
+    modalDate: {
+        fontSize: 14,
+        color: '#9ca3af',
+        fontStyle: 'italic',
+    },
+    modalViews: {
+        fontSize: 14,
+        color: '#9ca3af',
+        marginTop: 5,
+    },
+    eventImage: {
+        width: '100%',
+        height: 180,
+        borderRadius: 8,
+    },
+    eventCardTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#fff',
+        padding: 10,
+    },
+    eventTitleContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(31, 41, 55, 0.7)', // Semi-transparent dark background
+        padding: 10,
+        borderBottomLeftRadius: 8,
+        borderBottomRightRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
     },
 });
 

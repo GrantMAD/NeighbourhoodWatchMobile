@@ -9,8 +9,7 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
-import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faTrash, faBell } from '@fortawesome/free-solid-svg-icons';
+
 
 export default function NoGroupScreen({ navigation }) {
     const [notifications, setNotifications] = useState([]);
@@ -137,12 +136,7 @@ export default function NoGroupScreen({ navigation }) {
                                 {notifications.map((notif) => (
                                     <View key={notif.id} style={styles.notificationCard}>
                                         <View style={styles.notificationContent}>
-                                            <FontAwesomeIcon
-                                                icon={faBell}
-                                                size={18}
-                                                color="#14b8a6"
-                                                style={styles.notificationIcon}
-                                            />
+                                            <Text style={styles.notificationIcon}>🔔</Text>
                                             <Text
                                                 style={[
                                                     styles.notificationText,
@@ -155,7 +149,7 @@ export default function NoGroupScreen({ navigation }) {
                                                 onPress={() => handleDeleteNotification(notif.id)}
                                                 style={styles.deleteIcon}
                                             >
-                                                <FontAwesomeIcon icon={faTrash} size={20} color="#ef4444" />
+                                                <Text style={{ fontSize: 20, color: "#ef4444" }}>🗑️</Text>
                                             </TouchableOpacity>
                                         </View>
                                         <Text style={styles.notificationDate}>

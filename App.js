@@ -1,4 +1,6 @@
 import 'react-native-gesture-handler';
+import { useEffect } from 'react';
+import * as NavigationBar from 'expo-navigation-bar';
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import SignInScreen from './src/screens/SignInScreen'
 import SignUpScreen from './src/screens/SignUpScreen'
@@ -25,6 +27,10 @@ import NotificationSetting from './src/screens/NotificationSetting';
 const Stack = createNativeStackNavigator()
 
 export default function App() {
+  useEffect(() => {
+    NavigationBar.setVisibilityAsync("hidden");
+    NavigationBar.setBehaviorAsync("inset-swipe");
+  }, []);
   return (
     <NavigationContainer>
       <Stack.Navigator

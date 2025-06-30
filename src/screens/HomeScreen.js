@@ -11,6 +11,7 @@ import {
 import { supabase } from "../../lib/supabase";
 import { useFocusEffect } from "@react-navigation/native";
 
+
 export default function HomeScreen({ route, navigation }) {
   const groupId = route.params?.groupId;
   const [groupData, setGroupData] = useState(null);
@@ -64,7 +65,7 @@ export default function HomeScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView style={[styles.container, styles.scrollPadding]}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollPadding}>  
       {/* Header Image */}
       {groupData.main_image ? (
         <Image source={{ uri: groupData.main_image }} style={styles.headerImage} />
@@ -90,7 +91,10 @@ export default function HomeScreen({ route, navigation }) {
       {/* Events Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>EVENTS</Text>
+          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <Text style={{ fontSize: 24, marginRight: 10, color: "#f9fafb" }}>🗓️</Text>
+            <Text style={styles.sectionTitle}>EVENTS</Text>
+          </View>
           <TouchableOpacity
             style={styles.buttonSecondary}
             onPress={() => navigation.navigate("AddEventScreen", { groupId })}
@@ -98,17 +102,24 @@ export default function HomeScreen({ route, navigation }) {
             <Text style={styles.buttonSecondaryText}>Add Event</Text>
           </TouchableOpacity>
         </View>
+        <Text style={styles.sectionDescription}>
+          Stay up-to-date with the latest events happening in your neighbourhood.
+        </Text>
         <View style={styles.hr} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {events.length > 0 ? (
             events.map((event, index) => (
-              <TouchableOpacity key={event.id || index} style={styles.card}>
+              <TouchableOpacity
+                key={event.id || index}
+                style={styles.card}
+                onPress={() => navigation.navigate("Events")}
+              >
                 {event.image ? (
                   <Image source={{ uri: event.image }} style={styles.cardImage} />
                 ) : null}
                 <Text style={styles.cardTitle}>{event.title}</Text>
                 <Text style={styles.cardDate}>
-                  {event.startDate} - {event.endDate}
+                  ⏱️ {event.startDate} - {event.endDate}
                 </Text>
               </TouchableOpacity>
             ))
@@ -123,7 +134,10 @@ export default function HomeScreen({ route, navigation }) {
       {/* News Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>NEWS</Text>
+          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <Text style={{ fontSize: 24, marginRight: 10, color: "#f9fafb" }}>📰</Text>
+            <Text style={styles.sectionTitle}>NEWS</Text>
+          </View>
           <TouchableOpacity
             style={styles.buttonSecondary}
             onPress={() => navigation.navigate("AddNewsScreen", { groupId })}
@@ -131,6 +145,9 @@ export default function HomeScreen({ route, navigation }) {
             <Text style={styles.buttonSecondaryText}>Add Story</Text>
           </TouchableOpacity>
         </View>
+        <Text style={styles.sectionDescription}>
+          Keep informed about the latest news and announcements in your community.
+        </Text>
         <View style={styles.hr} />
         {news.length > 0 ? (
           news.map((story, index) => (
@@ -181,6 +198,7 @@ const styles = StyleSheet.create({
   scrollPadding: {
     paddingTop: 40,
     paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   welcomeSection: {
     paddingHorizontal: 16,
@@ -189,6 +207,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.30,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
   welcomeTitle: {
     fontSize: 24,
@@ -225,6 +251,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#1f2937",
     marginBottom: 10,
     borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.30,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -235,6 +269,13 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     color: "#f9fafb",
+  },
+  sectionDescription: {
+    fontSize: 16,
+    color: "#d1d5db",
+    marginTop: 4,
+    marginBottom: 8,
+
   },
   buttonSecondary: {
     borderColor: "#ffffff",

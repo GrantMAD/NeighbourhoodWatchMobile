@@ -13,18 +13,7 @@ import {
     UIManager,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
-import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import {
-    faChevronDown,
-    faChevronUp,
-    faPhone,
-    faMapMarkerAlt,
-    faUser,
-    faEnvelope,
-    faIdCard,
-    faClock,
-    faTrash,
-} from '@fortawesome/free-solid-svg-icons';
+
 import Toast from 'react-native-simple-toast';
 
 const defaultAvatar = require('../../assets/Images/user.png');
@@ -230,10 +219,10 @@ export default function ManageMembersScreen() {
                 <View style={styles.mainRow}>
                     <Image source={item.avatar_url ? { uri: item.avatar_url } : defaultAvatar} style={styles.avatar} />
                     <View style={{ flex: 1, flexDirection: 'row' }}>
-                        <FontAwesomeIcon icon={faUser} size={16} color="#fff" style={{ marginRight: 6, marginTop: 2 }} />
+                        <Text style={{ marginRight: 6, marginTop: 2, fontSize: 16, color: "#fff" }}>👤</Text>
                         <Text style={styles.name}>{item.name || 'No Name'}</Text>
                     </View>
-                    <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} size={18} color="#fff" />
+                    <Text style={{ fontSize: 18, color: "#fff" }}>{isExpanded ? '▲' : '▼'}</Text>
                 </View>
 
                 {isExpanded && (
@@ -241,25 +230,25 @@ export default function ManageMembersScreen() {
                         <Text style={styles.dropdownHeading}>User Information</Text>
 
                         <View style={styles.detailRow}>
-                            <FontAwesomeIcon icon={faPhone} size={16} style={styles.icon} />
+                            <Text style={styles.icon}>📞</Text>
                             <Text style={styles.detailLabel}>Contact:</Text>
                             <Text style={styles.detailText}>{item.number || '-'}</Text>
                         </View>
 
                         <View style={styles.detailRow}>
-                            <FontAwesomeIcon icon={faEnvelope} size={16} style={styles.icon} />
+                            <Text style={styles.icon}>✉️</Text>
                             <Text style={styles.detailLabel}>Email:</Text>
                             <Text style={styles.detailText}>{item.email || '-'}</Text>
                         </View>
 
                         <View style={styles.detailRow}>
-                            <FontAwesomeIcon icon={faIdCard} size={16} style={styles.icon} />
+                            <Text style={styles.icon}>💳</Text>
                             <Text style={styles.detailLabel}>Emergency Contact:</Text>
                             <Text style={styles.detailText}>{item.emergency_contact || '-'}</Text>
                         </View>
 
                         <View style={styles.detailRow}>
-                            <FontAwesomeIcon icon={faMapMarkerAlt} size={16} style={styles.icon} />
+                            <Text style={styles.icon}>📍</Text>
                             <Text style={styles.detailLabel}>Street:</Text>
                             <Text style={styles.detailText}>{item.street || '-'}</Text>
                         </View>
@@ -267,12 +256,10 @@ export default function ManageMembersScreen() {
                         {/* Check-in */}
                         <TouchableOpacity onPress={() => toggleCheckIn(item.id)} style={styles.toggleHeader}>
                             <View style={styles.iconTextRow}>
-                                <FontAwesomeIcon icon={faClock} size={16} style={styles.icon} />
+                                <Text style={styles.icon}>⏱️</Text>
                                 <Text style={styles.dropdownSubHeading}>Check-in Times</Text>
                             </View>
-                            <FontAwesomeIcon
-                                icon={checkInAnimations[item.id]?._value === 1 ? faChevronUp : faChevronDown}
-                            />
+                            <Text style={{ fontSize: 16 }}>{checkInAnimations[item.id]?._value === 1 ? '▲' : '▼'}</Text>
                         </TouchableOpacity>
 
                         <Animated.View
@@ -301,12 +288,10 @@ export default function ManageMembersScreen() {
                         {/* Check-out */}
                         <TouchableOpacity onPress={() => toggleCheckOut(item.id)} style={styles.toggleHeader}>
                             <View style={styles.iconTextRow}>
-                                <FontAwesomeIcon icon={faClock} size={16} style={styles.icon} />
+                                <Text style={styles.icon}>⏱️</Text>
                                 <Text style={styles.dropdownSubHeading}>Check-out Times</Text>
                             </View>
-                            <FontAwesomeIcon
-                                icon={checkOutAnimations[item.id]?._value === 1 ? faChevronUp : faChevronDown}
-                            />
+                            <Text style={{ fontSize: 16 }}>{checkOutAnimations[item.id]?._value === 1 ? '▲' : '▼'}</Text>
                         </TouchableOpacity>
 
                         <Animated.View

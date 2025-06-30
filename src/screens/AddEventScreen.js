@@ -168,6 +168,7 @@ const AddEventScreen = ({ route, navigation }) => {
       startDate,
       endDate,
       location,
+      views: 0,
     };
 
     try {

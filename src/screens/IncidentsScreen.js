@@ -5,14 +5,110 @@ import {
     StyleSheet,
     TouchableOpacity,
     ScrollView,
+    Modal,
 } from "react-native";
+
 import { supabase } from "../../lib/supabase";
+
+
+const IncidentModal = ({ visible, onClose, report, getSeverityColor }) => {
+    const [reporterName, setReporterName] = useState("N/A");
+
+    useEffect(() => {
+        const fetchReporterName = async () => {
+            if (report && report.reported_by) {
+                const { data, error } = await supabase
+                    .from("profiles")
+                    .select("name")
+                    .eq("id", report.reported_by)
+                    .single();
+
+                if (error) {
+                    console.error("Error fetching reporter name:", error.message);
+                    setReporterName("N/A");
+                } else if (data) {
+                    setReporterName(data.name);
+                } else {
+                    setReporterName("N/A");
+                }
+            }
+        };
+
+        if (visible) {
+            fetchReporterName();
+        }
+    }, [visible, report]);
+
+    if (!report) return null;
+
+    const severityColor = getSeverityColor(report.severity_tag);
+
+    return (
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={visible}
+            onRequestClose={onClose}
+        >
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                        <Text style={styles.closeButtonText}>X</Text>
+                    </TouchableOpacity>
+                    <ScrollView>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                            <Text style={{ fontSize: 24 }}>⚠️</Text>
+                            <Text style={styles.modalTitle}>{report.title || "Untitled"}</Text>
+                        </View>
+                        <View style={styles.modalHr} />
+
+                        <View style={[styles.severityTag, { backgroundColor: severityColor }]}>
+                            <Text style={styles.severityText}>
+                                {report.severity_tag?.toUpperCase() || "N/A"}
+                            </Text>
+                        </View>
+
+                        <Text style={styles.sectionTitle}>Incident Info</Text>
+                        <Text style={styles.reportRow}>
+                            📝 <Text style={styles.label}>Description:</Text> {report.description || "No description"}
+                        </Text>
+                        <Text style={styles.reportRow}>
+                            ⏱️ <Text style={styles.label}>Reported At:</Text> {report.reported_at ? new Date(report.reported_at).toLocaleString() : "N/A"}
+                        </Text>
+
+                        <Text style={styles.sectionTitle}>Location</Text>
+                        <Text style={styles.reportRow}>
+                            📍 <Text style={styles.label}>Location:</Text> {report.location_of_incident || "Unknown"}
+                        </Text>
+                        <Text style={styles.reportRow}>
+                            🕒 <Text style={styles.label}>Time:</Text> {report.time_of_incident || "N/A"}
+                        </Text>
+                        <Text style={styles.reportRow}>
+                            📅 <Text style={styles.label}>Date of Incident:</Text> {report.date_of_incident ? new Date(report.date_of_incident).toLocaleDateString() : "N/A"}
+                        </Text>
+
+                        <Text style={styles.sectionTitle}>Reporting Details</Text>
+                        <Text style={styles.reportRow}>
+                            👮 <Text style={styles.label}>Patroller:</Text> {reporterName}
+                        </Text>
+                        <Text style={styles.reportRow}>
+                            🚔 <Text style={styles.label}>Police Ref:</Text> {report.police_reference || "N/A"}
+                        </Text>
+                        <Text style={styles.reportRow}>
+                            🗓️ <Text style={styles.label}>Date of Report:</Text> {report.date_of_report ? new Date(report.date_of_report).toLocaleDateString() : "N/A"}
+                        </Text>
+                    </ScrollView>
+                </View>
+            </View>
+        </Modal>
+    );
+};
 
 const IncidentScreen = ({ navigation, route }) => {
     const { groupId } = route.params;
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [expandedReportIds, setExpandedReportIds] = useState([]);
+    const [selectedReport, setSelectedReport] = useState(null);
     const [sortOrder, setSortOrder] = useState("newest");
 
     const handleAddReport = () => {
@@ -23,13 +119,7 @@ const IncidentScreen = ({ navigation, route }) => {
         console.log("Export logic will go here (PDF or Email)");
     };
 
-    const toggleExpand = (id) => {
-        if (expandedReportIds.includes(id)) {
-            setExpandedReportIds(expandedReportIds.filter((reportId) => reportId !== id));
-        } else {
-            setExpandedReportIds([...expandedReportIds, id]);
-        }
-    };
+    
 
     const toggleSortOrder = () => {
         setSortOrder(sortOrder === "newest" ? "oldest" : "newest");
@@ -112,27 +202,24 @@ const IncidentScreen = ({ navigation, route }) => {
             {!loading &&
                 reports.map((report, index) => {
                     const id = report.id ?? index;
-                    const isExpanded = expandedReportIds.includes(id);
                     const severityColor = getSeverityColor(report.severity_tag);
                     return (
-                        <View key={id} style={styles.reportCard}>
-                            <TouchableOpacity
-                                style={[
-                                    styles.cardHeader,
-                                    isExpanded && styles.cardHeaderExpanded,
-                                ]}
-                                onPress={() => toggleExpand(id)}
-                            >
+                        <TouchableOpacity
+                            key={id}
+                            style={styles.reportCard}
+                            onPress={() => setSelectedReport(report)}
+                        >
+                            <View style={styles.cardHeader}>
                                 <View style={styles.leftHeaderGroup}>
-                                    <Text style={styles.cardArrow}>{isExpanded ? "▼" : "▶"}</Text>
-                                    <View style={styles.cardHeaderTextContainer}>
+                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                        <Text style={{ fontSize: 24 }}>⚠️</Text>
                                         <Text style={styles.cardTitle}>{report.title || "Untitled"}</Text>
-                                        <Text style={styles.cardSubtitle}>
-                                            {report.date_of_incident
-                                                ? new Date(report.date_of_incident).toLocaleDateString()
-                                                : "No Date"}
-                                        </Text>
                                     </View>
+                                    <Text style={styles.cardSubtitle}>
+                                        {report.date_of_incident
+                                            ? new Date(report.date_of_incident).toLocaleDateString()
+                                            : "No Date"}
+                                    </Text>
                                 </View>
 
                                 <View style={[styles.severityTag, { backgroundColor: severityColor }]}>
@@ -140,46 +227,16 @@ const IncidentScreen = ({ navigation, route }) => {
                                         {report.severity_tag?.toUpperCase() || "N/A"}
                                     </Text>
                                 </View>
-                            </TouchableOpacity>
-
-                            {
-                                isExpanded && (
-                                    <View style={styles.cardBody}>
-                                        <Text style={styles.sectionTitle}>Incident Info</Text>
-                                        <Text style={styles.reportRow}>
-                                            📝 <Text style={styles.label}>Description:</Text> {report.description || "No description"}
-                                        </Text>
-                                        <Text style={styles.reportRow}>
-                                            ⏱️ <Text style={styles.label}>Reported At:</Text> {report.reported_at ? new Date(report.reported_at).toLocaleString() : "N/A"}
-                                        </Text>
-
-                                        <Text style={styles.sectionTitle}>Location</Text>
-                                        <Text style={styles.reportRow}>
-                                            📍 <Text style={styles.label}>Location:</Text> {report.location_of_incident || "Unknown"}
-                                        </Text>
-                                        <Text style={styles.reportRow}>
-                                            🕒 <Text style={styles.label}>Time:</Text> {report.time_of_incident || "N/A"}
-                                        </Text>
-                                        <Text style={styles.reportRow}>
-                                            📅 <Text style={styles.label}>Date of Incident:</Text> {report.date_of_incident ? new Date(report.date_of_incident).toLocaleDateString() : "N/A"}
-                                        </Text>
-
-                                        <Text style={styles.sectionTitle}>Reporting Details</Text>
-                                        <Text style={styles.reportRow}>
-                                            👮 <Text style={styles.label}>Patroller:</Text> {report.patroller_name || "N/A"}
-                                        </Text>
-                                        <Text style={styles.reportRow}>
-                                            🚔 <Text style={styles.label}>Police Ref:</Text> {report.police_reference || "N/A"}
-                                        </Text>
-                                        <Text style={styles.reportRow}>
-                                            🗓️ <Text style={styles.label}>Date of Report:</Text> {report.date_of_report ? new Date(report.date_of_report).toLocaleDateString() : "N/A"}
-                                        </Text>
-                                    </View>
-                                )
-                            }
-                        </View>
+                            </View>
+                        </TouchableOpacity>
                     );
                 })}
+            <IncidentModal
+                visible={!!selectedReport}
+                onClose={() => setSelectedReport(null)}
+                report={selectedReport}
+                getSeverityColor={getSeverityColor}
+            />
         </ScrollView >
     );
 };
@@ -197,6 +254,7 @@ const styles = StyleSheet.create({
         color: "#1f2937",
         textAlign: "center",
     },
+    
     description: {
         fontSize: 16,
         color: "#4b5563",
@@ -285,7 +343,8 @@ const styles = StyleSheet.create({
     },
     cardSubtitle: {
         fontSize: 12,
-        color: "#9ca3af", 
+        color: "#9ca3af",
+        paddingTop: 5, 
     },
     severityTag: {
         paddingHorizontal: 8,
@@ -312,7 +371,62 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 8,
     },
-
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: '#1f2937',
+        borderRadius: 10,
+        padding: 20,
+        width: '90%',
+        maxHeight: '80%',
+        paddingTop: 40, // Make space for the absolute close button
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        padding: 5,
+        zIndex: 1,
+    },
+    closeButtonText: {
+        color: '#f9fafb',
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        color: '#f9fafb',
+        paddingTop: 10, 
+    },
+    modalHr: {
+        height: 1,
+        backgroundColor: '#4b5563',
+        marginVertical: 10,
+    },
+    reportRow: {
+        fontSize: 14,
+        color: '#e5e7eb',
+        marginBottom: 8,
+        lineHeight: 20,
+    },
+    label: {
+        fontWeight: 'bold',
+        color: '#d1d5db',
+    },
 });
 
 export default IncidentScreen;

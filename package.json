@@ -27,6 +27,7 @@
     "expo": "53.0.13",
     "expo-file-system": "^18.1.10",
     "expo-image-picker": "~16.1.4",
+    "expo-navigation-bar": "^4.2.6",
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
     "react-native": "0.79.4",

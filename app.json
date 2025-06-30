@@ -20,6 +20,10 @@
         "foregroundImage": "./assets/Images/nwLogo.png",
         "backgroundColor": "#1f2937"
       },
+      "softwareKeyboardLayoutMode": "pan",
+      "navigationBar": {
+        "visible": "immersive"
+      },
       "edgeToEdgeEnabled": true
     },
     "web": {

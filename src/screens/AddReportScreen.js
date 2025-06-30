@@ -16,7 +16,6 @@ import { supabase } from "../../lib/supabase";
 const AddReportScreen = ({ navigation, route }) => {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
-    const [patrollerName, setPatrollerName] = useState("");
     const [policeRef, setPoliceRef] = useState("");
     const [timeOfIncident, setTimeOfIncident] = useState("");
     const [location, setLocation] = useState("");
@@ -41,7 +40,6 @@ const AddReportScreen = ({ navigation, route }) => {
         if (
             !title ||
             !description ||
-            !patrollerName ||
             !policeRef ||
             !timeOfIncident ||
             !location ||
@@ -82,7 +80,6 @@ const AddReportScreen = ({ navigation, route }) => {
                 id: Date.now().toString(),
                 title,
                 description,
-                patroller_name: patrollerName,
                 police_reference: policeRef,
                 time_of_incident: timeOfIncident,
                 location_of_incident: location,
@@ -155,12 +152,7 @@ const AddReportScreen = ({ navigation, route }) => {
                 multiline
             />
 
-            <Text style={styles.label}>Patroller's Name:</Text>
-            <TextInput
-                style={styles.input}
-                value={patrollerName}
-                onChangeText={setPatrollerName}
-            />
+            
 
             <Text style={styles.label}>Police Reference Number:</Text>
             <TextInput

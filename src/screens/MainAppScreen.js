@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useFocusEffect, getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import {
   Modal,
@@ -10,6 +10,8 @@ import {
   StyleSheet,
   FlatList,
   TouchableWithoutFeedback,
+  Animated,
+  Dimensions,
 } from "react-native";
 import {
   createDrawerNavigator,
@@ -225,27 +227,10 @@ function BottomTabNavigator({ route }) {
     const { groupId } = route.params;
     return (
       <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
-            if (route.name === 'Home') {
-              iconName = 'home';
-            } else if (route.name === 'Members') {
-              iconName = 'users';
-            } else if (route.name === 'Events') {
-              iconName = 'calendar-alt';
-            } else if (route.name === 'News') {
-              iconName = 'newspaper';
-            } else if (route.name === 'Incidents') {
-              iconName = 'exclamation-triangle';
-            }
-            return <FontAwesome5 name={iconName} size={size} color={color} />;
-          },
-          tabBarActiveTintColor: "#22d3ee",
-          tabBarInactiveTintColor: "#fff",
-          tabBarStyle: { backgroundColor: "#1f2937", borderTopWidth: 0 },
+        tabBar={(props) => <SlidingTabBar {...props} />}
+        screenOptions={{
           headerShown: false,
-        })}
+        }}
       >
         <Tab.Screen name="Home" component={HomeScreen} initialParams={{ groupId }} />
         <Tab.Screen name="Members" component={MembersScreen} initialParams={{ groupId }} />
@@ -255,6 +240,76 @@ function BottomTabNavigator({ route }) {
       </Tab.Navigator>
     );
   }
+
+const SlidingTabBar = ({ state, descriptors, navigation }) => {
+  const tabWidth = Dimensions.get('window').width / state.routes.length;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: state.index * tabWidth,
+      useNativeDriver: true,
+    }).start();
+  }, [state.index, tabWidth]);
+
+  const getIconName = (routeName) => {
+    switch (routeName) {
+      case 'Home': return 'home';
+      case 'Members': return 'users';
+      case 'Events': return 'calendar-alt';
+      case 'News': return 'newspaper';
+      case 'Incidents': return 'exclamation-triangle';
+      default: return '';
+    }
+  };
+
+  return (
+    <View style={styles.tabBarContainer}>
+      <Animated.View
+        style={[
+          styles.activeTab,
+          {
+            width: tabWidth,
+            transform: [{ translateX: slideAnim }],
+          },
+        ]}
+      />
+      {state.routes.map((route, index) => {
+        const { options } = descriptors[route.key];
+        const isFocused = state.index === index;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            onPress={onPress}
+            style={styles.tabItem}
+          >
+            <FontAwesome5
+              name={getIconName(route.name)}
+              size={22}
+              color={isFocused ? '#22d3ee' : '#fff'}
+            />
+            <Text style={{ color: isFocused ? '#22d3ee' : '#fff', fontSize: 12, marginTop: 4 }}>
+              {route.name}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+};
 
 const MainAppScreen = ({ route, navigation }) => {
   const { groupId } = route.params;
@@ -788,6 +843,24 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "700",
     color: "#1f2937",
+  },
+  tabBarContainer: {
+    flexDirection: 'row',
+    height: 60,
+    backgroundColor: '#1f2937',
+    borderTopWidth: 1,
+    borderTopColor: '#4b5563',
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeTab: {
+    position: 'absolute',
+    height: '100%',
+    backgroundColor: '#374151',
+    borderRadius: 10,
   },
 });
 

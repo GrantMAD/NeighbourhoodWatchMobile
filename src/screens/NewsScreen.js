@@ -6,22 +6,60 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  LayoutAnimation,
-  UIManager,
-  Platform,
+  Modal,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../lib/supabase";
-import FontAwesome from "react-native-vector-icons/FontAwesome";
 
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+
+
+
+const NewsModal = ({ visible, onClose, story }) => {
+    if (!story) return null;
+
+    return (
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={visible}
+            onRequestClose={onClose}
+        >
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                        <Text style={styles.closeButtonText}>X</Text>
+                    </TouchableOpacity>
+                    <ScrollView>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 24, marginRight: 10 }}>📰</Text>
+                            <Text style={styles.modalTitle}>{story.title}</Text>
+                        </View>
+                        <View style={styles.modalHr} />
+                        {story.image && (
+                            <Image source={{ uri: story.image }} style={styles.modalImage} />
+                        )}
+                        <Text style={styles.modalMessage}>{story.content || story.message || "No content available."}</Text>
+                        <View style={styles.row}>
+                            <Text style={{ fontSize: 14, marginRight: 5 }}>⏱️</Text>
+                            <Text style={styles.modalDate}>
+                                {new Date(story.date).toLocaleDateString()}
+                            </Text>
+                        </View>
+                        <View style={styles.row}>
+                            <Text style={{ fontSize: 14, marginRight: 5 }}>👁️</Text>
+                            <Text style={styles.modalViews}>Views: {story.views || 0}</Text>
+                        </View>
+                    </ScrollView>
+                </View>
+            </View>
+        </Modal>
+    );
+};
 
 const NewsScreen = ({ route, navigation }) => {
   const { groupId } = route.params;
   const [news, setNews] = useState([]);
-  const [expandedIndex, setExpandedIndex] = useState(null);
+  const [selectedStory, setSelectedStory] = useState(null);
 
   const fetchNews = async () => {
     const { data, error } = await supabase
@@ -86,47 +124,13 @@ const NewsScreen = ({ route, navigation }) => {
     }
   };
 
-  const toggleExpand = async (index) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-
-    if (expandedIndex === index) {
-      // Collapse
-      setExpandedIndex(null);
-      return;
-    }
-
-    // Expand — optimistically increment views locally
-    const updatedNews = [...news];
-    const story = updatedNews[index];
-    const storyId = story.id;
-
-    updatedNews[index].views = (updatedNews[index].views || 0) + 1;
-    setNews(updatedNews);
-    setExpandedIndex(index);
-
-    // Confirm with DB and revert if fails
-    const updatedViews = await incrementStoryViews(storyId);
-    if (updatedViews === null) {
-      // revert views increment on error
-      updatedNews[index].views -= 1;
-      setNews(updatedNews);
-    } else {
-      // sync views from DB (in case of race updates)
-      updatedNews[index].views = updatedViews;
-      setNews(updatedNews);
-    }
-  };
-
   return (
     <ScrollView style={styles.container}>
       <View style={styles.headerRow}>
         <View style={styles.headingContainer}>
-          <FontAwesome
-            name="newspaper-o"
-            size={28}
-            color="#111827"
+          <Text
             style={styles.headingIcon}
-          />
+          >📰</Text>
           <Text style={styles.mainHeading}>News</Text>
         </View>
 
@@ -146,59 +150,39 @@ const NewsScreen = ({ route, navigation }) => {
         <Text style={styles.noNewsText}>No news stories available.</Text>
       ) : (
         news.map((story, index) => {
-          const isExpanded = expandedIndex === index;
           return (
-            <View key={story.id || index} style={styles.card}>
-              <TouchableOpacity
-                style={styles.titleRow}
-                onPress={() => toggleExpand(index)}
-                activeOpacity={0.8}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <FontAwesome
-                    name="file-text-o"
-                    size={20}
-                    color="#f9fafb"
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text style={styles.title}>{story.title || "Untitled"}</Text>
-                </View>
-
-                <FontAwesome
-                  name={isExpanded ? "caret-up" : "caret-down"}
-                  size={18}
-                  color="#f9fafb"
-                  style={styles.arrowIcon}
-                />
-              </TouchableOpacity>
-
-              {isExpanded && (
-                <View style={styles.expandedContent}>
-                  {story.image && (
-                    <Image
-                      source={{ uri: story.image }}
-                      style={styles.image}
-                      resizeMode="cover"
-                    />
-                  )}
-                  <Text style={styles.message}>
-                    {story.content || story.message || "No content available."}
-                  </Text>
-
-                  <View style={styles.footerRow}>
-                    <Text style={styles.viewsText}>Views: {story.views || 0}</Text>
-                    {story.date && (
-                      <Text style={styles.date}>
-                        {new Date(story.date).toLocaleDateString()}
-                      </Text>
-                    )}
-                  </View>
-                </View>
+            <TouchableOpacity
+              key={story.id || index}
+              onPress={async () => {
+                const updatedViews = await incrementStoryViews(story.id);
+                if (updatedViews !== null) {
+                  const updatedStory = { ...story, views: updatedViews };
+                  setSelectedStory(updatedStory);
+                } else {
+                  setSelectedStory(story);
+                }
+              }}
+              activeOpacity={0.8}
+              style={styles.newsCard}
+            >
+              {story.image && (
+                <Image source={{ uri: story.image }} style={styles.newsImage} />
               )}
-            </View>
+              <View style={styles.newsTitleContainer}>
+                <Text
+                  style={{ fontSize: 18, marginRight: 8, color: "#fff" }}
+                >📰</Text>
+                <Text style={styles.newsCardTitle}>{story.title}</Text>
+              </View>
+            </TouchableOpacity>
           );
         })
       )}
+      <NewsModal
+        visible={!!selectedStory}
+        onClose={() => setSelectedStory(null)}
+        story={selectedStory}
+      />
     </ScrollView>
   );
 };
@@ -251,66 +235,118 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 20,
   },
-  card: {
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    backgroundColor: "#f3f4f6",
-    overflow: "hidden",
+  newsCard: {
+    borderRadius: 8,
+    marginVertical: 6,
+    backgroundColor: '#333',
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  titleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#1f2937",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#f9fafb",
-  },
-  arrowIcon: {
-    marginLeft: 10,
-  },
-  message: {
-    fontSize: 14,
-    color: "#374151",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  image: {
-    width: "100%",
+  newsImage: {
+    width: '100%',
     height: 180,
-    borderRadius: 16,
-    marginTop: 0,
+    borderRadius: 8,
   },
-  expandedContent: {
-    backgroundColor: "#f3f4f6",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#ccc",
+  newsCardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    padding: 10,
+  },
+  newsTitleContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(31, 41, 55, 0.7)', // Semi-transparent dark background
+    padding: 10,
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  footerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 6,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  viewsText: {
-    fontSize: 12,
-    color: "#6b7280",
-    fontWeight: "500",
+  modalContent: {
+    backgroundColor: '#1f2937',
+    borderRadius: 10,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+    paddingTop: 40, // Make space for the absolute close button
+    
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  date: {
-    fontSize: 12,
-    color: "#6b7280",
-    textAlign: "right",
+  closeButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 5,
+    zIndex: 1,
+  },
+  closeButtonText: {
+    color: '#f9fafb',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#f9fafb',
+  },
+  modalImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#e5e7eb',
+    marginBottom: 15,
+    lineHeight: 22,
+  },
+  modalDate: {
+    fontSize: 14,
+    color: '#9ca3af',
+    fontStyle: 'italic',
+  },
+  modalViews: {
+    fontSize: 14,
+    color: '#9ca3af',
+    marginTop: 5,
+  },
+  modalHr: {
+    height: 1,
+    backgroundColor: '#4b5563',
+    marginVertical: 10,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
 });
 
