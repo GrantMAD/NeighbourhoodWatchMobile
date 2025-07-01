@@ -52,9 +52,6 @@ const IncidentModal = ({ visible, onClose, report, getSeverityColor }) => {
         >
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
-                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                        <Text style={styles.closeButtonText}>X</Text>
-                    </TouchableOpacity>
                     <ScrollView>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                             <Text style={{ fontSize: 24 }}>⚠️</Text>
@@ -98,6 +95,9 @@ const IncidentModal = ({ visible, onClose, report, getSeverityColor }) => {
                             🗓️ <Text style={styles.label}>Date of Report:</Text> {report.date_of_report ? new Date(report.date_of_report).toLocaleDateString() : "N/A"}
                         </Text>
                     </ScrollView>
+                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                        <Text style={styles.closeButtonText}>Close</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
         </Modal>
@@ -109,7 +109,8 @@ const IncidentScreen = ({ navigation, route }) => {
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedReport, setSelectedReport] = useState(null);
-    const [sortOrder, setSortOrder] = useState("newest");
+    const [sortOrder, setSortOrder] = useState("date_newest"); // "date_newest", "date_oldest", "severity_high", "severity_low"
+    const [dropdownVisible, setDropdownVisible] = useState(false);
 
     const handleAddReport = () => {
         navigation.navigate("AddReportScreen");
@@ -119,10 +120,9 @@ const IncidentScreen = ({ navigation, route }) => {
         console.log("Export logic will go here (PDF or Email)");
     };
 
-    
-
-    const toggleSortOrder = () => {
-        setSortOrder(sortOrder === "newest" ? "oldest" : "newest");
+    const handleSortSelect = (option) => {
+        setSortOrder(option);
+        setDropdownVisible(false);
     };
 
     useEffect(() => {
@@ -140,11 +140,22 @@ const IncidentScreen = ({ navigation, route }) => {
                 console.log("Error fetching reports:", error.message);
                 setReports([]);
             } else {
-                const sorted = [...(data?.reports ?? [])].sort((a, b) => {
-                    const aTime = new Date(a.reported_at).getTime();
-                    const bTime = new Date(b.reported_at).getTime();
-                    return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
-                });
+                let sorted = [...(data?.reports ?? [])];
+
+                if (sortOrder.startsWith("date")) {
+                    sorted.sort((a, b) => {
+                        const aTime = new Date(a.reported_at).getTime();
+                        const bTime = new Date(b.reported_at).getTime();
+                        return sortOrder === "date_newest" ? bTime - aTime : aTime - bTime;
+                    });
+                } else if (sortOrder.startsWith("severity")) {
+                    const severityOrder = { "high": 3, "medium": 2, "low": 1 };
+                    sorted.sort((a, b) => {
+                        const aSeverity = severityOrder[a.severity_tag?.toLowerCase()] || 0;
+                        const bSeverity = severityOrder[b.severity_tag?.toLowerCase()] || 0;
+                        return sortOrder === "severity_high" ? bSeverity - aSeverity : aSeverity - bSeverity;
+                    });
+                }
                 setReports(sorted);
             }
             setLoading(false);
@@ -176,7 +187,7 @@ const IncidentScreen = ({ navigation, route }) => {
     };
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
+        <ScrollView style={styles.container} contentContainerStyle={styles.scrollViewContent}>
             <Text style={styles.heading}>Incident Reports</Text>
             <Text style={styles.description}>
                 View and submit incidents reported by community members.
@@ -186,11 +197,35 @@ const IncidentScreen = ({ navigation, route }) => {
                 <TouchableOpacity style={styles.button} onPress={handleAddReport}>
                     <Text style={styles.buttonText}>Submit Report</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryButton} onPress={toggleSortOrder}>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => setDropdownVisible(!dropdownVisible)}>
                     <Text style={styles.secondaryButtonText}>
-                        Sort: {sortOrder === "newest" ? "Newest First" : "Oldest First"}
+                        Sort: {
+                            sortOrder === "date_newest" ? "Date (Newest)" :
+                            sortOrder === "date_oldest" ? "Date (Oldest)" :
+                            sortOrder === "severity_high" ? "Severity (High)" :
+                            "Severity (Low)"
+                        }
                     </Text>
                 </TouchableOpacity>
+                {dropdownVisible && (
+                    <View style={styles.dropdownContainer}>
+                        <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("date_newest")}>
+                            <Text style={styles.dropdownItemText}>Date (Newest)</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("date_oldest")}>
+                            <Text style={styles.dropdownItemText}>Date (Oldest)</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("severity_high")}>
+                            <Text style={styles.dropdownItemText}>Severity (High)</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("severity_medium")}>
+                            <Text style={styles.dropdownItemText}>Severity (Medium)</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("severity_low")}>
+                            <Text style={styles.dropdownItemText}>Severity (Low)</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
 
             {loading && <Text style={styles.loadingText}>Loading reports...</Text>}
@@ -243,10 +278,11 @@ const IncidentScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
     container: {
+        flex: 1,
         padding: 20,
         backgroundColor: "#fff",
-        flexGrow: 1,
     },
+    
     heading: {
         fontSize: 24,
         fontWeight: "700",
@@ -267,6 +303,7 @@ const styles = StyleSheet.create({
         flexWrap: "wrap",
         gap: 10,
         marginBottom: 20,
+        position: 'relative', // Added for dropdown positioning
     },
     button: {
         backgroundColor: "#2563eb",
@@ -289,6 +326,32 @@ const styles = StyleSheet.create({
         color: "#111827",
         fontSize: 14,
         fontWeight: "500",
+    },
+    scrollViewContent: {
+        flexGrow: 1,
+        paddingBottom: 80, // Add padding to the bottom
+    },
+    dropdownContainer: {
+        position: 'absolute',
+        top: 50,
+        right: 20,
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
+        zIndex: 1000,
+    },
+    dropdownItem: {
+        padding: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    dropdownItemText: {
+        fontSize: 14,
+        color: '#333',
     },
     loadingText: {
         textAlign: "center",
@@ -394,11 +457,11 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     closeButton: {
-        position: 'absolute',
-        top: 10,
-        right: 10,
-        padding: 5,
-        zIndex: 1,
+        marginTop: 20,
+        backgroundColor: '#2563eb',
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
     },
     closeButtonText: {
         color: '#f9fafb',

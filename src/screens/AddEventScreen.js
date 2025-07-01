@@ -14,7 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Buffer } from 'buffer';
 import { supabase } from '../../lib/supabase';
-import { Calendar } from 'react-native-calendars';
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const AddEventScreen = ({ route, navigation }) => {
   const { groupId } = route.params;
@@ -24,9 +24,10 @@ const AddEventScreen = ({ route, navigation }) => {
   const [imageUri, setImageUri] = useState('');
   const [uploading, setUploading] = useState(false);
   const [location, setLocation] = useState('');
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
-  const [markedDates, setMarkedDates] = useState({});
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -86,66 +87,18 @@ const AddEventScreen = ({ route, navigation }) => {
     }
   };
 
-  const onDayPress = (day) => {
-    const dateStr = day.dateString;
-
-    if (!startDate || (startDate && endDate)) {
-      setStartDate(dateStr);
-      setEndDate(null);
-      setMarkedDates({
-        [dateStr]: {
-          startingDay: true,
-          endingDay: true,
-          color: '#70d7c7',
-          textColor: 'white',
-        },
-      });
-      return;
-    }
-
-    if (startDate && !endDate) {
-      if (dateStr < startDate) {
-        Alert.alert('Invalid range', 'End date cannot be before start date.');
-        return;
-      }
-
-      setEndDate(dateStr);
-      const range = getMarkedRange(startDate, dateStr);
-      setMarkedDates(range);
+  const onChangeStartDate = (event, selectedDate) => {
+    setShowStartDatePicker(false); // Always close the picker after interaction
+    if (event.type === "set" && selectedDate) {
+      setStartDate(selectedDate);
     }
   };
 
-  const getMarkedRange = (start, end) => {
-    let range = {};
-    let startDateObj = new Date(start);
-    let endDateObj = new Date(end);
-
-    for (
-      let d = new Date(startDateObj);
-      d <= endDateObj;
-      d.setDate(d.getDate() + 1)
-    ) {
-      const dateStr = d.toISOString().split('T')[0];
-      if (dateStr === start) {
-        range[dateStr] = {
-          startingDay: true,
-          color: '#70d7c7',
-          textColor: 'white',
-        };
-      } else if (dateStr === end) {
-        range[dateStr] = {
-          endingDay: true,
-          color: '#70d7c7',
-          textColor: 'white',
-        };
-      } else {
-        range[dateStr] = {
-          color: '#9be1d7',
-          textColor: 'white',
-        };
-      }
+  const onChangeEndDate = (event, selectedDate) => {
+    setShowEndDatePicker(false); // Always close the picker after interaction
+    if (event.type === "set" && selectedDate) {
+      setEndDate(selectedDate);
     }
-    return range;
   };
 
   const handleAddEvent = async () => {
@@ -165,8 +118,8 @@ const AddEventScreen = ({ route, navigation }) => {
       title,
       message,
       image: imageUrl,
-      startDate,
-      endDate,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
       location,
       views: 0,
     };
@@ -205,25 +158,24 @@ const AddEventScreen = ({ route, navigation }) => {
     }
   };
 
-  const renderDatePrompt = () => {
-    if (!startDate && !endDate) {
-      return <Text style={styles.dateRangeText}>📅 Please select a start date</Text>;
-    } else if (startDate && !endDate) {
-      return <Text style={styles.dateRangeText}>➡️ Now select an end date</Text>;
-    } else {
-      return (
-        <Text style={styles.dateRangeText}>
-          ✅ Selected from {startDate} to {endDate}
-        </Text>
-      );
-    }
+  const renderDatePrompt = (date, type) => {
+    return (
+      <Text style={styles.dateRangeText}>
+        {type === "start" ? "Start Date: " : "End Date: "}
+        {date.toLocaleDateString()}
+      </Text>
+    );
+  };
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString();
   };
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.container}>
         <Text style={styles.label}>Title *</Text>
-        <TextInput style={styles.input} value={title} onChangeText={setTitle} />
+        <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Enter event title" />
 
         <Text style={styles.label}>Message *</Text>
         <TextInput
@@ -233,6 +185,7 @@ const AddEventScreen = ({ route, navigation }) => {
           multiline
           numberOfLines={4}
           textAlignVertical="top"
+          placeholder="Enter event details or message"
         />
         <Text style={styles.label}>Location *</Text>
         <TextInput
@@ -250,15 +203,40 @@ const AddEventScreen = ({ route, navigation }) => {
           )}
         </TouchableOpacity>
 
-        <Text style={styles.label}>Select Date Range *</Text>
-        {renderDatePrompt()}
+        <Text style={styles.label}>Start Date *</Text>
+        <TouchableOpacity
+          style={styles.dateInput}
+          onPress={() => setShowStartDatePicker(true)}
+        >
+          <Text>{formatDate(startDate)}</Text>
+          <Text>🗓️</Text>
+        </TouchableOpacity>
+        {showStartDatePicker && (
+          <DateTimePicker
+            value={startDate}
+            mode="date"
+            display="default"
+            onChange={onChangeStartDate}
+          />
+        )}
 
-        <Calendar
-          markingType={'period'}
-          markedDates={markedDates}
-          onDayPress={onDayPress}
-          style={{ marginTop: 10, height: 350 }}
-        />
+        <Text style={styles.label}>End Date *</Text>
+        <TouchableOpacity
+          style={styles.dateInput}
+          onPress={() => setShowEndDatePicker(true)}
+        >
+          <Text>{formatDate(endDate)}</Text>
+          <Text>🗓️</Text>
+        </TouchableOpacity>
+        {showEndDatePicker && (
+          <DateTimePicker
+            value={endDate}
+            mode="date"
+            display="default"
+            onChange={onChangeEndDate}
+            minimumDate={startDate} // End date cannot be before start date
+          />
+        )}
 
         <View style={{ marginBottom: 50, marginTop: 10 }}>
           <Button title={uploading ? 'Uploading...' : 'Add Event'} onPress={handleAddEvent} disabled={uploading} />
@@ -299,6 +277,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontStyle: 'italic',
     color: '#333',
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    padding: 14,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
   },
 });
 

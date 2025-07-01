@@ -142,7 +142,7 @@ const AddReportScreen = ({ navigation, route }) => {
             </Text>
 
             <Text style={styles.label}>Title:</Text>
-            <TextInput style={styles.input} value={title} onChangeText={setTitle} />
+            <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Enter incident title" />
 
             <Text style={styles.label}>Description:</Text>
             <TextInput
@@ -150,6 +150,7 @@ const AddReportScreen = ({ navigation, route }) => {
                 value={description}
                 onChangeText={setDescription}
                 multiline
+                placeholder="Describe the incident..."
             />
 
             
@@ -159,6 +160,7 @@ const AddReportScreen = ({ navigation, route }) => {
                 style={styles.input}
                 value={policeRef}
                 onChangeText={setPoliceRef}
+                placeholder="e.g., CAS-12345-2023"
             />
 
             <Text style={styles.label}>Time of Incident:</Text>
@@ -176,6 +178,7 @@ const AddReportScreen = ({ navigation, route }) => {
                 style={styles.input}
                 value={location}
                 onChangeText={setLocation}
+                placeholder="e.g., 123 Main St, Suburb"
             />
 
             <Text style={styles.label}>Date of Incident:</Text>
@@ -184,6 +187,7 @@ const AddReportScreen = ({ navigation, route }) => {
                 onPress={() => setShowIncidentDatePicker(true)}
             >
                 <Text>{formatDate(dateOfIncident)}</Text>
+                <Text>🗓️</Text>
             </TouchableOpacity>
             {showIncidentDatePicker && (
                 <DateTimePicker
@@ -201,6 +205,7 @@ const AddReportScreen = ({ navigation, route }) => {
                 onPress={() => setShowReportDatePicker(true)}
             >
                 <Text>{formatDate(dateOfReport)}</Text>
+                <Text>🗓️</Text>
             </TouchableOpacity>
             {showReportDatePicker && (
                 <DateTimePicker
@@ -212,6 +217,7 @@ const AddReportScreen = ({ navigation, route }) => {
                 />
             )}
 
+            <Text style={styles.label}>Severity:</Text>
             <View style={styles.severityContainer}>
                 {["Low", "Medium", "High"].map((level) => {
                     const isSelected = severityTag === level;
@@ -277,7 +283,9 @@ const styles = StyleSheet.create({
         borderColor: "#ccc",
         borderRadius: 5,
         padding: 14,
-        justifyContent: "center",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
         marginBottom: 10,
     },
     submitBtn: {

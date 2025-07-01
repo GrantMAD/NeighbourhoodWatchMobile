@@ -25,9 +25,6 @@ const EventModal = ({ visible, onClose, event }) => {
         >
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
-                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                        <Text style={styles.closeButtonText}>X</Text>
-                    </TouchableOpacity>
                     <ScrollView>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={{ fontSize: 24, marginRight: 10 }}>🗓️</Text>
@@ -72,6 +69,9 @@ const EventModal = ({ visible, onClose, event }) => {
                             <Text style={styles.modalViews}>Views: {event.views || 0}</Text>
                         </View>
                     </ScrollView>
+                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                        <Text style={styles.closeButtonText}>Close</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
         </Modal>
@@ -144,7 +144,7 @@ const EventsScreen = ({ route, navigation }) => {
     
 
     return (
-        <ScrollView style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
             {/* Header styled like NewsScreen */}
             <View style={styles.headerRow}>
                 <View style={styles.headingContainer}>
@@ -188,8 +188,13 @@ const EventsScreen = ({ route, navigation }) => {
                                 <Image source={{ uri: event.image }} style={styles.eventImage} />
                             )}
                             <View style={styles.eventTitleContainer}>
-                                <Text style={{ fontSize: 18, marginRight: 8 }}>🗓️</Text>
-                                <Text style={styles.eventCardTitle}>{event.title}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ fontSize: 18, marginRight: 8 }}>🗓️</Text>
+                                    <Text style={styles.eventCardTitle}>{event.title}</Text>
+                                </View>
+                                <Text style={styles.eventDateText}>
+                                    {new Date(event.startDate).toLocaleDateString()} - {new Date(event.endDate).toLocaleDateString()}
+                                </Text>
                             </View>
                         </TouchableOpacity>
                     );
@@ -210,6 +215,10 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffffff',
         paddingTop: 40,
         paddingHorizontal: 20,
+    },
+    scrollViewContent: {
+        flexGrow: 1,
+        paddingBottom: 80, // Increased padding to ensure visibility
     },
     headerRow: {
         flexDirection: 'row',
@@ -346,11 +355,11 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     closeButton: {
-        position: 'absolute',
-        top: 10,
-        right: 10,
-        padding: 5,
-        zIndex: 1,
+        marginTop: 20,
+        backgroundColor: '#2563eb',
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
     },
     closeButtonText: {
         color: '#f9fafb',
@@ -424,6 +433,12 @@ const styles = StyleSheet.create({
         borderBottomRightRadius: 8,
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    eventDateText: {
+        fontSize: 12,
+        color: '#d1d5db',
+        fontStyle: 'italic',
     },
 });
 

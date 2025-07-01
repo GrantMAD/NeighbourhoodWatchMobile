@@ -26,9 +26,6 @@ const NewsModal = ({ visible, onClose, story }) => {
         >
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
-                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                        <Text style={styles.closeButtonText}>X</Text>
-                    </TouchableOpacity>
                     <ScrollView>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={{ fontSize: 24, marginRight: 10 }}>📰</Text>
@@ -50,6 +47,9 @@ const NewsModal = ({ visible, onClose, story }) => {
                             <Text style={styles.modalViews}>Views: {story.views || 0}</Text>
                         </View>
                     </ScrollView>
+                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                        <Text style={styles.closeButtonText}>Close</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
         </Modal>
@@ -125,7 +125,7 @@ const NewsScreen = ({ route, navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
       <View style={styles.headerRow}>
         <View style={styles.headingContainer}>
           <Text
@@ -169,10 +169,15 @@ const NewsScreen = ({ route, navigation }) => {
                 <Image source={{ uri: story.image }} style={styles.newsImage} />
               )}
               <View style={styles.newsTitleContainer}>
-                <Text
-                  style={{ fontSize: 18, marginRight: 8, color: "#fff" }}
-                >📰</Text>
-                <Text style={styles.newsCardTitle}>{story.title}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 18, marginRight: 8, color: "#fff" }}>📰</Text>
+                    <Text style={styles.newsCardTitle}>{story.title}</Text>
+                  </View>
+                  <Text style={styles.newsDateText}>
+                    {new Date(story.date).toLocaleDateString()}
+                  </Text>
+                </View>
               </View>
             </TouchableOpacity>
           );
@@ -193,6 +198,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     paddingTop: 40,
     paddingHorizontal: 20,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+    paddingBottom: 80, // Add padding to the bottom
   },
   headerRow: {
     flexDirection: "row",
@@ -269,6 +278,12 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  newsDateText: {
+    color: '#d1d5db',
+    fontSize: 12,
+    fontStyle: 'italic',
   },
   modalOverlay: {
     flex: 1,
@@ -293,12 +308,12 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  closeButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    padding: 5,
-    zIndex: 1,
+    closeButton: {
+    marginTop: 20,
+    backgroundColor: '#2563eb',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   closeButtonText: {
     color: '#f9fafb',
