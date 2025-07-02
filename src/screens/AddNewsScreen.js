@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -22,12 +22,22 @@ if (typeof global.Buffer === "undefined") {
 }
 
 export default function AddNewsScreen({ navigation, route }) {
-  const { groupId } = route.params;
+  const { groupId, storyToEdit } = route.params;
+  const isEditMode = !!storyToEdit;
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [image, setImage] = useState(null); // local image URI
   const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (isEditMode) {
+      setTitle(storyToEdit.title);
+      setContent(storyToEdit.content);
+      setImage(storyToEdit.image || null);
+      navigation.setOptions({ title: "Edit News Story" });
+    }
+  }, [isEditMode, storyToEdit, navigation]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -52,22 +62,18 @@ export default function AddNewsScreen({ navigation, route }) {
   const uploadImage = async (uri) => {
     try {
       setUploading(true);
-      console.log("Uploading image...");
 
       const fileExt = uri.split(".").pop() || "jpg";
       const fileName = `${groupId}-${Date.now()}.${fileExt}`;
       const filePath = `news/${fileName}`;
       const contentType = `image/${fileExt === "jpg" ? "jpeg" : fileExt}`;
 
-      // Read file as base64 string
       const base64 = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
-      // Convert base64 to buffer
       const buffer = Buffer.from(base64, "base64");
 
-      // Upload buffer to Supabase Storage
       const { data, error } = await supabase.storage
         .from("group-assets")
         .upload(filePath, buffer, {
@@ -76,17 +82,14 @@ export default function AddNewsScreen({ navigation, route }) {
         });
 
       if (error) {
-        console.error("Upload error:", error.message);
         throw error;
       }
 
-      // Get public URL
       const {
         data: { publicUrl },
       } = supabase.storage.from("group-assets").getPublicUrl(filePath);
 
       setUploading(false);
-      console.log("Image uploaded:", publicUrl);
       return publicUrl;
     } catch (error) {
       console.error("Image upload error:", error.message);
@@ -97,20 +100,25 @@ export default function AddNewsScreen({ navigation, route }) {
   };
 
   const saveNews = async () => {
-    console.log("Save button clicked");
-
     if (!title.trim() || !content.trim()) {
       Alert.alert("Validation Error", "Title and content are required");
       return;
     }
 
-    console.log("groupId:", groupId);
-
-    let imageUrl = null;
-    if (image) {
-      imageUrl = await uploadImage(image);
-      if (!imageUrl) return;
+    let imageUrl = storyToEdit?.image || null;
+    if (image && image !== storyToEdit?.image) {
+        imageUrl = await uploadImage(image);
+        if (!imageUrl) return;
     }
+
+    const storyData = {
+        id: isEditMode ? storyToEdit.id : Date.now(),
+        title: title.trim(),
+        content: content.trim(),
+        image: imageUrl,
+        date: isEditMode ? storyToEdit.date : new Date().toISOString(),
+        views: isEditMode ? storyToEdit.views : 0,
+    };
 
     try {
       const { data: groupData, error: fetchError } = await supabase
@@ -121,15 +129,14 @@ export default function AddNewsScreen({ navigation, route }) {
 
       if (fetchError) throw fetchError;
 
-      const updatedNews = groupData.news ? [...groupData.news] : [];
-      updatedNews.push({
-        id: Date.now(),
-        title: title.trim(),
-        content: content.trim(),
-        image: imageUrl,
-        date: new Date().toISOString(),
-        views: 0,  // <-- add this field here
-      });
+      let updatedNews;
+      if (isEditMode) {
+        updatedNews = groupData.news.map(story =>
+          story.id === storyToEdit.id ? storyData : story
+        );
+      } else {
+        updatedNews = [...(groupData.news || []), storyData];
+      }
 
       const { error: updateError } = await supabase
         .from("groups")
@@ -138,7 +145,7 @@ export default function AddNewsScreen({ navigation, route }) {
 
       if (updateError) throw updateError;
 
-      Alert.alert("Success", "News story added!");
+      Alert.alert("Success", `News story ${isEditMode ? 'updated' : 'added'}!`);
       navigation.goBack();
     } catch (error) {
       console.error("Error saving news:", error.message);
@@ -149,10 +156,9 @@ export default function AddNewsScreen({ navigation, route }) {
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View>
-        <Text style={styles.heading}>Add a News Story</Text>
+        <Text style={styles.heading}>{isEditMode ? "Edit News Story" : "Add a News Story"}</Text>
         <Text style={styles.description}>
-          Share the latest news and updates with your group by adding a news
-          story here.
+          {isEditMode ? "Edit the details of the news story below." : "Share the latest news and updates with your group by adding a news story here."}
         </Text>
 
         <Text style={styles.label}>Title *</Text>
@@ -185,7 +191,7 @@ export default function AddNewsScreen({ navigation, route }) {
           <ActivityIndicator size="large" color="#4338ca" style={{ marginTop: 20 }} />
         ) : (
           <View style={{ marginTop: 20, marginBottom: 50 }}>
-            <Button title="Save News" onPress={saveNews} color="#4338ca" />
+            <Button title={isEditMode ? "Update Story" : "Save News"} onPress={saveNews} color="#4338ca" />
           </View>
         )}
       </View>

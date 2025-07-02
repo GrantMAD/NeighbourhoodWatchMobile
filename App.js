@@ -22,6 +22,8 @@ import GroupDataScreen from './src/screens/GroupDataScreen'
 import AddReportScreen from './src/screens/AddReportScreen'
 import SessionLoaderScreen from './src/screens/SessionLoaderScreen';
 import ManageMembersScreen from './src/screens/ManageMembersScreen'
+import ManageEventsScreen from './src/screens/ManageEventsScreen'
+import ManageNewsScreen from './src/screens/ManageNewsScreen'
 import NotificationSetting from './src/screens/NotificationSetting';
 
 const Stack = createNativeStackNavigator()
@@ -148,6 +150,16 @@ export default function App() {
           name="ManageMembersScreen"
           component={ManageMembersScreen}
           options={{ title: "Manage Members" }}
+        />
+        <Stack.Screen
+          name="ManageEventsScreen"
+          component={ManageEventsScreen}
+          options={{ title: "Manage Events" }}
+        />
+        <Stack.Screen
+          name="ManageNewsScreen"
+          component={ManageNewsScreen}
+          options={{ title: "Manage News" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

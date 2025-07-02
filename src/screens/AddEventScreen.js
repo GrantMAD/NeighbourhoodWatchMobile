@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,8 @@ import { supabase } from '../../lib/supabase';
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 const AddEventScreen = ({ route, navigation }) => {
-  const { groupId } = route.params;
+  const { groupId, eventToEdit } = route.params;
+  const isEditMode = !!eventToEdit;
 
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
@@ -28,6 +29,18 @@ const AddEventScreen = ({ route, navigation }) => {
   const [endDate, setEndDate] = useState(new Date());
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  useEffect(() => {
+    if (isEditMode) {
+      setTitle(eventToEdit.title);
+      setMessage(eventToEdit.message);
+      setImageUri(eventToEdit.image || '');
+      setLocation(eventToEdit.location);
+      setStartDate(new Date(eventToEdit.startDate));
+      setEndDate(new Date(eventToEdit.endDate));
+      navigation.setOptions({ title: 'Edit Event' });
+    }
+  }, [isEditMode, eventToEdit, navigation]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -88,40 +101,40 @@ const AddEventScreen = ({ route, navigation }) => {
   };
 
   const onChangeStartDate = (event, selectedDate) => {
-    setShowStartDatePicker(false); // Always close the picker after interaction
+    setShowStartDatePicker(false);
     if (event.type === "set" && selectedDate) {
       setStartDate(selectedDate);
     }
   };
 
   const onChangeEndDate = (event, selectedDate) => {
-    setShowEndDatePicker(false); // Always close the picker after interaction
+    setShowEndDatePicker(false);
     if (event.type === "set" && selectedDate) {
       setEndDate(selectedDate);
     }
   };
 
-  const handleAddEvent = async () => {
+  const handleSaveEvent = async () => {
     if (!title || !message || !startDate || !endDate || !location) {
       Alert.alert('Missing info', 'Please fill in all required fields.');
       return;
     }
 
-    let imageUrl = null;
-
-    if (imageUri) {
+    let imageUrl = eventToEdit?.image || null;
+    if (imageUri && imageUri !== eventToEdit?.image) {
       imageUrl = await uploadImage(imageUri);
-      if (!imageUrl) return; // already alerted in uploadImage
+      if (!imageUrl) return;
     }
 
-    const newEvent = {
+    const eventData = {
+      id: isEditMode ? eventToEdit.id : Date.now().toString(),
       title,
       message,
       image: imageUrl,
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       location,
-      views: 0,
+      views: isEditMode ? eventToEdit.views : 0,
     };
 
     try {
@@ -132,12 +145,17 @@ const AddEventScreen = ({ route, navigation }) => {
         .single();
 
       if (fetchError) {
-        console.error('Fetch error:', fetchError);
-        Alert.alert('Error fetching group data.');
-        return;
+        throw fetchError;
       }
 
-      const updatedEvents = [...(group?.events || []), newEvent];
+      let updatedEvents;
+      if (isEditMode) {
+        updatedEvents = group.events.map(event =>
+          event.id === eventToEdit.id ? eventData : event
+        );
+      } else {
+        updatedEvents = [...(group?.events || []), eventData];
+      }
 
       const { error: updateError } = await supabase
         .from('groups')
@@ -145,26 +163,15 @@ const AddEventScreen = ({ route, navigation }) => {
         .eq('id', groupId);
 
       if (updateError) {
-        console.error('Update error:', updateError);
-        Alert.alert('Error saving event.');
-        return;
+        throw updateError;
       }
 
-      Alert.alert('Success', 'Event added!');
+      Alert.alert('Success', `Event ${isEditMode ? 'updated' : 'added'}!`);
       navigation.goBack();
     } catch (err) {
-      console.error('Unexpected error:', err);
-      Alert.alert('Something went wrong. Please try again.');
+      console.error('Error saving event:', err.message);
+      Alert.alert('Error', `Failed to save event: ${err.message}`);
     }
-  };
-
-  const renderDatePrompt = (date, type) => {
-    return (
-      <Text style={styles.dateRangeText}>
-        {type === "start" ? "Start Date: " : "End Date: "}
-        {date.toLocaleDateString()}
-      </Text>
-    );
   };
 
   const formatDate = (date) => {
@@ -234,12 +241,12 @@ const AddEventScreen = ({ route, navigation }) => {
             mode="date"
             display="default"
             onChange={onChangeEndDate}
-            minimumDate={startDate} // End date cannot be before start date
+            minimumDate={startDate}
           />
         )}
 
         <View style={{ marginBottom: 50, marginTop: 10 }}>
-          <Button title={uploading ? 'Uploading...' : 'Add Event'} onPress={handleAddEvent} disabled={uploading} />
+          <Button title={uploading ? 'Uploading...' : (isEditMode ? 'Update Event' : 'Add Event')} onPress={handleSaveEvent} disabled={uploading} />
         </View>
       </View>
     </ScrollView>

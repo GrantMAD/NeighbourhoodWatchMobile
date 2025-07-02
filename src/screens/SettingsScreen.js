@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  FlatList,
+  ScrollView,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 
@@ -16,6 +16,7 @@ function SettingsScreen({ route, navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loadingPassword, setLoadingPassword] = useState(false);
   const [isGroupCreator, setIsGroupCreator] = useState(false);
+  const [showManageDropdown, setShowManageDropdown] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -105,10 +106,11 @@ function SettingsScreen({ route, navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
       <Text style={styles.title}>Settings</Text>
 
-      <Text style={styles.sectionHeader}>Account</Text>
+      <Text style={styles.sectionHeader}>👤 Account</Text>
+      <Text style={styles.sectionDescription}>Manage your account details and preferences.</Text>
       <TouchableOpacity
         style={styles.option}
         onPress={() => navigation.navigate("ProfileScreen")}
@@ -127,7 +129,8 @@ function SettingsScreen({ route, navigation }) {
         <Text style={styles.optionText}>Leave Group</Text>
       </TouchableOpacity>
 
-      <Text style={styles.sectionHeader}>Group Settings</Text>
+      <Text style={styles.sectionHeader}>👥 Group Settings</Text>
+      <Text style={styles.sectionDescription}>Oversee group-specific settings and content.</Text>
 
       {isGroupCreator && (
         <>
@@ -140,10 +143,36 @@ function SettingsScreen({ route, navigation }) {
 
           <TouchableOpacity
             style={styles.option}
-            onPress={() => navigation.navigate("ManageMembersScreen", { groupId })}
+            onPress={() => setShowManageDropdown(!showManageDropdown)}
           >
-            <Text style={styles.optionText}>Manage Members</Text>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+              <Text style={styles.optionText}>Manage</Text>
+              <Text style={styles.optionText}>▼</Text>
+            </View>
           </TouchableOpacity>
+
+          {showManageDropdown && (
+            <View style={styles.dropdown}>
+              <TouchableOpacity
+                style={styles.dropdownOption}
+                onPress={() => navigation.navigate("ManageMembersScreen", { groupId })}
+              >
+                <Text style={styles.optionText}>Manage Members</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.dropdownOption}
+                onPress={() => navigation.navigate("ManageEventsScreen", { groupId })}
+              >
+                <Text style={styles.optionText}>Manage Events</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.dropdownOption}
+                onPress={() => navigation.navigate("ManageNewsScreen", { groupId })}
+              >
+                <Text style={styles.optionText}>Manage News</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </>
       )}
 
@@ -166,7 +195,8 @@ function SettingsScreen({ route, navigation }) {
         </View>
       )}
 
-      <Text style={styles.sectionHeader}>Notification Settings</Text>
+      <Text style={styles.sectionHeader}>🔔 Notification Settings</Text>
+      <Text style={styles.sectionDescription}>Configure how you receive notifications.</Text>
       <TouchableOpacity
         style={styles.option}
         onPress={() => navigation.navigate("NotificationSetting")}
@@ -175,15 +205,17 @@ function SettingsScreen({ route, navigation }) {
       </TouchableOpacity>
 
       <Text style={styles.footerText}>Group ID: {groupId}</Text>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     padding: 20,
     backgroundColor: "#fff",
+  },
+  scrollViewContent: {
+    flexGrow: 1,
   },
   title: {
     fontSize: 28,
@@ -198,6 +230,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: "#6b7280",
   },
+  sectionDescription: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 10,
+  },
   option: {
     paddingVertical: 15,
     borderBottomWidth: 1,
@@ -206,6 +243,16 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
     color: "#111827",
+  },
+  dropdown: {
+    paddingLeft: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  dropdownOption: {
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
   },
   passwordBox: {
     paddingVertical: 10,

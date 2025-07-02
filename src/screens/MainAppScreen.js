@@ -120,7 +120,7 @@ function CustomDrawerContent(props) {
   );
 }
 
-const NotificationDropdown = ({ notifications, onClose, onNavigate, visible }) => {
+const NotificationDropdown = ({ notifications, onClose, onNavigate, visible, onDeleteNotification }) => {
   const getTypeIconName = (type) => {
     switch (type) {
       case "join_request":
@@ -844,6 +844,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1f2937",
   },
+  
   tabBarContainer: {
     flexDirection: 'row',
     height: 60,

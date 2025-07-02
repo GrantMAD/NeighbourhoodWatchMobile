@@ -57,7 +57,7 @@ const MembersScreen = ({ route }) => {
 
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, name, email, avatar_url, number, street, emergency_contact, check_in_time, check_out_time')
+      .select('id, name, email, avatar_url, number, street, emergency_contact, check_in_time, check_out_time, is_group_creator, vehicle_info')
       .in('id', userIds);
 
     if (profilesError) {
@@ -139,7 +139,6 @@ const MembersScreen = ({ route }) => {
             style={styles.avatar}
           />
           <View style={{ flex: 1, flexDirection: 'row' }}>
-            <Text style={{ marginRight: 6, marginTop: 2, fontSize: 16, color: "#fff" }}>👤</Text>
             <Text style={styles.name}>{item.name || 'No Name'}</Text>
           </View>
           <Text
@@ -176,7 +175,13 @@ const MembersScreen = ({ route }) => {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <ScrollView>
-              <Text style={styles.modalTitle}>👤 {selectedMember.name || 'No Name'}</Text>
+              <View style={styles.modalTitleContainer}>
+                <Image
+                  source={selectedMember.avatar_url ? { uri: selectedMember.avatar_url } : defaultAvatar}
+                  style={styles.modalAvatar}
+                />
+                <Text style={styles.modalTitle}>{selectedMember.name || 'No Name'}</Text>
+              </View>
 
               <View style={styles.detailRow}>
                 <Text style={styles.icon}>📞</Text>
@@ -197,6 +202,18 @@ const MembersScreen = ({ route }) => {
                 <Text style={styles.icon}>📍</Text>
                 <Text style={styles.detailLabel}>Street:</Text>
                 <Text style={styles.detailText}>{selectedMember.street || '-'}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.icon}>⭐</Text>
+                <Text style={styles.detailLabel}>Role:</Text>
+                <Text style={styles.detailText}>
+                  {selectedMember.is_group_creator ? 'Group Creator' : 'Member'}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.icon}>🚗</Text>
+                <Text style={styles.detailLabel}>Vehicle Info:</Text>
+                <Text style={styles.detailText}>{selectedMember.vehicle_info || '-'}</Text>
               </View>
 
               <TouchableOpacity onPress={toggleCheckIn} style={styles.toggleHeader}>
@@ -303,6 +320,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 12,
     backgroundColor: '#666',
+    borderWidth: 2,
+    borderColor: '#22d3ee',
   },
   name: {
     fontSize: 16,
@@ -335,9 +354,22 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
     color: '#f9fafb',
+    lineHeight: 22, // Explicitly set line height to match font size for precise vertical centering
+  },
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  modalAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 10,
+    borderWidth: 2,
+    borderColor: '#22d3ee',
   },
   detailRow: {
     flexDirection: 'row',

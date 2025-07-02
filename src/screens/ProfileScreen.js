@@ -23,6 +23,7 @@ function ProfileScreen() {
         street: "",
         avatar_url: "",
         emergency_contact: "",
+        vehicle_info: "",
     });
     const [uploading, setUploading] = useState(false);
     const [avatarLocalUri, setAvatarLocalUri] = useState(null);
@@ -63,7 +64,7 @@ function ProfileScreen() {
 
             const { data, error } = await supabase
                 .from("profiles")
-                .select("name, number, street, avatar_url, emergency_contact")
+                .select("name, number, street, avatar_url, emergency_contact, vehicle_info")
                 .eq("id", user.id)
                 .single();
 
@@ -214,12 +215,14 @@ function ProfileScreen() {
                 )}
             </TouchableOpacity>
 
+            <Text style={styles.inputHeading}>👤 Name</Text>
             <TextInput
                 style={styles.input}
                 placeholder="Name"
                 value={profile.name}
                 onChangeText={(text) => setProfile({ ...profile, name: text })}
             />
+            <Text style={styles.inputHeading}>📞 Number</Text>
             <TextInput
                 style={styles.input}
                 placeholder="Number"
@@ -227,17 +230,26 @@ function ProfileScreen() {
                 value={profile.number}
                 onChangeText={(text) => setProfile({ ...profile, number: text })}
             />
+            <Text style={styles.inputHeading}>🆘 Emergency Contact</Text>
             <TextInput
                 style={styles.input}
                 placeholder="Emergency Contact"
                 value={profile.emergency_contact}
                 onChangeText={(text) => setProfile({ ...profile, emergency_contact: text })}
             />
+            <Text style={styles.inputHeading}>🏠 Street</Text>
             <TextInput
                 style={styles.input}
                 placeholder="Street"
                 value={profile.street}
                 onChangeText={(text) => setProfile({ ...profile, street: text })}
+            />
+            <Text style={styles.inputHeading}>🚗 Vehicle Info</Text>
+            <TextInput
+                style={styles.input}
+                placeholder="e.g., Blue Honda Civic, License: NW1234"
+                value={profile.vehicle_info}
+                onChangeText={(text) => setProfile({ ...profile, vehicle_info: text })}
             />
 
             <Button title="Save Profile" onPress={updateProfile} />
@@ -268,6 +280,12 @@ const styles = StyleSheet.create({
         padding: 12,
         marginBottom: 15,
         borderRadius: 6,
+    },
+    inputHeading: {
+        fontSize: 16,
+        fontWeight: "bold",
+        marginBottom: 5,
+        marginTop: 10,
     },
     avatarContainer: {
         alignSelf: "center",
