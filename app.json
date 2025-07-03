@@ -21,10 +21,7 @@
         "backgroundColor": "#1f2937"
       },
       "softwareKeyboardLayoutMode": "pan",
-      "navigationBar": {
-        "visible": "immersive"
-      },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"

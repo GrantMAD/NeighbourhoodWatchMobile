@@ -138,8 +138,9 @@ const MembersScreen = ({ route }) => {
             source={item.avatar_url ? { uri: item.avatar_url } : defaultAvatar}
             style={styles.avatar}
           />
-          <View style={{ flex: 1, flexDirection: 'row' }}>
+          <View style={{ flex: 1 }}>
             <Text style={styles.name}>{item.name || 'No Name'}</Text>
+            <Text style={styles.cardEmail}>{item.email || 'No Email'}</Text>
           </View>
           <Text
             style={{ fontSize: 24, color: "#fff", fontWeight: 'bold' }}
@@ -180,7 +181,10 @@ const MembersScreen = ({ route }) => {
                   source={selectedMember.avatar_url ? { uri: selectedMember.avatar_url } : defaultAvatar}
                   style={styles.modalAvatar}
                 />
-                <Text style={styles.modalTitle}>{selectedMember.name || 'No Name'}</Text>
+                <View>
+                  <Text style={styles.modalTitle}>{selectedMember.name || 'No Name'}</Text>
+                  <Text style={styles.modalEmail}>{selectedMember.email || 'No Email'}</Text>
+                </View>
               </View>
 
               <View style={styles.detailRow}>
@@ -188,11 +192,7 @@ const MembersScreen = ({ route }) => {
                 <Text style={styles.detailLabel}>Contact Number:</Text>
                 <Text style={styles.detailText}>{selectedMember.number || '-'}</Text>
               </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.icon}>✉️</Text>
-                <Text style={styles.detailLabel}>Email:</Text>
-                <Text style={styles.detailText}>{selectedMember.email || '-'}</Text>
-              </View>
+              
               <View style={styles.detailRow}>
                 <Text style={styles.icon}>❗</Text>
                 <Text style={styles.detailLabel}>Emergency Contact:</Text>
@@ -328,6 +328,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  cardEmail: {
+    fontSize: 12,
+    color: '#d1d5db',
+    marginTop: 2,
+  },
   // Modal Styles
   modalContainer: {
     flex: 1,
@@ -356,6 +361,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#f9fafb',
     lineHeight: 22, // Explicitly set line height to match font size for precise vertical centering
+  },
+  modalEmail: {
+    fontSize: 14,
+    color: '#fff',
+    marginTop: 2,
   },
   modalTitleContainer: {
     flexDirection: 'row',

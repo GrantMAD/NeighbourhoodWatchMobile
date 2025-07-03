@@ -9,11 +9,14 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
+    ScrollView,
+    Modal,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../lib/supabase";
 import * as FileSystem from "expo-file-system";
 import { Buffer } from "buffer";
+import { Picker } from '@react-native-picker/picker';
 
 function ProfileScreen() {
     const [loading, setLoading] = useState(true);
@@ -24,12 +27,20 @@ function ProfileScreen() {
         avatar_url: "",
         emergency_contact: "",
         vehicle_info: "",
+        neighbourhoodwatch: [],
+        Requests: [],
     });
     const [uploading, setUploading] = useState(false);
     const [avatarLocalUri, setAvatarLocalUri] = useState(null);
+    const [joinModalVisible, setJoinModalVisible] = useState(false);
+    const [selectedNeighbourhoodWatch, setSelectedNeighbourhoodWatch] = useState(null);
+    const [newNeighbourhoodWatchName, setNewNeighbourhoodWatchName] = useState("");
+    const [showCreateNewInput, setShowCreateNewInput] = useState(false);
+    const [availableNeighbourhoodWatches, setAvailableNeighbourhoodWatches] = useState([]);
 
     useEffect(() => {
         fetchProfile();
+        fetchNeighbourhoodWatches();
     }, []);
 
     async function deleteOldAvatar(avatarUrl) {
@@ -64,7 +75,7 @@ function ProfileScreen() {
 
             const { data, error } = await supabase
                 .from("profiles")
-                .select("name, number, street, avatar_url, emergency_contact, vehicle_info")
+                .select("name, number, street, avatar_url, emergency_contact, vehicle_info, neighbourhoodwatch, Requests")
                 .eq("id", user.id)
                 .single();
 
@@ -75,6 +86,34 @@ function ProfileScreen() {
             Alert.alert("Error", error.message);
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function fetchNeighbourhoodWatches() {
+        try {
+            const { data: profilesData, error } = await supabase
+                .from('profiles')
+                .select('neighbourhoodwatch');
+
+            if (error) throw error;
+
+            let allWatches = [];
+            const uniqueWatchIds = new Set();
+
+            profilesData.forEach(profile => {
+                if (profile.neighbourhoodwatch && Array.isArray(profile.neighbourhoodwatch)) {
+                    profile.neighbourhoodwatch.forEach(watch => {
+                        if (!uniqueWatchIds.has(watch.id)) {
+                            allWatches.push(watch);
+                            uniqueWatchIds.add(watch.id);
+                        }
+                    });
+                }
+            });
+            setAvailableNeighbourhoodWatches(allWatches);
+        } catch (error) {
+            console.error("Error fetching neighbourhood watches:", error.message);
+            Alert.alert("Error", "Failed to fetch neighbourhood watches.");
         }
     }
 
@@ -119,6 +158,56 @@ function ProfileScreen() {
             Alert.alert("Success", "Profile updated");
         } catch (error) {
             Alert.alert("Error", error.message);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleCreateNewNeighbourhoodWatch() {
+        if (!newNeighbourhoodWatchName.trim()) {
+            Alert.alert("Error", "Neighbourhood Watch name cannot be empty.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError || !user) throw userError || new Error("No user logged in");
+
+            // Fetch current profile to get the existing neighbourhoodwatch array
+            const { data: currentProfile, error: fetchError } = await supabase
+                .from("profiles")
+                .select("neighbourhoodwatch")
+                .eq("id", user.id)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            const currentNeighbourhoodWatches = currentProfile.neighbourhoodwatch || [];
+
+            const newWatch = {
+                id: Math.random().toString(36).substring(2, 15), // Simple unique ID
+                name: newNeighbourhoodWatchName.trim(),
+                creator_id: user.id,
+                members: [user.id], // Initialize with creator's ID
+            };
+
+            const updatedWatches = [...currentNeighbourhoodWatches, newWatch];
+
+            const { error } = await supabase
+                .from("profiles")
+                .update({ neighbourhoodwatch: updatedWatches })
+                .eq("id", user.id);
+
+            if (error) throw error;
+
+            Alert.alert("Success", "Neighbourhood Watch created!");
+            setNewNeighbourhoodWatchName("");
+            setShowCreateNewInput(false);
+            setJoinModalVisible(false); // Close modal after creation
+            fetchNeighbourhoodWatches(); // Refresh the list
+        } catch (error) {
+            Alert.alert("Error creating Neighbourhood Watch", error.message);
         } finally {
             setLoading(false);
         }
@@ -189,6 +278,152 @@ function ProfileScreen() {
         }
     }
 
+    async function handleSendJoinRequest() {
+        if (!selectedNeighbourhoodWatch) {
+            Alert.alert("Error", "Please select a Neighbourhood Watch to join.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError || !user) throw userError || new Error("No user logged in");
+
+            // Get the selected neighbourhood watch details
+            const selectedWatch = availableNeighbourhoodWatches.find(
+                (nw) => nw.id === selectedNeighbourhoodWatch
+            );
+
+            if (!selectedWatch) {
+                Alert.alert("Error", "Selected Neighbourhood Watch not found.");
+                return;
+            }
+
+            // Fetch the creator's profile to update their Requests and notifications
+            const { data: creatorProfile, error: creatorError } = await supabase
+                .from("profiles")
+                .select("Requests, notifications")
+                .eq("id", selectedWatch.creator_id)
+                .single();
+
+            if (creatorError) throw creatorError;
+
+            const currentRequests = creatorProfile.Requests || [];
+            const currentNotifications = creatorProfile.notifications || [];
+
+            const newRequest = {
+                id: Math.random().toString(36).substring(2, 15), // Unique ID for the request
+                neighbourhoodWatchId: selectedWatch.id,
+                neighbourhoodWatchName: selectedWatch.name,
+                requesterId: user.id,
+                requesterName: profile.name, // Current user's name
+                status: "pending",
+                timestamp: new Date().toISOString(),
+            };
+
+            const newNotification = {
+                id: Math.random().toString(36).substring(2, 15), // Unique ID for the notification
+                type: "neighbourhood_watch_request",
+                message: `${profile.name} wants to join ${selectedWatch.name}.`,
+                requestId: newRequest.id,
+                requesterId: user.id, // Add requesterId
+                neighbourhoodWatchId: selectedWatch.id, // Add neighbourhoodWatchId
+                neighbourhoodWatchName: selectedWatch.name, // Add neighbourhoodWatchName
+                creatorId: selectedWatch.creator_id, // Add creatorId
+                read: false,
+                timestamp: new Date().toISOString(),
+                actions: [
+                    { type: "accept", label: "Accept" },
+                    { type: "decline", label: "Decline" },
+                ],
+            };
+
+            const updatedRequests = [...currentRequests, newRequest];
+            const updatedNotifications = [...currentNotifications, newNotification];
+
+            const { error: updateError } = await supabase
+                .from("profiles")
+                .update({
+                    Requests: updatedRequests,
+                    notifications: updatedNotifications,
+                })
+                .eq("id", selectedWatch.creator_id);
+
+            if (updateError) throw updateError;
+
+            Alert.alert("Success", "Join request sent!");
+            setJoinModalVisible(false);
+            setSelectedNeighbourhoodWatch(null);
+        } catch (error) {
+            Alert.alert("Error sending join request", error.message);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleLeaveNeighbourhoodWatch() {
+        Alert.alert(
+            "Leave Neighbourhood Watch",
+            "Are you sure you want to leave this Neighbourhood Watch?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Leave",
+                    style: "destructive",
+                    onPress: async () => {
+                        setLoading(true);
+                        try {
+                            const { data: { user }, error: userError } = await supabase.auth.getUser();
+                            if (userError || !user) throw userError || new Error("No user logged in");
+
+                            const currentWatch = profile.neighbourhoodwatch[0];
+                            if (!currentWatch) throw new Error("Not in a neighbourhood watch.");
+
+                            // 1. Remove user from the creator's neighbourhoodwatch members array
+                            const { data: creatorProfile, error: fetchCreatorError } = await supabase
+                                .from("profiles")
+                                .select("neighbourhoodwatch")
+                                .eq("id", currentWatch.creator_id)
+                                .single();
+
+                            if (fetchCreatorError || !creatorProfile) throw fetchCreatorError || new Error("Creator profile not found.");
+
+                            const updatedCreatorWatches = (creatorProfile.neighbourhoodwatch || []).map(nw => {
+                                if (nw.id === currentWatch.id) {
+                                    const updatedMembers = (nw.members || []).filter(memberId => memberId !== user.id);
+                                    return { ...nw, members: updatedMembers };
+                                }
+                                return nw;
+                            });
+
+                            const { error: updateCreatorError } = await supabase
+                                .from("profiles")
+                                .update({ neighbourhoodwatch: updatedCreatorWatches })
+                                .eq("id", currentWatch.creator_id);
+
+                            if (updateCreatorError) throw updateCreatorError;
+
+                            // 2. Clear neighbourhoodwatch from current user's profile
+                            const { error: updateUserProfileError } = await supabase
+                                .from("profiles")
+                                .update({ neighbourhoodwatch: [] })
+                                .eq("id", user.id);
+
+                            if (updateUserProfileError) throw updateUserProfileError;
+
+                            Alert.alert("Success", "You have left the Neighbourhood Watch.");
+                            fetchProfile(); // Refresh profile data
+                        } catch (error) {
+                            Alert.alert("Error", error.message);
+                        } finally {
+                            setLoading(false);
+                        }
+                    },
+                },
+            ]
+        );
+    }
+
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -198,7 +433,7 @@ function ProfileScreen() {
     }
 
     return (
-        <View style={styles.container}>
+        <ScrollView style={styles.container}>
             <Text style={styles.title}>Edit Profile</Text>
 
             <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
@@ -244,6 +479,29 @@ function ProfileScreen() {
                 value={profile.street}
                 onChangeText={(text) => setProfile({ ...profile, street: text })}
             />
+
+            <Text style={styles.inputHeading}>🏘️ Your Neighbourhood Watch</Text>
+            {profile.neighbourhoodwatch && profile.neighbourhoodwatch.length > 0 ? (
+                <View style={styles.neighbourhoodWatchDisplay}>
+                    <Text style={styles.neighbourhoodWatchText}>
+                        {profile.neighbourhoodwatch[0].name}
+                    </Text>
+                    <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveNeighbourhoodWatch}>
+                        <Text style={styles.leaveButtonText}>Leave</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : (
+                <Text style={styles.noNeighbourhoodWatchText}>
+                    You are currently not in a neighbourhood watch.
+                </Text>
+            )}
+
+            {(!profile.neighbourhoodwatch || profile.neighbourhoodwatch.length === 0) && (
+                <TouchableOpacity style={styles.actionButton} onPress={() => setJoinModalVisible(true)}>
+                    <Text style={styles.actionButtonText}>Join NeighbourhoodWatch</Text>
+                </TouchableOpacity>
+            )}
+
             <Text style={styles.inputHeading}>🚗 Vehicle Info</Text>
             <TextInput
                 style={styles.input}
@@ -252,8 +510,61 @@ function ProfileScreen() {
                 onChangeText={(text) => setProfile({ ...profile, vehicle_info: text })}
             />
 
-            <Button title="Save Profile" onPress={updateProfile} />
-        </View>
+            <TouchableOpacity style={styles.actionButton} onPress={updateProfile}>
+                <Text style={styles.actionButtonText}>Save Profile</Text>
+            </TouchableOpacity>
+
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={joinModalVisible}
+                onRequestClose={() => setJoinModalVisible(false)}
+            >
+                <View style={styles.centeredView}>
+                    <View style={styles.modalView}>
+                        <Text style={styles.modalText}>You can join or create neighbourhood watches here.</Text>
+
+                        <Picker
+                            selectedValue={selectedNeighbourhoodWatch}
+                            style={styles.picker}
+                            onValueChange={(itemValue, itemIndex) =>
+                                setSelectedNeighbourhoodWatch(itemValue)
+                            }>
+                            <Picker.Item key="select-placeholder" label="-- Select a Neighbourhood Watch --" value={null} />
+                            {availableNeighbourhoodWatches.length > 0 ? (
+                                availableNeighbourhoodWatches.map((nw) => (
+                                    <Picker.Item key={nw.id} label={nw.name} value={nw.id} />
+                                ))
+                            ) : (
+                                <Picker.Item key="no-watches-placeholder" label="No Neighbourhood Watches available" value={null} />
+                            )}
+                        </Picker>
+
+                        {selectedNeighbourhoodWatch && (
+                            <Button title="Send Join Request" onPress={handleSendJoinRequest} />
+                        )}
+
+                        {showCreateNewInput && (
+                            <View>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="New Neighbourhood Watch Name"
+                                    value={newNeighbourhoodWatchName}
+                                    onChangeText={setNewNeighbourhoodWatchName}
+                                />
+                                <Button title="Save New Neighbourhood Watch" onPress={handleCreateNewNeighbourhoodWatch} />
+                            </View>
+                        )}
+
+                        <Button title="Close" onPress={() => setJoinModalVisible(false)} />
+
+                        <TouchableOpacity style={styles.actionButton} onPress={() => setShowCreateNewInput(true)}>
+                            <Text style={styles.actionButtonText}>Create New NeighbourhoodWatch</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+        </ScrollView>
     );
 }
 
@@ -303,6 +614,78 @@ const styles = StyleSheet.create({
         backgroundColor: "#e5e7eb",
         justifyContent: "center",
         alignItems: "center",
+    },
+    neighbourhoodWatchText: {
+        fontSize: 16,
+        color: "#333",
+        marginBottom: 15,
+    },
+    noNeighbourhoodWatchText: {
+        fontSize: 16,
+        color: "#888",
+        fontStyle: "italic",
+        marginBottom: 15,
+    },
+    actionButton: {
+        backgroundColor: "#4CAF50", // Example color
+        padding: 15,
+        borderRadius: 8,
+        alignItems: "center",
+        marginTop: 10,
+    },
+    actionButtonText: {
+        color: "white",
+        fontSize: 16,
+        fontWeight: "bold",
+    },
+    centeredView: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        marginTop: 22,
+    },
+    modalView: {
+        margin: 20,
+        backgroundColor: "white",
+        borderRadius: 20,
+        padding: 35,
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    modalText: {
+        marginBottom: 15,
+        textAlign: "center",
+    },
+    picker: {
+        width: 200,
+        height: 50,
+        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 6,
+    },
+    neighbourhoodWatchDisplay: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 15,
+    },
+    leaveButton: {
+        backgroundColor: '#dc3545',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 5,
+    },
+    leaveButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
     },
 });
 

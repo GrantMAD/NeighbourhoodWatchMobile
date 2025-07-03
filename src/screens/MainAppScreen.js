@@ -32,6 +32,7 @@ import { supabase } from "../../lib/supabase";
 import IncidentsScreen from "../screens/IncidentsScreen";
 import ContactScreen from "../screens/ContactScreen";
 import CheckedInScreen from "../screens/CheckedInScreen";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const Drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator();
@@ -242,12 +243,16 @@ function BottomTabNavigator({ route }) {
   }
 
 const SlidingTabBar = ({ state, descriptors, navigation }) => {
+  const insets = useSafeAreaInsets();
   const tabWidth = Dimensions.get('window').width / state.routes.length;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const margin = 5;
+  const highlightWidth = tabWidth - (margin * 2);
 
   useEffect(() => {
+    const newX = state.index * tabWidth + margin;
     Animated.spring(slideAnim, {
-      toValue: state.index * tabWidth,
+      toValue: newX,
       useNativeDriver: true,
     }).start();
   }, [state.index, tabWidth]);
@@ -264,49 +269,52 @@ const SlidingTabBar = ({ state, descriptors, navigation }) => {
   };
 
   return (
-    <View style={styles.tabBarContainer}>
-      <Animated.View
-        style={[
-          styles.activeTab,
-          {
-            width: tabWidth,
-            transform: [{ translateX: slideAnim }],
-          },
-        ]}
-      />
-      {state.routes.map((route, index) => {
-        const { options } = descriptors[route.key];
-        const isFocused = state.index === index;
+    <View style={{ backgroundColor: '#1f2937' }}>
+      <View style={styles.tabBarContainer}>
+        <Animated.View
+          style={[
+            styles.activeTab,
+            {
+              width: highlightWidth,
+              transform: [{ translateX: slideAnim }],
+            },
+          ]}
+        />
+        {state.routes.map((route, index) => {
+          const { options } = descriptors[route.key];
+          const isFocused = state.index === index;
 
-        const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
 
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
-          }
-        };
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name);
+            }
+          };
 
-        return (
-          <TouchableOpacity
-            key={route.key}
-            onPress={onPress}
-            style={styles.tabItem}
-          >
-            <FontAwesome5
-              name={getIconName(route.name)}
-              size={22}
-              color={isFocused ? '#22d3ee' : '#fff'}
-            />
-            <Text style={{ color: isFocused ? '#22d3ee' : '#fff', fontSize: 12, marginTop: 4 }}>
-              {route.name}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+          return (
+            <TouchableOpacity
+              key={route.key}
+              onPress={onPress}
+              style={styles.tabItem}
+            >
+              <FontAwesome5
+                name={getIconName(route.name)}
+                size={22}
+                color={isFocused ? '#22d3ee' : '#fff'}
+              />
+              <Text style={{ color: isFocused ? '#22d3ee' : '#fff', fontSize: 12, marginTop: 4 }}>
+                {route.name}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <View style={{ height: insets.bottom }} />
     </View>
   );
 };
@@ -511,9 +519,9 @@ const MainAppScreen = ({ route, navigation }) => {
             visible={dropdownVisible}
             notifications={notifications}
             onClose={() => setDropdownVisible(false)}
-            onNavigate={() => {
+            onNavigate={(item) => {
               setDropdownVisible(false);
-              navigation.navigate("Notifications");
+              navigation.navigate("Notifications", { notification: item });
             }}
           />
         )}
@@ -847,8 +855,7 @@ const styles = StyleSheet.create({
   
   tabBarContainer: {
     flexDirection: 'row',
-    height: 60,
-    backgroundColor: '#1f2937',
+    paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: '#4b5563',
   },
@@ -856,10 +863,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 5,
   },
   activeTab: {
     position: 'absolute',
-    height: '100%',
+    top: 10,
+    bottom: 10,
     backgroundColor: '#374151',
     borderRadius: 10,
   },

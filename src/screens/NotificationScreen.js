@@ -331,6 +331,220 @@ const NotificationScreen = () => {
     }
   };
 
+  
+
+  const handleAcceptNeighbourhoodWatchRequest = async (notification) => {
+    const id = notification.id;
+    setProcessing(id, 'accept', true);
+    try {
+      const { requestId, requesterId, neighbourhoodWatchName, creatorId } = notification;
+
+      if (!requestId || !requesterId || !neighbourhoodWatchName || !creatorId) {
+        throw new Error("Invalid neighbourhood watch request notification data.");
+      }
+
+      // 1. Delete the notification from the current user's notifications
+      const updatedNotifications = notifications.filter((n) => n.id !== id);
+      await updateNotifications(updatedNotifications);
+
+      // 2. Fetch the creator's profile to update their Requests array
+      const { data: creatorProfile, error: fetchCreatorProfileError } = await supabase
+        .from('profiles')
+        .select('Requests')
+        .eq('id', creatorId)
+        .single();
+
+      if (fetchCreatorProfileError || !creatorProfile) {
+        console.error('Error fetching creator profile:', fetchCreatorProfileError?.message);
+        throw new Error('Failed to fetch creator profile.');
+      }
+
+      // Remove the request from the creator's Requests array
+      console.log('Notification requestId:', requestId);
+      console.log('Creator profile Requests before filter:', creatorProfile.Requests);
+      const updatedRequests = (creatorProfile.Requests || []).filter(
+        (req) => {
+          console.log('Comparing request id:', req.id, 'with notification requestId:', requestId);
+          return req.id !== requestId;
+        }
+      );
+      console.log('Creator profile Requests after filter:', updatedRequests);
+
+      const { error: updateCreatorProfileError } = await supabase
+        .from('profiles')
+        .update({
+          Requests: updatedRequests,
+        })
+        .eq('id', creatorId);
+
+      if (updateCreatorProfileError) {
+        console.error('Error updating creator profile:', updateCreatorProfileError.message);
+        throw new Error('Failed to update creator profile.');
+      }
+
+      // 3. Fetch the requester's profile to update their neighbourhoodwatch array
+      const { data: requesterProfile, error: fetchRequesterProfileError } = await supabase
+        .from('profiles')
+        .select('neighbourhoodwatch')
+        .eq('id', requesterId)
+        .single();
+
+      if (fetchRequesterProfileError || !requesterProfile) {
+        console.error('Error fetching requester profile:', fetchRequesterProfileError?.message);
+        throw new Error('Failed to fetch requester profile.');
+      }
+
+      // Add neighbourhoodWatchName to the user's neighbourhoodwatch array
+      const currentNeighbourhoodWatchArray = requesterProfile.neighbourhoodwatch || [];
+      const newNeighbourhoodWatchEntry = {
+        id: notification.neighbourhoodWatchId,
+        name: neighbourhoodWatchName,
+        creator_id: notification.creatorId,
+      };
+      const updatedNeighbourhoodWatchArray = [...currentNeighbourhoodWatchArray, newNeighbourhoodWatchEntry];
+
+      const { error: updateRequesterProfileError } = await supabase
+        .from('profiles')
+        .update({
+          neighbourhoodwatch: updatedNeighbourhoodWatchArray,
+        })
+        .eq('id', requesterId);
+
+      if (updateRequesterProfileError) {
+        console.error('Error updating requester profile:', updateRequesterProfileError.message);
+        throw new Error('Failed to update requester profile.');
+      }
+
+      // 4. Add acceptance notification to requester
+      const { data: requesterNotifProfile, error: fetchRequesterNotifProfileError } = await supabase
+        .from('profiles')
+        .select('notifications')
+        .eq('id', requesterId)
+        .single();
+
+      if (fetchRequesterNotifProfileError || !requesterNotifProfile) {
+        console.error('Error fetching requester notification profile:', fetchRequesterNotifProfileError?.message);
+        throw new Error('Failed to fetch requester notification profile.');
+      }
+
+      const acceptanceNotif = {
+        id: `notif-${Date.now()}`,
+        type: 'neighbourhood_watch_request_accepted',
+        message: `Your request to join "${neighbourhoodWatchName}" was accepted.`,
+        createdAt: new Date().toISOString(),
+        read: false,
+      };
+
+      const updatedRequesterNotifs = [...(requesterNotifProfile.notifications || []), acceptanceNotif];
+      const { error: updateRequesterNotifsError } = await supabase
+        .from('profiles')
+        .update({ notifications: updatedRequesterNotifs })
+        .eq('id', requesterId);
+
+      if (updateRequesterNotifsError) {
+        console.error('Error updating requester notifications:', updateRequesterNotifsError.message);
+        throw new Error('Failed to update requester notifications.');
+      }
+
+      // 5. Add the accepted user's ID to the neighbourhood watch's members array
+      const { data: creatorProfileForMembers, error: fetchCreatorProfileForMembersError } = await supabase
+        .from('profiles')
+        .select('neighbourhoodwatch')
+        .eq('id', creatorId)
+        .single();
+
+      if (fetchCreatorProfileForMembersError || !creatorProfileForMembers) {
+        console.error('Error fetching creator profile for members update:', fetchCreatorProfileForMembersError?.message);
+        throw new Error('Failed to fetch creator profile for members update.');
+      }
+
+      const updatedCreatorNeighbourhoodWatches = (creatorProfileForMembers.neighbourhoodwatch || []).map(nw => {
+        if (nw.id === notification.neighbourhoodWatchId) {
+          const updatedMembers = [...new Set([...(nw.members || []), requesterId])];
+          return { ...nw, members: updatedMembers };
+        }
+        return nw;
+      });
+
+      const { error: updateCreatorMembersError } = await supabase
+        .from('profiles')
+        .update({ neighbourhoodwatch: updatedCreatorNeighbourhoodWatches })
+        .eq('id', creatorId);
+
+      if (updateCreatorMembersError) {
+        console.error('Error updating creators neighbourhoodwatch members:', updateCreatorMembersError.message);
+        throw new Error('Failed to update creators neighbourhoodwatch members.');
+      }
+
+      Alert.alert('Success', 'Neighbourhood watch request accepted.');
+      fetchNotifications(); // Refresh notifications after successful operation
+    } catch (error) {
+      console.error('Accept Neighbourhood Watch Request error:', error);
+      Alert.alert('Error', error.message || 'Failed to accept neighbourhood watch request.');
+    } finally {
+      setProcessing(id, 'accept', false);
+    }
+  };
+
+  const handleDeclineNeighbourhoodWatchRequest = async (notification) => {
+    const id = notification.id;
+    setProcessing(id, 'decline', true);
+    try {
+      const { requestId, requesterId, creatorId } = notification;
+
+      if (!requestId || !requesterId || !creatorId) {
+        throw new Error("Invalid neighbourhood watch request notification data.");
+      }
+
+      // 1. Delete the notification from the current user's notifications
+      const updatedNotifications = notifications.filter((n) => n.id !== id);
+      await updateNotifications(updatedNotifications);
+
+      // 2. Fetch the creator's profile to update their Requests array
+      const { data: creatorProfile, error: fetchCreatorProfileError } = await supabase
+        .from('profiles')
+        .select('Requests')
+        .eq('id', creatorId)
+        .single();
+
+      if (fetchCreatorProfileError || !creatorProfile) {
+        console.error('Error fetching creator profile:', fetchCreatorProfileError?.message);
+        throw new Error('Failed to fetch creator profile.');
+      }
+
+      // Remove the request from the creator's Requests array
+      console.log('Notification requestId:', requestId);
+      console.log('Creator profile Requests before filter:', creatorProfile.Requests);
+      const updatedRequests = (creatorProfile.Requests || []).filter(
+        (req) => {
+          console.log('Comparing request id:', req.id, 'with notification requestId:', requestId);
+          return req.id !== requestId;
+        }
+      );
+      console.log('Creator profile Requests after filter:', updatedRequests);
+
+      const { error: updateCreatorProfileError } = await supabase
+        .from('profiles')
+        .update({
+          Requests: updatedRequests,
+        })
+        .eq('id', creatorId);
+
+      if (updateCreatorProfileError) {
+        console.error('Error updating creator profile:', updateCreatorProfileError.message);
+        throw new Error('Failed to update creator profile.');
+      }
+
+      Alert.alert('Success', 'Neighbourhood watch request declined.');
+      fetchNotifications(); // Refresh notifications after successful operation
+    } catch (error) {
+      console.error('Decline Neighbourhood Watch Request error:', error);
+      Alert.alert('Error', error.message || 'Failed to decline neighbourhood watch request.');
+    } finally {
+      setProcessing(id, 'decline', false);
+    }
+  };
+
   const confirmDeclineRequest = (notification) => {
     Alert.alert(
       'Decline Request',
@@ -349,6 +563,7 @@ const NotificationScreen = () => {
   const renderNotification = ({ item }) => {
     const isJoinRequest = item.type === 'join_request';
     const isCheckStatus = item.type === 'check_status';
+    const isNeighbourhoodWatchRequest = item.type === 'neighbourhood_watch_request';
 
     const isAcceptProcessing = processingStatus[item.id]?.accept;
     const isDeclineProcessing = processingStatus[item.id]?.decline;
@@ -358,6 +573,8 @@ const NotificationScreen = () => {
       headingText = 'Group Join Request';
     } else if (isCheckStatus) {
       headingText = 'Status Update';
+    } else if (isNeighbourhoodWatchRequest) {
+      headingText = 'Neighbourhood Watch Request';
     }
 
     const notificationDate = new Date(item.timestamp || item.createdAt || Date.now());
@@ -398,11 +615,11 @@ const NotificationScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {isJoinRequest && (
+        {(isJoinRequest || isNeighbourhoodWatchRequest) && (
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={[styles.button, styles.acceptButton, isAcceptProcessing && styles.disabledButton]}
-              onPress={() => handleAcceptRequest(item)}
+              onPress={() => isJoinRequest ? handleAcceptRequest(item) : handleAcceptNeighbourhoodWatchRequest(item)}
               disabled={isAcceptProcessing}
             >
               {isAcceptProcessing ? (
@@ -413,7 +630,7 @@ const NotificationScreen = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.declineButton, isDeclineProcessing && styles.disabledButton]}
-              onPress={() => confirmDeclineRequest(item)}
+              onPress={() => isJoinRequest ? confirmDeclineRequest(item) : handleDeclineNeighbourhoodWatchRequest(item)}
               disabled={isDeclineProcessing}
             >
               {isDeclineProcessing ? (
