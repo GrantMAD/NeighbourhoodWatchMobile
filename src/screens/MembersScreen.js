@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  FlatList,
   StyleSheet,
   Image,
   TouchableOpacity,
@@ -13,6 +12,7 @@ import {
   Animated,
   Easing
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { supabase } from '../../lib/supabase';
 
@@ -25,7 +25,9 @@ const defaultAvatar = require('../../assets/Images/user.png');
 
 const MembersScreen = ({ route }) => {
   const { groupId } = route.params;
-  const [members, setMembers] = useState([]);
+  const [groupedMembers, setGroupedMembers] = useState({});
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const [groupAnimations, setGroupAnimations] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedMember, setSelectedMember] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -50,14 +52,14 @@ const MembersScreen = ({ route }) => {
     const userIds = groupData?.users || [];
 
     if (userIds.length === 0) {
-      setMembers([]);
+      setGroupedMembers({});
       setLoading(false);
       return;
     }
 
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, name, email, avatar_url, number, street, emergency_contact, check_in_time, check_out_time, is_group_creator, vehicle_info')
+      .select('id, name, email, avatar_url, number, street, emergency_contact, check_in_time, check_out_time, is_group_creator, vehicle_info, neighbourhoodwatch, checked_in')
       .in('id', userIds);
 
     if (profilesError) {
@@ -66,13 +68,36 @@ const MembersScreen = ({ route }) => {
       return;
     }
 
-    setMembers(profiles);
+    const grouped = profiles.reduce((acc, user) => {
+      if (user.neighbourhoodwatch && Array.isArray(user.neighbourhoodwatch)) {
+        user.neighbourhoodwatch.forEach(watch => {
+          const groupName = watch.name;
+          if (!acc[groupName]) {
+            acc[groupName] = [];
+          }
+          acc[groupName].push(user);
+        });
+      }
+      return acc;
+    }, {});
+
+    setGroupedMembers(grouped);
     setLoading(false);
   };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchGroupMembers();
+    }, [groupId])
+  );
+
   useEffect(() => {
-    fetchGroupMembers();
-  }, [groupId]);
+    const initialAnimations = {};
+    Object.keys(groupedMembers).forEach(groupName => {
+      initialAnimations[groupName] = new Animated.Value(0);
+    });
+    setGroupAnimations(initialAnimations);
+  }, [groupedMembers]);
 
   const openModal = (member) => {
     setSelectedMember(member);
@@ -84,6 +109,25 @@ const MembersScreen = ({ route }) => {
     setModalVisible(false);
     setCheckInAnimation(new Animated.Value(0));
     setCheckOutAnimation(new Animated.Value(0));
+  };
+
+  const toggleGroupExpansion = (groupName) => {
+    setExpandedGroups(prevState => {
+      const isExpanded = !prevState[groupName];
+      if (!groupAnimations[groupName]) {
+        setGroupAnimations(prev => ({ ...prev, [groupName]: new Animated.Value(isExpanded ? 1 : 0) }));
+      }
+      Animated.timing(groupAnimations[groupName], {
+        toValue: isExpanded ? 1 : 0,
+        duration: 300,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: false,
+      }).start();
+      return {
+        ...prevState,
+        [groupName]: isExpanded
+      };
+    });
   };
 
   const toggleCheckIn = () => {
@@ -271,14 +315,52 @@ const MembersScreen = ({ route }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Members</Text>
-      <Text style={styles.description}>Here you can see all the members of this group.</Text>
+      <Text style={styles.description}>Here you can see all the members, grouped by their neighbourhood watch.</Text>
 
-      <FlatList
-        data={members}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 16 }}
-      />
+      <ScrollView style={{ flex: 1 }}>
+        {Object.keys(groupedMembers).length > 0 ? (
+          Object.entries(groupedMembers).map(([groupName, membersInGroup]) => (
+            <View key={groupName} style={styles.groupContainer}>
+              <TouchableOpacity
+                onPress={() => toggleGroupExpansion(groupName)}
+                style={styles.groupHeader}
+              >
+                <Text style={styles.groupTitle}>🏠 {groupName} <Text style={styles.memberCountText}>({membersInGroup.length} Members, {membersInGroup.filter(m => m.checked_in).length} Checked In)</Text></Text>
+                <Text style={styles.groupToggleIcon}>
+                  {expandedGroups[groupName] ? '▲' : '▼'}
+                </Text>
+              </TouchableOpacity>
+              <Animated.View
+                style={[
+                  styles.groupContent,
+                  {
+                    maxHeight: groupAnimations[groupName]
+                      ? groupAnimations[groupName].interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, 1000], // Large enough value
+                        })
+                      : 0,
+                    opacity: groupAnimations[groupName]
+                      ? groupAnimations[groupName].interpolate({
+                          inputRange: [0, 0.5, 1],
+                          outputRange: [0, 0.5, 1],
+                        })
+                      : 0,
+                  },
+                ]}
+              >
+                {membersInGroup.map((item) => (
+                  <View key={item.id}>
+                    {renderItem({ item })}
+                  </View>
+                ))}
+              </Animated.View>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noMembersText}>No members found for this group.</Text>
+        )}
+      </ScrollView>
       {renderModalContent()}
     </View>
   );
@@ -447,6 +529,45 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 10,
+  },
+  groupContainer: {
+    marginBottom: 10,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#1f2937',
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: '#2d3748',
+    borderBottomWidth: 1,
+    borderBottomColor: '#4a5568',
+  },
+  groupTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#cccccc',
+  },
+  groupToggleIcon: {
+    fontSize: 18,
+    color: '#cccccc',
+  },
+  memberCountText: {
+    fontSize: 14,
+    color: '#999999',
+    fontWeight: 'normal',
+  },
+  groupContent: {
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+  noMembersText: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16,
+    color: '#555',
   },
 });
 
