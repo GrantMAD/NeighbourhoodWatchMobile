@@ -69,7 +69,7 @@ const MembersScreen = ({ route }) => {
     }
 
     const grouped = profiles.reduce((acc, user) => {
-      if (user.neighbourhoodwatch && Array.isArray(user.neighbourhoodwatch)) {
+      if (user.neighbourhoodwatch && Array.isArray(user.neighbourhoodwatch) && user.neighbourhoodwatch.length > 0) {
         user.neighbourhoodwatch.forEach(watch => {
           const groupName = watch.name;
           if (!acc[groupName]) {
@@ -77,6 +77,12 @@ const MembersScreen = ({ route }) => {
           }
           acc[groupName].push(user);
         });
+      } else {
+        const noWatchGroupName = "No assigned neighbourhoodwatch";
+        if (!acc[noWatchGroupName]) {
+          acc[noWatchGroupName] = [];
+        }
+        acc[noWatchGroupName].push(user);
       }
       return acc;
     }, {});
