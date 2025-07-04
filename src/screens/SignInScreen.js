@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     color: '#111827', // dark text
   },
   signInButton: {
-    backgroundColor: '#4338ca', // purple-blue button
+    backgroundColor: '#4338ca', 
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
@@ -176,10 +176,10 @@ const styles = StyleSheet.create({
   signUpText: {
     marginTop: 20,
     textAlign: 'center',
-    color: '#d1d5db', // light gray
+    color: '#d1d5db', 
   },
   signUpLink: {
-    color: '#22c55e', // green like WelcomeScreen's SignUp button
+    color: '#22c55e', 
     fontWeight: '600',
   },
   loadingContainer: {

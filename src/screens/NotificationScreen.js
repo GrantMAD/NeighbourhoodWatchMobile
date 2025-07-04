@@ -8,17 +8,24 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  Animated,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import Icon from 'react-native-vector-icons/FontAwesome5';
+import Toast from '../components/Toast';
 
 const NotificationScreen = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
-
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
   const [processingStatus, setProcessingStatus] = useState({});
+  const [actionModalVisible, setActionModalVisible] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -137,6 +144,16 @@ const NotificationScreen = () => {
     }));
   };
 
+  const showToast = (message, type) => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
+
+  const hideToast = () => {
+    setToastVisible(false);
+  };
+
   const handleAcceptRequest = async (notification) => {
     const id = notification.id;
     setProcessing(id, 'accept', true);
@@ -225,6 +242,7 @@ const NotificationScreen = () => {
         .eq('id', userId);
 
       fetchNotifications();
+      setActionModalVisible(false);
     } catch (error) {
       console.error('Accept error:', error);
     } finally {
@@ -323,6 +341,7 @@ const NotificationScreen = () => {
 
       // 5. Refresh notifications in UI
       fetchNotifications();
+      setActionModalVisible(false);
     } catch (error) {
       console.error('Decline error:', error);
       Alert.alert('Error', error.message || 'Failed to decline request');
@@ -331,7 +350,7 @@ const NotificationScreen = () => {
     }
   };
 
-  
+
 
   const handleAcceptNeighbourhoodWatchRequest = async (notification) => {
     const id = notification.id;
@@ -382,10 +401,10 @@ const NotificationScreen = () => {
         throw new Error('Failed to update creator profile.');
       }
 
-      // 3. Fetch the requester's profile to update their neighbourhoodwatch array
+      // 3. Fetch the requester's profile to update their neighbourhoodwatch array and remove the pending request
       const { data: requesterProfile, error: fetchRequesterProfileError } = await supabase
         .from('profiles')
-        .select('neighbourhoodwatch')
+        .select('neighbourhoodwatch, Requests')
         .eq('id', requesterId)
         .single();
 
@@ -393,6 +412,11 @@ const NotificationScreen = () => {
         console.error('Error fetching requester profile:', fetchRequesterProfileError?.message);
         throw new Error('Failed to fetch requester profile.');
       }
+
+      // Remove the pending request from the requester's Requests array
+      const updatedRequesterRequests = (requesterProfile.Requests || []).filter(
+        (req) => !(req.type === "Neighbourhood watch request" && req.neighbourhoodWatchId === notification.neighbourhoodWatchId && req.requesterId === requesterId)
+      );
 
       // Add neighbourhoodWatchName to the user's neighbourhoodwatch array
       const currentNeighbourhoodWatchArray = requesterProfile.neighbourhoodwatch || [];
@@ -407,6 +431,7 @@ const NotificationScreen = () => {
         .from('profiles')
         .update({
           neighbourhoodwatch: updatedNeighbourhoodWatchArray,
+          Requests: updatedRequesterRequests,
         })
         .eq('id', requesterId);
 
@@ -476,8 +501,9 @@ const NotificationScreen = () => {
         throw new Error('Failed to update creators neighbourhoodwatch members.');
       }
 
-      Alert.alert('Success', 'Neighbourhood watch request accepted.');
+      showToast('Neighbourhood watch request accepted.', 'success');
       fetchNotifications(); // Refresh notifications after successful operation
+      setActionModalVisible(false);
     } catch (error) {
       console.error('Accept Neighbourhood Watch Request error:', error);
       Alert.alert('Error', error.message || 'Failed to accept neighbourhood watch request.');
@@ -535,8 +561,35 @@ const NotificationScreen = () => {
         throw new Error('Failed to update creator profile.');
       }
 
-      Alert.alert('Success', 'Neighbourhood watch request declined.');
+      // Remove the pending request from the requester's Requests array
+      const { data: requesterProfile, error: fetchRequesterProfileError } = await supabase
+        .from('profiles')
+        .select('Requests')
+        .eq('id', requesterId)
+        .single();
+
+      if (fetchRequesterProfileError || !requesterProfile) {
+        console.error('Error fetching requester profile:', fetchRequesterProfileError?.message);
+        throw new Error('Failed to fetch requester profile.');
+      }
+
+      const updatedRequesterRequests = (requesterProfile.Requests || []).filter(
+        (req) => !(req.type === "Neighbourhood watch request" && req.neighbourhoodWatchId === notification.neighbourhoodWatchId && req.requesterId === requesterId)
+      );
+
+      const { error: updateRequesterProfileError } = await supabase
+        .from('profiles')
+        .update({ Requests: updatedRequesterRequests })
+        .eq('id', requesterId);
+
+      if (updateRequesterProfileError) {
+        console.error('Error updating requester profile:', updateRequesterProfileError.message);
+        throw new Error('Failed to update requester profile.');
+      }
+
+      showToast('Neighbourhood watch request declined.', 'success');
       fetchNotifications(); // Refresh notifications after successful operation
+      setActionModalVisible(false);
     } catch (error) {
       console.error('Decline Neighbourhood Watch Request error:', error);
       Alert.alert('Error', error.message || 'Failed to decline neighbourhood watch request.');
@@ -560,6 +613,25 @@ const NotificationScreen = () => {
     );
   };
 
+  const pulseAnim = useState(new Animated.Value(1))[0];
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.4,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
   const renderNotification = ({ item }) => {
     const isJoinRequest = item.type === 'join_request';
     const isCheckStatus = item.type === 'check_status';
@@ -580,68 +652,21 @@ const NotificationScreen = () => {
     const notificationDate = new Date(item.timestamp || item.createdAt || Date.now());
 
     return (
-      <View style={[styles.notificationCard, item.read ? styles.read : styles.unread]}>
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            {headingText !== '' && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                <Icon name="bell" size={16} color="white" style={{ marginRight: 6 }} />
-                <Text style={styles.headingText}>{headingText}</Text>
-              </View>
-            )}
-
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Icon name="envelope" size={16} color="white" style={{ marginRight: 6 }} />
-              <Text style={styles.messageText}>{item.message}</Text>
-            </View>
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-              <Icon name="clock" size={14} color="white" style={{ marginRight: 6 }} />
-              <Text style={styles.timeText}>{notificationDate.toLocaleTimeString()}</Text>
-              <Text style={[styles.dateText]}>{notificationDate.toLocaleDateString()}</Text>
-            </View>
+      <TouchableOpacity
+        style={[styles.notificationCard, item.read ? styles.read : styles.unread]}
+        onPress={() => {
+          setSelectedNotification(item);
+          setActionModalVisible(true);
+        }}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.headingContainer}>
+            <Animated.View style={[styles.glowingDot, { transform: [{ scale: pulseAnim }] }]} />
+            <Text style={styles.headingEmoji}>🔔</Text>
+            <Text style={styles.headingText}>{headingText}</Text>
           </View>
-
-          <TouchableOpacity
-            onPress={() => deleteNotification(item.id)}
-            style={{
-              padding: 6,
-              borderRadius: 20,
-              backgroundColor: 'rgba(255, 0, 0, 0.15)',
-              marginLeft:'30'
-            }}
-          >
-            <Icon name="trash" size={20} color="#ff4444" />
-          </TouchableOpacity>
         </View>
-
-        {(isJoinRequest || isNeighbourhoodWatchRequest) && (
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[styles.button, styles.acceptButton, isAcceptProcessing && styles.disabledButton]}
-              onPress={() => isJoinRequest ? handleAcceptRequest(item) : handleAcceptNeighbourhoodWatchRequest(item)}
-              disabled={isAcceptProcessing}
-            >
-              {isAcceptProcessing ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Accept</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.declineButton, isDeclineProcessing && styles.disabledButton]}
-              onPress={() => isJoinRequest ? confirmDeclineRequest(item) : handleDeclineNeighbourhoodWatchRequest(item)}
-              disabled={isDeclineProcessing}
-            >
-              {isDeclineProcessing ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Decline</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -681,6 +706,111 @@ const NotificationScreen = () => {
         }
         contentContainerStyle={notifications.length === 0 && styles.flatListEmpty}
       />
+      <Toast visible={toastVisible} message={toastMessage} type={toastType} onHide={hideToast} />
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={actionModalVisible}
+        onRequestClose={() => setActionModalVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            {selectedNotification && (
+              <>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setActionModalVisible(false)}
+                >
+                  <Text style={styles.modalCloseButtonText}>X</Text>
+                </TouchableOpacity>
+                <View
+                  style={[
+                    styles.modalTitleRow,
+                    (selectedNotification?.type === 'join_request' ||
+                      selectedNotification?.type === 'neighbourhood_watch_request') && {
+                      justifyContent: 'center',
+                    },
+                  ]}
+                >
+                  <Text style={styles.modalTitle}>Notification Details</Text>
+
+                  {selectedNotification?.type !== 'join_request' &&
+                    selectedNotification?.type !== 'neighbourhood_watch_request' && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          deleteNotification(selectedNotification.id);
+                          setActionModalVisible(false);
+                        }}
+                        style={styles.trashIconWrapper}
+                      >
+                        <Icon name="trash" size={20} color="#ff4444" style={styles.trashIcon} />
+                      </TouchableOpacity>
+                    )}
+                </View>
+
+                <View style={styles.modalDetailRow}>
+                  <Text style={styles.modalMessage}>✉️ {selectedNotification.message}</Text>
+                </View>
+
+                <View style={styles.modalDetailRow}>
+                  <Text style={styles.modalEmoji}>⏰</Text>
+                  <Text style={styles.modalTimeText}>
+                    {(new Date(selectedNotification.timestamp || selectedNotification.createdAt || Date.now())).toLocaleTimeString()}
+                  </Text>
+                  <Text style={styles.modalDateText}>
+                    {(new Date(selectedNotification.timestamp || selectedNotification.createdAt || Date.now())).toLocaleDateString()}
+                  </Text>
+                </View>
+
+                {(selectedNotification.type === 'join_request' || selectedNotification.type === 'neighbourhood_watch_request') && (
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.button,
+                        styles.acceptButton,
+                        processingStatus[selectedNotification.id]?.accept && styles.disabledButton,
+                      ]}
+                      onPress={() =>
+                        selectedNotification.type === 'join_request'
+                          ? handleAcceptRequest(selectedNotification)
+                          : handleAcceptNeighbourhoodWatchRequest(selectedNotification)
+                      }
+                      disabled={processingStatus[selectedNotification.id]?.accept}
+                    >
+                      {processingStatus[selectedNotification.id]?.accept ? (
+                        <ActivityIndicator color="white" />
+                      ) : (
+                        <Text style={styles.buttonText}>Accept</Text>
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.button,
+                        styles.declineButton,
+                        processingStatus[selectedNotification.id]?.decline && styles.disabledButton,
+                      ]}
+                      onPress={() =>
+                        selectedNotification.type === 'join_request'
+                          ? confirmDeclineRequest(selectedNotification)
+                          : handleDeclineNeighbourhoodWatchRequest(selectedNotification)
+                      }
+                      disabled={processingStatus[selectedNotification.id]?.decline}
+                    >
+                      {processingStatus[selectedNotification.id]?.decline ? (
+                        <ActivityIndicator color="white" />
+                      ) : (
+                        <Text style={styles.buttonText}>Decline</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -716,24 +846,79 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 10,
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
+    borderWidth: 2,
   },
-  read: { opacity: 0.6 },
-  unread: { opacity: 1 },
+  read: {
+    borderColor: 'transparent',
+    opacity: 0.8,
+  },
+  unread: {
+    borderColor: '#90caf9', // A distinct color for unread
+    opacity: 1,
+  },
   row: { flexDirection: 'row', alignItems: 'center' },
-  messageText: { fontSize: 16, marginBottom: 4, color: '#e3f2fd', },
-  dateText: { 
-    fontSize: 12, 
+  cardContent: {
+    flex: 1,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  headingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headingIcon: {
+    marginRight: 6,
+  },
+  headingEmoji: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  deleteButton: {
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 0, 0, 0.15)',
+  },
+  messageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  messageIcon: {
+    marginRight: 6,
+  },
+  messageEmoji: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  messageText: { fontSize: 16, color: '#e3f2fd' },
+  timestampContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  timestampIcon: {
+    marginRight: 6,
+  },
+  timestampEmoji: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  dateText: {
+    fontSize: 12,
     color: '#90a4ae',
-    marginLeft: '8',
-    paddingBottom: '2'
+    marginLeft: 8,
   },
   timeText: {
     fontSize: 12,
     color: '#90a4ae',
-    marginBottom: 2,
   },
   actionRow: { flexDirection: 'row', marginTop: 8, justifyContent: 'flex-end' },
   button: {
@@ -753,6 +938,112 @@ const styles = StyleSheet.create({
     color: '#90caf9',
     marginBottom: 4,
     textDecorationLine: 'underline',
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: '#1f2937',
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: '80%',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#e3f2fd',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#374151',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 15,
+  },
+  modalDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+
+  modalEmoji: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+
+  modalTimeText: {
+    fontSize: 14,
+    color: '#bbb', // gray
+    marginRight: 8,
+  },
+
+  modalDateText: {
+    fontSize: 14,
+    color: '#bbb', // gray
+  },
+  trashIconWrapper: {
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: '#2d2d2d',
+    shadowColor: '#ff4444',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+
+  trashIcon: {
+    textShadowColor: 'rgba(255, 68, 68, 0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 4,
+  },
+  glowingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#4CAF50', // green
+    marginRight: 8,
+    shadowColor: '#4CAF50',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 6,
   },
 });
 

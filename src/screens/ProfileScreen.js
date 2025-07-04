@@ -37,6 +37,7 @@ function ProfileScreen() {
     const [newNeighbourhoodWatchName, setNewNeighbourhoodWatchName] = useState("");
     const [showCreateNewInput, setShowCreateNewInput] = useState(false);
     const [availableNeighbourhoodWatches, setAvailableNeighbourhoodWatches] = useState([]);
+    const [hasPendingRequest, setHasPendingRequest] = useState(false);
 
     useEffect(() => {
         fetchProfile();
@@ -82,6 +83,11 @@ function ProfileScreen() {
             if (error) throw error;
 
             setProfile(data);
+            // Check for pending neighbourhood watch requests
+            const pendingNWRequest = (data.Requests || []).some(
+                (req) => req.type === "Neighbourhood watch request" && req.status === "pending"
+            );
+            setHasPendingRequest(pendingNWRequest);
         } catch (error) {
             Alert.alert("Error", error.message);
         } finally {
@@ -319,6 +325,7 @@ function ProfileScreen() {
                 requesterName: profile.name, // Current user's name
                 status: "pending",
                 timestamp: new Date().toISOString(),
+                type: "Neighbourhood watch request", // Add type for identification
             };
 
             const newNotification = {
@@ -351,9 +358,28 @@ function ProfileScreen() {
 
             if (updateError) throw updateError;
 
+            // Update the requester's own profile with the pending request
+            const { data: requesterProfile, error: fetchRequesterError } = await supabase
+                .from("profiles")
+                .select("Requests")
+                .eq("id", user.id)
+                .single();
+
+            if (fetchRequesterError) throw fetchRequesterError;
+
+            const updatedRequesterRequests = [...(requesterProfile.Requests || []), newRequest];
+
+            const { error: updateRequesterError } = await supabase
+                .from("profiles")
+                .update({ Requests: updatedRequesterRequests })
+                .eq("id", user.id);
+
+            if (updateRequesterError) throw updateRequesterError;
+
             Alert.alert("Success", "Join request sent!");
             setJoinModalVisible(false);
             setSelectedNeighbourhoodWatch(null);
+            setHasPendingRequest(true); // Set pending status for the requester
         } catch (error) {
             Alert.alert("Error sending join request", error.message);
         } finally {
@@ -497,9 +523,13 @@ function ProfileScreen() {
             )}
 
             {(!profile.neighbourhoodwatch || profile.neighbourhoodwatch.length === 0) && (
-                <TouchableOpacity style={styles.actionButton} onPress={() => setJoinModalVisible(true)}>
-                    <Text style={styles.actionButtonText}>Join NeighbourhoodWatch</Text>
-                </TouchableOpacity>
+                hasPendingRequest ? (
+                    <Text style={styles.pendingRequestText}>Request pending...</Text>
+                ) : (
+                    <TouchableOpacity style={styles.actionButton} onPress={() => setJoinModalVisible(true)}>
+                        <Text style={styles.actionButtonText}>Join NeighbourhoodWatch</Text>
+                    </TouchableOpacity>
+                )
             )}
 
             <Text style={styles.inputHeading}>🚗 Vehicle Info</Text>
@@ -522,6 +552,10 @@ function ProfileScreen() {
             >
                 <View style={styles.centeredView}>
                     <View style={styles.modalView}>
+                        <TouchableOpacity style={styles.closeButton} onPress={() => setJoinModalVisible(false)}>
+                            <Text style={styles.closeButtonText}>X</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.modalTitle}>Neighbourhood Selection</Text>
                         <Text style={styles.modalText}>You can join or create neighbourhood watches here.</Text>
 
                         <Picker
@@ -530,7 +564,7 @@ function ProfileScreen() {
                             onValueChange={(itemValue, itemIndex) =>
                                 setSelectedNeighbourhoodWatch(itemValue)
                             }>
-                            <Picker.Item key="select-placeholder" label="-- Select a Neighbourhood Watch --" value={null} />
+                            <Picker.Item key="select-placeholder" label="Select" value={null} />
                             {availableNeighbourhoodWatches.length > 0 ? (
                                 availableNeighbourhoodWatches.map((nw) => (
                                     <Picker.Item key={nw.id} label={nw.name} value={nw.id} />
@@ -541,26 +575,29 @@ function ProfileScreen() {
                         </Picker>
 
                         {selectedNeighbourhoodWatch && (
-                            <Button title="Send Join Request" onPress={handleSendJoinRequest} />
+                            <TouchableOpacity style={[styles.modalButton, styles.joinButton]} onPress={handleSendJoinRequest}>
+                                <Text style={styles.modalButtonText}>Send Join Request</Text>
+                            </TouchableOpacity>
                         )}
 
-                        {showCreateNewInput && (
-                            <View>
+                        {showCreateNewInput ? (
+                            <View style={styles.createNewContainer}>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, styles.modalInput]}
                                     placeholder="New Neighbourhood Watch Name"
+                                    placeholderTextColor="#9CA3AF"
                                     value={newNeighbourhoodWatchName}
                                     onChangeText={setNewNeighbourhoodWatchName}
                                 />
-                                <Button title="Save New Neighbourhood Watch" onPress={handleCreateNewNeighbourhoodWatch} />
+                                <TouchableOpacity style={styles.modalButton} onPress={handleCreateNewNeighbourhoodWatch}>
+                                    <Text style={styles.modalButtonText}>Save New Watch</Text>
+                                </TouchableOpacity>
                             </View>
+                        ) : (
+                            <TouchableOpacity style={styles.modalButton} onPress={() => setShowCreateNewInput(true)}>
+                                <Text style={styles.modalButtonText}>Create Neighbourhood Watch</Text>
+                            </TouchableOpacity>
                         )}
-
-                        <Button title="Close" onPress={() => setJoinModalVisible(false)} />
-
-                        <TouchableOpacity style={styles.actionButton} onPress={() => setShowCreateNewInput(true)}>
-                            <Text style={styles.actionButtonText}>Create New NeighbourhoodWatch</Text>
-                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
@@ -626,12 +663,20 @@ const styles = StyleSheet.create({
         fontStyle: "italic",
         marginBottom: 15,
     },
+    pendingRequestText: {
+        fontSize: 16,
+        color: "#f97316",
+        fontStyle: "italic",
+        marginBottom: 15,
+        textAlign: "center",
+    },
     actionButton: {
-        backgroundColor: "#4CAF50", // Example color
+        backgroundColor: "#14b8a6", 
         padding: 15,
         borderRadius: 8,
         alignItems: "center",
         marginTop: 10,
+        marginBottom: 60, // Increased margin to push button further above navigation
     },
     actionButtonText: {
         color: "white",
@@ -646,7 +691,7 @@ const styles = StyleSheet.create({
     },
     modalView: {
         margin: 20,
-        backgroundColor: "white",
+        backgroundColor: "#1f2937",
         borderRadius: 20,
         padding: 35,
         alignItems: "center",
@@ -659,9 +704,16 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 5,
     },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "white",
+        marginBottom: 15,
+    },
     modalText: {
         marginBottom: 15,
         textAlign: "center",
+        color: "white",
     },
     picker: {
         width: 200,
@@ -669,7 +721,8 @@ const styles = StyleSheet.create({
         marginBottom: 15,
         borderWidth: 1,
         borderColor: "#ccc",
-        borderRadius: 6,
+        backgroundColor: 'white',
+        color: 'black',
     },
     neighbourhoodWatchDisplay: {
         flexDirection: 'row',
@@ -686,6 +739,49 @@ const styles = StyleSheet.create({
     leaveButtonText: {
         color: 'white',
         fontWeight: 'bold',
+    },
+    modalButton: {
+        backgroundColor: "#14b8a6",
+        padding: 12,
+        borderRadius: 8,
+        alignItems: "center",
+        marginTop: 10,
+        width: '90%',
+    },
+    modalButtonText: {
+        color: "white",
+        fontSize: 16,
+        fontWeight: "bold",
+    },
+    joinButton: {
+        backgroundColor: "#f97316",
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 15,
+        right: 15,
+        backgroundColor: '#374151',
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    closeButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    createNewContainer: {
+        width: '100%',
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    modalInput: {
+        backgroundColor: '#374151',
+        color: 'white',
+        borderColor: '#4B5563',
+        width: '90%',
     },
 });
 
