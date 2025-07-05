@@ -121,16 +121,62 @@ function CustomDrawerContent(props) {
   );
 }
 
-const NotificationDropdown = ({ notifications, onClose, onNavigate, visible, onDeleteNotification }) => {
-  const getTypeIconName = (type) => {
-    switch (type) {
-      case "join_request":
-        return "users"; // group icon
-      case "check_status":
-        return "info-circle"; // info icon
-      default:
-        return "bell"; // fallback
+const NotificationDropdown = ({ notifications, onClose, onNavigate, visible }) => {
+  const renderNotificationItem = ({ item }) => {
+    let headingText = 'Notification';
+    if (item.type === 'join_request') {
+      headingText = 'Group Join Request';
+    } else if (item.type === 'neighbourhood_watch_request') {
+      headingText = 'Neighbourhood Watch Request';
+    } else if (item.type === 'accepted_request') {
+      headingText = 'Request Accepted';
+    } else if (item.type === 'declined_request') {
+      headingText = 'Request Declined';
+    } else if (item.type === 'check_status') {
+      headingText = 'Status Update';
     }
+
+    const getBorderColor = (type) => {
+      switch (type) {
+        case 'join_request': return '#facc15';        // yellow
+        case 'neighbourhood_watch_request': return '#60a5fa'; // blue
+        case 'accepted_request': return '#4ade80';     // green
+        case 'declined_request': return '#f87171';     // red
+        case 'check_status': return '#a78bfa';         // purple
+        default: return '#22d3ee';                     // default cyan
+      }
+    };
+
+    return (
+      <TouchableOpacity onPress={() => { onClose(); onNavigate(); }}>
+        <View style={[
+          styles.notificationCard,
+          !item.read ? styles.unread : styles.read,
+          { borderLeftColor: getBorderColor(item.type) }
+        ]}>
+          <View style={styles.cardTopRow}>
+            <View style={styles.avatarContainer}>
+              {item.avatar_url ? (
+                <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+              ) : (
+                <FontAwesome5 name="user-circle" size={30} color="#90caf9" solid />
+              )}
+            </View>
+            <View style={styles.cardContent}>
+              <Text style={styles.headingText}>{headingText}</Text>
+              <Text style={styles.messageText} numberOfLines={2}>{item.message}</Text>
+            </View>
+          </View>
+          {(item.type === 'check_status' || item.type === 'neighbourhood_watch_request' || item.type === 'join_request') && item.timestamp && (
+            <View style={styles.timeInfoContainer}>
+              <Text style={styles.timeText}>
+                {new Date(item.timestamp).toLocaleDateString()} at {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -144,77 +190,40 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate, visible, onD
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback>
             <View style={styles.modalContent}>
-              <View style={{ flexDirection: 'row', marginTop: 10, }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, marginBottom: 10 }}>
                 <Text style={styles.dropdownTitle}>Notifications</Text>
-                <View
-                  style={{
-                    backgroundColor: '#f87171',
-                    borderRadius: 10,
-                    paddingHorizontal: 6,
-                    marginLeft: 6,
-                    minWidth: 20,
-                    height: 20,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text style={{ color: 'white', fontWeight: '700', fontSize: 12 }}>
-                    {notifications.length}
-                  </Text>
-                </View>
+                {notifications.length > 0 && (
+                  <View
+                    style={{
+                      backgroundColor: '#f87171',
+                      borderRadius: 10,
+                      paddingHorizontal: 6,
+                      minWidth: 20,
+                      height: 20,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ color: 'white', fontWeight: '700', fontSize: 12 }}>
+                      {notifications.filter(n => !n.read).length}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {notifications.length === 0 ? (
-                <Text style={styles.noNotificationsText}>No notifications</Text>
+                <Text style={styles.noNotificationsText}>You're all caught up!</Text>
               ) : (
                 <FlatList
-                  data={notifications}
-                  keyExtractor={(item, index) => item.id ?? index.toString()}
-                  contentContainerStyle={{ paddingBottom: 10 }}
-                  showsVerticalScrollIndicator
-                  style={{ maxHeight: 240 }}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      onPress={() => {
-                        onClose();
-                        onNavigate();
-                      }}
-                    >
-                      <View style={styles.notificationItem}>
-                        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
-                          <FontAwesome5
-                            name={getTypeIconName(item.type)}
-                            size={14}
-                            color="white"
-                            style={{ marginRight: 6 }}
-                          />
-                          <Text style={styles.notificationUserId}>
-                            {item.type === "join_request"
-                              ? "Group Join Request"
-                              : item.type === "check_status"
-                                ? "Status Update"
-                                : "Notification"}
-                          </Text>
-                        </View>
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <FontAwesome5
-                            name="envelope"
-                            size={13}
-                            color="gray"
-                            style={{ marginRight: 6 }}
-                          />
-                          <Text style={styles.notificationText}>
-                            {item.message || "No message"}
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  )}
+                  data={notifications.sort((a, b) => new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp))}
+                  keyExtractor={(item) => item.id.toString()}
+                  renderItem={renderNotificationItem}
+                  style={{ maxHeight: 320 }}
                 />
               )}
 
-              <TouchableOpacity style={styles.viewAllButton} onPress={onNavigate}>
-                <Text style={styles.viewAllText}>View All</Text>
+              <TouchableOpacity style={styles.viewAllButton} onPress={() => { onClose(); onNavigate(); }}>
+                <Text style={styles.viewAllText}>View All Notifications</Text>
               </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>
@@ -225,22 +234,22 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate, visible, onD
 };
 
 function BottomTabNavigator({ route }) {
-    const { groupId } = route.params;
-    return (
-      <Tab.Navigator
-        tabBar={(props) => <SlidingTabBar {...props} />}
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        <Tab.Screen name="Home" component={HomeScreen} initialParams={{ groupId }} />
-        <Tab.Screen name="Members" component={MembersScreen} initialParams={{ groupId }} />
-        <Tab.Screen name="Events" component={EventsScreen} initialParams={{ groupId }} />
-        <Tab.Screen name="News" component={NewsScreen} initialParams={{ groupId }} />
-        <Tab.Screen name="Incidents" component={IncidentsScreen} initialParams={{ groupId }} />
-      </Tab.Navigator>
-    );
-  }
+  const { groupId } = route.params;
+  return (
+    <Tab.Navigator
+      tabBar={(props) => <SlidingTabBar {...props} />}
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} initialParams={{ groupId }} />
+      <Tab.Screen name="Members" component={MembersScreen} initialParams={{ groupId }} />
+      <Tab.Screen name="Events" component={EventsScreen} initialParams={{ groupId }} />
+      <Tab.Screen name="News" component={NewsScreen} initialParams={{ groupId }} />
+      <Tab.Screen name="Incidents" component={IncidentsScreen} initialParams={{ groupId }} />
+    </Tab.Navigator>
+  );
+}
 
 const SlidingTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
@@ -326,6 +335,26 @@ const MainAppScreen = ({ route, navigation }) => {
   const [hasNotifications, setHasNotifications] = useState(false);
   const [checkedIn, setCheckedIn] = useState(false);
   const [checkedInCount, setCheckedInCount] = useState(0);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (hasNotifications) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.4,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [hasNotifications]);
 
   useFocusEffect(
     useCallback(() => {
@@ -499,7 +528,7 @@ const MainAppScreen = ({ route, navigation }) => {
           <View>
             <FontAwesome5 name="bell" size={20} color="#f9fafb" />
             {hasNotifications && (
-              <View
+              <Animated.View
                 style={{
                   position: "absolute",
                   top: -4,
@@ -508,6 +537,11 @@ const MainAppScreen = ({ route, navigation }) => {
                   height: 10,
                   borderRadius: 5,
                   backgroundColor: "#f87171",
+                  transform: [{ scale: pulseAnim }],
+                  opacity: pulseAnim.interpolate({
+                    inputRange: [1, 1.4],
+                    outputRange: [1, 0.6],
+                  }),
                 }}
               />
             )}
@@ -532,19 +566,20 @@ const MainAppScreen = ({ route, navigation }) => {
 
   async function notifyGroupUsersAboutCheckStatus(userId, groupId, status) {
     try {
-      // Step 1: Get name of the user who triggered the action
+      // Step 1: Get name and avatar of the user who triggered the action
       const { data: senderProfile, error: senderError } = await supabase
         .from("profiles")
-        .select("name")
+        .select("name, avatar_url")
         .eq("id", userId)
         .single();
 
       if (senderError || !senderProfile) {
-        console.error("Failed to fetch sender's name", senderError);
+        console.error("Failed to fetch sender's profile", senderError);
         return;
       }
 
       const senderName = senderProfile.name || "A member";
+      const senderAvatarUrl = senderProfile.avatar_url;
 
       // Step 2: Get all other users in the group
       const { data: groupData, error: groupError } = await supabase
@@ -579,6 +614,7 @@ const MainAppScreen = ({ route, navigation }) => {
         message: `${senderName} has ${status}.`,
         timestamp,
         seen: false,
+        avatar_url: senderAvatarUrl, // Include avatar_url in the notification
       };
 
       // Step 4: Append to each recipient's notifications ONLY if they opted in
@@ -607,13 +643,13 @@ const MainAppScreen = ({ route, navigation }) => {
     const routeName = getFocusedRouteNameFromRoute(route) ?? route.name;
 
     if (routeName === 'MainTabs') {
-        return 'Home';
+      return 'Home';
     }
     if (routeName === 'ContactScreen') {
-        return 'Contact';
+      return 'Contact';
     }
     if (routeName === 'CheckedIn') {
-        return 'Checked In';
+      return 'Checked In';
     }
     return routeName;
   };
@@ -781,78 +817,97 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
-    paddingTop: 55,
+    paddingTop: 60, // Adjust as needed
     paddingRight: 15,
   },
   modalContent: {
-    width: 300,
-    backgroundColor: "#374151",
-    borderRadius: 8,
-    padding: 10,
-    maxHeight: 350,
-  },
-  dropdownOverlay: {
-    position: "absolute",
-    top: 40,
-    right: 15,
-    width: 300,
-    backgroundColor: "#374151",
-    borderRadius: 8,
-    padding: 10,
+    width: 320,
+    backgroundColor: "#2a2a2a",
+    borderRadius: 12,
+    padding: 12,
+    maxHeight: 450,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    zIndex: 1000,
-  },
-  dropdownContainer: {
-    maxHeight: 300,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 10,
   },
   dropdownTitle: {
-    fontWeight: "700",
-    fontSize: 16,
+    fontWeight: "bold",
+    fontSize: 18,
     color: "#f9fafb",
-    marginBottom: 10,
   },
   noNotificationsText: {
     color: "#d1d5db",
     fontStyle: "italic",
+    textAlign: 'center',
+    paddingVertical: 20,
   },
-  notificationItem: {
-    backgroundColor: "#4b5563",
-    borderRadius: 6,
-    padding: 10,
-    marginVertical: 4,
+  notificationCard: {
+    backgroundColor: '#3a3a3a',
+    borderRadius: 10,
+    padding: 12,
+    marginVertical: 6,
+    borderLeftWidth: 4,
   },
-  notificationUserId: {
-    fontWeight: "600",
-    color: "#90caf9",
-    marginBottom: 2,
-    fontSize: 16,
-    textDecorationLine: 'underline',
+  read: {
+    opacity: 0.6,
   },
-  notificationText: {
-    color: "#f9fafb",
+  unread: {
+    opacity: 1.0,
   },
-  notificationList: {
-    maxHeight: 220,
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarContainer: {
+    marginRight: 12,
+  },
+  avatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
+  cardContent: {
+    flex: 1,
+  },
+  headingText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#e3f2fd',
+  },
+  messageText: {
+    fontSize: 13,
+    color: '#b0bec5',
+    marginTop: 2,
+  },
+  timeInfoContainer: {
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopColor: '#4a4a4a',
+    borderTopWidth: 1,
+  },
+  timeText: {
+    fontSize: 12,
+    color: '#90a4ae',
+    fontStyle: 'italic',
   },
   viewAllButton: {
-    marginTop: 10,
-    paddingVertical: 6,
+    marginTop: 12,
+    paddingVertical: 10,
     backgroundColor: "#22d3ee",
-    borderRadius: 6,
+    borderRadius: 8,
   },
   viewAllText: {
     textAlign: "center",
-    fontWeight: "700",
+    fontWeight: "bold",
     color: "#1f2937",
+    fontSize: 14,
   },
-  
+
   tabBarContainer: {
     flexDirection: 'row',
     paddingVertical: 10,

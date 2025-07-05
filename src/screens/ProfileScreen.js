@@ -334,6 +334,7 @@ function ProfileScreen() {
                 message: `${profile.name} wants to join ${selectedWatch.name}.`,
                 requestId: newRequest.id,
                 requesterId: user.id, // Add requesterId
+                avatar_url: profile.avatar_url, // Add requester's avatar_url
                 neighbourhoodWatchId: selectedWatch.id, // Add neighbourhoodWatchId
                 neighbourhoodWatchName: selectedWatch.name, // Add neighbourhoodWatchName
                 creatorId: selectedWatch.creator_id, // Add creatorId

@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Modal,
   Animated,
+  Image,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -154,7 +155,7 @@ const NotificationScreen = () => {
     setToastVisible(false);
   };
 
-  const handleAcceptRequest = async (notification) => {
+  const handleAcceptRequest = async (notification, actingUserId) => {
     const id = notification.id;
     setProcessing(id, 'accept', true);
     try {
@@ -177,6 +178,14 @@ const NotificationScreen = () => {
 
       const userId = targetRequest.userId;
       if (!userId) throw new Error("Missing userId");
+
+      // Fetch current user's avatar (the user pressing accept)
+      const { data: actingUser, error: actingUserError } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', actingUserId)  // Use the passed in actingUserId here
+        .single();
+      if (actingUserError || !actingUser) throw actingUserError;
 
       // Remove the request from group requests
       const updatedRequests = group.requests.filter(r => r.id !== requestId);
@@ -218,14 +227,7 @@ const NotificationScreen = () => {
         .update({ notifications: updatedCreatorNotifs })
         .eq('id', creatorId);
 
-      // Add acceptance notification to requester
-      const { data: requesterProfile, error: requesterError } = await supabase
-        .from('profiles')
-        .select('notifications')
-        .eq('id', userId)
-        .single();
-      if (requesterError) throw requesterError;
-
+      // Add acceptance notification to requester WITH avatar_url
       const acceptanceNotif = {
         id: `notif-${Date.now()}`,
         type: 'accepted_request',
@@ -233,7 +235,15 @@ const NotificationScreen = () => {
         message: `Your request to join "${group.name}" was accepted.`,
         createdAt: new Date().toISOString(),
         read: false,
+        avatar_url: actingUser.avatar_url, // <-- added avatar here
       };
+
+      const { data: requesterProfile, error: requesterError } = await supabase
+        .from('profiles')
+        .select('notifications')
+        .eq('id', userId)
+        .single();
+      if (requesterError) throw requesterError;
 
       const updatedRequesterNotifs = [...(requesterProfile.notifications || []), acceptanceNotif];
       await supabase
@@ -250,7 +260,7 @@ const NotificationScreen = () => {
     }
   };
 
-  const handleDeclineRequest = async (notification) => {
+  const handleDeclineRequest = async (notification, actingUserId) => {
     const id = notification.id;
     setProcessing(id, 'decline', true);
 
@@ -275,17 +285,12 @@ const NotificationScreen = () => {
 
       if (!targetRequest) {
         console.warn(`Decline failed: Request ID ${requestId} not found in group ${groupId}`);
-        // Still clear requestedGroupId in user profile and remove notification to keep UI consistent?
-        // Let's do that safely:
 
-        // Try clearing requestedGroupId for the user if possible
-        // But how to get userId if request not found? fallback to notification.userId?
         const fallbackUserId = notification.userId || null;
         if (fallbackUserId) {
           await supabase.from('profiles').update({ requestedGroupId: null }).eq('id', fallbackUserId);
         }
 
-        // Remove this notification from creator's notifications anyway
         const { data: creatorProfile } = await supabase
           .from('profiles')
           .select('notifications')
@@ -302,6 +307,14 @@ const NotificationScreen = () => {
 
       const userId = targetRequest.userId;
       if (!userId) throw new Error("Missing userId");
+
+      // Fetch current user's avatar (the user pressing decline)
+      const { data: actingUser, error: actingUserError } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', actingUserId)  // Use the passed in actingUserId here
+        .single();
+      if (actingUserError || !actingUser) throw actingUserError;
 
       // 1. Remove request from group
       const updatedRequests = group.requests.filter(r => r.id !== requestId);
@@ -320,7 +333,7 @@ const NotificationScreen = () => {
       const updatedCreatorNotifs = (creatorProfile.notifications || []).filter(n => n.id !== id);
       await supabase.from('profiles').update({ notifications: updatedCreatorNotifs }).eq('id', creatorId);
 
-      // 4. Add a rejection notification to the requester
+      // 4. Add a rejection notification to the requester WITH avatar_url
       const { data: requesterProfile } = await supabase
         .from('profiles')
         .select('notifications')
@@ -334,6 +347,7 @@ const NotificationScreen = () => {
         message: `Your request to join "${group.name}" was declined.`,
         createdAt: new Date().toISOString(),
         read: false,
+        avatar_url: actingUser.avatar_url, // <-- added avatar here
       };
 
       const updatedRequesterNotifs = [...(requesterProfile.notifications || []), declineNotif];
@@ -350,9 +364,7 @@ const NotificationScreen = () => {
     }
   };
 
-
-
-  const handleAcceptNeighbourhoodWatchRequest = async (notification) => {
+  const handleAcceptNeighbourhoodWatchRequest = async (notification, actingUserId) => {
     const id = notification.id;
     setProcessing(id, 'accept', true);
     try {
@@ -361,6 +373,14 @@ const NotificationScreen = () => {
       if (!requestId || !requesterId || !neighbourhoodWatchName || !creatorId) {
         throw new Error("Invalid neighbourhood watch request notification data.");
       }
+
+      // Fetch current user's avatar (the user pressing accept)
+      const { data: actingUser, error: actingUserError } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', actingUserId)
+        .single();
+      if (actingUserError || !actingUser) throw actingUserError;
 
       // 1. Delete the notification from the current user's notifications
       const updatedNotifications = notifications.filter((n) => n.id !== id);
@@ -379,15 +399,9 @@ const NotificationScreen = () => {
       }
 
       // Remove the request from the creator's Requests array
-      console.log('Notification requestId:', requestId);
-      console.log('Creator profile Requests before filter:', creatorProfile.Requests);
       const updatedRequests = (creatorProfile.Requests || []).filter(
-        (req) => {
-          console.log('Comparing request id:', req.id, 'with notification requestId:', requestId);
-          return req.id !== requestId;
-        }
+        (req) => req.id !== requestId
       );
-      console.log('Creator profile Requests after filter:', updatedRequests);
 
       const { error: updateCreatorProfileError } = await supabase
         .from('profiles')
@@ -415,7 +429,12 @@ const NotificationScreen = () => {
 
       // Remove the pending request from the requester's Requests array
       const updatedRequesterRequests = (requesterProfile.Requests || []).filter(
-        (req) => !(req.type === "Neighbourhood watch request" && req.neighbourhoodWatchId === notification.neighbourhoodWatchId && req.requesterId === requesterId)
+        (req) =>
+          !(
+            req.type === "Neighbourhood watch request" &&
+            req.neighbourhoodWatchId === notification.neighbourhoodWatchId &&
+            req.requesterId === requesterId
+          )
       );
 
       // Add neighbourhoodWatchName to the user's neighbourhoodwatch array
@@ -440,7 +459,7 @@ const NotificationScreen = () => {
         throw new Error('Failed to update requester profile.');
       }
 
-      // 4. Add acceptance notification to requester
+      // 4. Add acceptance notification to requester WITH avatar_url
       const { data: requesterNotifProfile, error: fetchRequesterNotifProfileError } = await supabase
         .from('profiles')
         .select('notifications')
@@ -458,6 +477,7 @@ const NotificationScreen = () => {
         message: `Your request to join "${neighbourhoodWatchName}" was accepted.`,
         createdAt: new Date().toISOString(),
         read: false,
+        avatar_url: actingUser.avatar_url, // <-- added avatar here
       };
 
       const updatedRequesterNotifs = [...(requesterNotifProfile.notifications || []), acceptanceNotif];
@@ -512,7 +532,7 @@ const NotificationScreen = () => {
     }
   };
 
-  const handleDeclineNeighbourhoodWatchRequest = async (notification) => {
+  const handleDeclineNeighbourhoodWatchRequest = async (notification, actingUserId) => {
     const id = notification.id;
     setProcessing(id, 'decline', true);
     try {
@@ -598,7 +618,7 @@ const NotificationScreen = () => {
     }
   };
 
-  const confirmDeclineRequest = (notification) => {
+  const confirmDeclineRequest = (notification, actingUserId) => {
     Alert.alert(
       'Decline Request',
       'Are you sure you want to decline this join request?',
@@ -607,66 +627,133 @@ const NotificationScreen = () => {
         {
           text: 'Decline',
           style: 'destructive',
-          onPress: () => handleDeclineRequest(notification),
+          onPress: () => handleDeclineRequest(notification, actingUserId),
         },
       ]
     );
   };
 
-  const pulseAnim = useState(new Animated.Value(1))[0];
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.4,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, []);
 
   const renderNotification = ({ item }) => {
     const isJoinRequest = item.type === 'join_request';
-    const isCheckStatus = item.type === 'check_status';
     const isNeighbourhoodWatchRequest = item.type === 'neighbourhood_watch_request';
+    const isActionable = isJoinRequest || isNeighbourhoodWatchRequest;
 
     const isAcceptProcessing = processingStatus[item.id]?.accept;
     const isDeclineProcessing = processingStatus[item.id]?.decline;
 
-    let headingText = '';
+    let headingText = 'Notification';
     if (isJoinRequest) {
       headingText = 'Group Join Request';
-    } else if (isCheckStatus) {
-      headingText = 'Status Update';
     } else if (isNeighbourhoodWatchRequest) {
       headingText = 'Neighbourhood Watch Request';
+    } else if (item.type === 'accepted_request') {
+      headingText = 'Request Accepted';
+    } else if (item.type === 'declined_request') {
+      headingText = 'Request Declined';
+    } else if (item.type === 'check_status') {
+      headingText = 'Status Update';
     }
 
-    const notificationDate = new Date(item.timestamp || item.createdAt || Date.now());
+    const getBorderColor = (type) => {
+      switch (type) {
+        case 'join_request': return '#facc15';        // yellow
+        case 'neighbourhood_watch_request': return '#60a5fa'; // blue
+        case 'accepted_request': return '#4ade80';     // green
+        case 'declined_request': return '#f87171';     // red
+        case 'check_status': return '#a78bfa';         // purple
+        default: return '#22d3ee';                     // default cyan
+      }
+    };
 
     return (
-      <TouchableOpacity
-        style={[styles.notificationCard, item.read ? styles.read : styles.unread]}
-        onPress={() => {
-          setSelectedNotification(item);
-          setActionModalVisible(true);
-        }}
-      >
-        <View style={styles.cardHeader}>
-          <View style={styles.headingContainer}>
-            <Animated.View style={[styles.glowingDot, { transform: [{ scale: pulseAnim }] }]} />
-            <Text style={styles.headingEmoji}>🔔</Text>
-            <Text style={styles.headingText}>{headingText}</Text>
+      <View style={[styles.notificationCard, item.read ? styles.read : styles.unread, { borderLeftColor: getBorderColor(item.type), borderLeftWidth: 4 }]}>
+        <View style={styles.cardTopRow}>
+          <View style={styles.avatarContainer}>
+            {item.avatar_url ? (
+              <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+            ) : (
+              <Icon name="user-circle" size={40} color="#90caf9" solid />
+            )}
           </View>
+          <TouchableOpacity
+            style={styles.cardContent}
+            onPress={() => {
+              if (isActionable) return;
+              setSelectedNotification(item);
+              setActionModalVisible(true);
+            }}
+            disabled={isActionable}
+          >
+            <Text style={styles.headingText}>{headingText}</Text>
+            <Text style={styles.messageText} numberOfLines={2}>{item.message}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => deleteNotification(item.id)} style={styles.deleteButton}>
+            <Icon name="trash" size={18} color="#ff7b7b" />
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+
+        {item.type === 'check_status' && item.timestamp && (
+          <View style={styles.timeInfoContainer}>
+            <Text style={styles.timeText}>
+              {item.message.toLowerCase().includes('checked in') ? 'Checked In: ' : 'Checked Out: '}
+              {new Date(item.timestamp).toLocaleDateString()} at {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
+        )}
+
+        {(item.type === 'neighbourhood_watch_request' || item.type === 'join_request') && item.timestamp && (
+          <View style={styles.timeInfoContainer}>
+            <Text style={styles.timeText}>
+              Requested: {new Date(item.timestamp).toLocaleDateString()} at {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
+        )}
+
+        {isActionable && (
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                styles.acceptButton,
+                isAcceptProcessing && styles.disabledButton,
+              ]}
+              onPress={() =>
+                isJoinRequest
+                  ? handleAcceptRequest(item, currentUserId)
+                  : handleAcceptNeighbourhoodWatchRequest(item, currentUserId)
+              }
+              disabled={isAcceptProcessing}
+            >
+              {isAcceptProcessing ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.buttonText}>Accept</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.button,
+                styles.declineButton,
+                isDeclineProcessing && styles.disabledButton,
+              ]}
+              onPress={() =>
+                isJoinRequest
+                  ? confirmDeclineRequest(item , currentUserId)
+                  : handleDeclineNeighbourhoodWatchRequest(item, currentUserId)
+              }
+              disabled={isDeclineProcessing}
+            >
+              {isDeclineProcessing ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.buttonText}>Decline</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
     );
   };
 
@@ -773,8 +860,8 @@ const NotificationScreen = () => {
                       ]}
                       onPress={() =>
                         selectedNotification.type === 'join_request'
-                          ? handleAcceptRequest(selectedNotification)
-                          : handleAcceptNeighbourhoodWatchRequest(selectedNotification)
+                          ? handleAcceptRequest(selectedNotification, currentUserId)
+                          : handleAcceptNeighbourhoodWatchRequest(selectedNotification, currentUserId)
                       }
                       disabled={processingStatus[selectedNotification.id]?.accept}
                     >
@@ -793,8 +880,8 @@ const NotificationScreen = () => {
                       ]}
                       onPress={() =>
                         selectedNotification.type === 'join_request'
-                          ? confirmDeclineRequest(selectedNotification)
-                          : handleDeclineNeighbourhoodWatchRequest(selectedNotification)
+                          ? confirmDeclineRequest(selectedNotification, currentUserId)
+                          : handleDeclineNeighbourhoodWatchRequest(selectedNotification, currentUserId)
                       }
                       disabled={processingStatus[selectedNotification.id]?.decline}
                     >
@@ -841,115 +928,98 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   notificationCard: {
-    backgroundColor: '#1f2937',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
+    backgroundColor: '#2a2a2a', // Slightly lighter dark shade
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-    borderWidth: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
   },
   read: {
-    borderColor: 'transparent',
-    opacity: 0.8,
+    opacity: 0.7,
   },
   unread: {
-    borderColor: '#90caf9', // A distinct color for unread
-    opacity: 1,
+    opacity: 1.0,
   },
-  row: { flexDirection: 'row', alignItems: 'center' },
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatarContainer: {
+    marginRight: 16,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
   cardContent: {
     flex: 1,
   },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  headingText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#e3f2fd',
     marginBottom: 4,
   },
-  headingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headingIcon: {
-    marginRight: 6,
-  },
-  headingEmoji: {
-    fontSize: 16,
-    marginRight: 6,
-  },
-  deleteButton: {
-    padding: 6,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 0, 0, 0.15)',
-  },
-  messageContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  messageIcon: {
-    marginRight: 6,
-  },
-  messageEmoji: {
-    fontSize: 16,
-    marginRight: 6,
-  },
-  messageText: { fontSize: 16, color: '#e3f2fd' },
-  timestampContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  timestampIcon: {
-    marginRight: 6,
-  },
-  timestampEmoji: {
+  messageText: {
     fontSize: 14,
-    marginRight: 6,
+    color: '#b0bec5',
   },
-  dateText: {
-    fontSize: 12,
-    color: '#90a4ae',
-    marginLeft: 8,
+  timeInfoContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopColor: '#3a3a3a',
+    borderTopWidth: 1,
   },
   timeText: {
     fontSize: 12,
     color: '#90a4ae',
+    fontStyle: 'italic',
   },
-  actionRow: { flexDirection: 'row', marginTop: 8, justifyContent: 'flex-end' },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+    borderTopColor: '#3a3a3a',
+    borderTopWidth: 1,
+    paddingTop: 12,
+  },
   button: {
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 22,
+    borderRadius: 8,
     marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 90,
   },
   acceptButton: { backgroundColor: '#4CAF50' },
   declineButton: { backgroundColor: '#F44336' },
-  disabledButton: { opacity: 0.7 },
-  buttonText: { color: 'white', fontWeight: 'bold' },
+  disabledButton: { opacity: 0.6 },
+  buttonText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
   flatListEmpty: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
-  headingText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#90caf9',
-    marginBottom: 4,
-    textDecorationLine: 'underline',
-  },
   centeredView: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modalView: {
     margin: 20,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#2a2a2a',
     borderRadius: 20,
-    padding: 35,
+    padding: 25,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
@@ -959,28 +1029,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
-    width: '80%',
+    width: '85%',
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 8,
+    marginBottom: 15,
   },
   modalMessage: {
     fontSize: 16,
     color: '#e3f2fd',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 20,
   },
   modalCloseButton: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 15,
+    right: 15,
     backgroundColor: '#374151',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -999,52 +1069,27 @@ const styles = StyleSheet.create({
   modalDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-
   modalEmoji: {
-    fontSize: 16,
-    marginRight: 6,
+    fontSize: 18,
+    marginRight: 8,
   },
-
   modalTimeText: {
     fontSize: 14,
-    color: '#bbb', // gray
+    color: '#bbb',
     marginRight: 8,
   },
-
   modalDateText: {
     fontSize: 14,
-    color: '#bbb', // gray
+    color: '#bbb',
   },
   trashIconWrapper: {
-    padding: 6,
+    padding: 8,
     borderRadius: 20,
-    backgroundColor: '#2d2d2d',
-    shadowColor: '#ff4444',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-    elevation: 5,
+    backgroundColor: '#3a3a3a',
   },
-
-  trashIcon: {
-    textShadowColor: 'rgba(255, 68, 68, 0.8)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 4,
-  },
-  glowingDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#4CAF50', // green
-    marginRight: 8,
-    shadowColor: '#4CAF50',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 6,
-    elevation: 6,
-  },
+  trashIcon: {},
 });
 
 export default NotificationScreen;
