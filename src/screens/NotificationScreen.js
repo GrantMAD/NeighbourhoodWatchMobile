@@ -693,19 +693,17 @@ const NotificationScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {item.type === 'check_status' && item.timestamp && (
+        {(item.timestamp || item.createdAt) && (
           <View style={styles.timeInfoContainer}>
             <Text style={styles.timeText}>
-              {item.message.toLowerCase().includes('checked in') ? 'Checked In: ' : 'Checked Out: '}
-              {new Date(item.timestamp).toLocaleDateString()} at {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-          </View>
-        )}
-
-        {(item.type === 'neighbourhood_watch_request' || item.type === 'join_request') && item.timestamp && (
-          <View style={styles.timeInfoContainer}>
-            <Text style={styles.timeText}>
-              Requested: {new Date(item.timestamp).toLocaleDateString()} at {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {new Date(item.timestamp || item.createdAt).toLocaleString('en-US', {
+                month: 'short',
+                day: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              })}
             </Text>
           </View>
         )}
@@ -975,6 +973,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopColor: '#3a3a3a',
     borderTopWidth: 1,
+    marginLeft: 56,
   },
   timeText: {
     fontSize: 12,

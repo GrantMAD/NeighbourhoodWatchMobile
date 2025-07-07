@@ -130,7 +130,7 @@ export default ContactScreen;
 const styles = StyleSheet.create({
   container: {
     padding: 24,
-    backgroundColor: '#fff',
+    backgroundColor: '#1f2937', // Dark background
     flexGrow: 1,
     justifyContent: 'center',
   },
@@ -138,33 +138,33 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     marginBottom: 6,
-    color: '#111',
+    color: '#f9fafb', // Light text
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     marginBottom: 20,
-    color: '#555',
+    color: '#d1d5db', // Lighter gray text
     textAlign: 'center',
   },
   input: {
-    backgroundColor: '#f2f2f2',
+    backgroundColor: '#fff', // White input background
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
     marginBottom: 16,
-    color: '#333',
+    color: '#1f2937', // Dark text for contrast
   },
   button: {
-    backgroundColor: '#1d4ed8',
+    backgroundColor: '#22d3ee', // Cyan button
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 10,
   },
   buttonText: {
-    color: '#fff',
+    color: '#1f2937', // Dark text for button
     fontSize: 16,
     fontWeight: '600',
   },
@@ -172,5 +172,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#1f2937', // Dark background
   },
 });

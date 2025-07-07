@@ -167,10 +167,17 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate, visible }) =
               <Text style={styles.messageText} numberOfLines={2}>{item.message}</Text>
             </View>
           </View>
-          {(item.type === 'check_status' || item.type === 'neighbourhood_watch_request' || item.type === 'join_request') && item.timestamp && (
+          {(item.timestamp || item.createdAt) && (
             <View style={styles.timeInfoContainer}>
               <Text style={styles.timeText}>
-                {new Date(item.timestamp).toLocaleDateString()} at {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {new Date(item.timestamp || item.createdAt).toLocaleString('en-US', {
+                  month: 'short',
+                  day: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true
+                })}
               </Text>
             </View>
           )}
@@ -337,6 +344,19 @@ const MainAppScreen = ({ route, navigation }) => {
   const [checkedInCount, setCheckedInCount] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  const fetchCheckedInCount = useCallback(async () => {
+    const { count, error } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("checked_in", true);
+
+    if (!error) {
+      setCheckedInCount(count ?? 0);
+    } else {
+      console.error("Error fetching checked-in count:", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (hasNotifications) {
       Animated.loop(
@@ -419,22 +439,8 @@ const MainAppScreen = ({ route, navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      async function fetchCheckedInCount() {
-        const { count, error } = await supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true })
-          .eq("checked_in", true);
-
-        if (!error) {
-          setCheckedInCount(count ?? 0);
-        } else {
-
-          console.error("Error fetching checked-in count:", error);
-        }
-      }
-
       fetchCheckedInCount();
-    }, [])
+    }, [fetchCheckedInCount])
   );
 
 
@@ -449,7 +455,10 @@ const MainAppScreen = ({ route, navigation }) => {
     headerTitleStyle: { fontWeight: "700" },
     headerLeft: () => (
       <TouchableOpacity
-        onPress={() => navigation.openDrawer()}
+        onPress={() => {
+          navigation.openDrawer();
+          fetchCheckedInCount();
+        }}
         style={{ marginLeft: 15, marginRight: 10 }}
       >
         <FontAwesome5 name="bars" size={24} color="#f9fafb" />
@@ -699,16 +708,20 @@ const MainAppScreen = ({ route, navigation }) => {
         name="MainTabs"
         component={BottomTabNavigator}
         initialParams={{ groupId }}
-        options={{
+        options={({ route }) => ({
           title: "Home",
-          drawerIcon: ({ color, size, focused }) => (
-            <FontAwesome5
-              name="home"
-              size={size}
-              color={focused ? "#22d3ee" : "#fff"}
-            />
-          ),
-        }}
+          drawerIcon: ({ color, size }) => {
+            const routeName = getFocusedRouteNameFromRoute(route) ?? 'Home';
+            const focused = routeName === 'Home';
+            return (
+              <FontAwesome5
+                name="home"
+                size={size}
+                color={focused ? "#22d3ee" : "#fff"}
+              />
+            );
+          },
+        })}
       />
       <Drawer.Screen
         name="CheckedIn"
@@ -889,6 +902,7 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     borderTopColor: '#4a4a4a',
     borderTopWidth: 1,
+    marginLeft: 42,
   },
   timeText: {
     fontSize: 12,
