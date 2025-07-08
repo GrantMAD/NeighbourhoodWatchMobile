@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -57,9 +57,15 @@ const NewsModal = ({ visible, onClose, story }) => {
 };
 
 const NewsScreen = ({ route, navigation }) => {
-  const { groupId } = route.params;
+  const { groupId, selectedStory: initialSelectedStory } = route.params;
   const [news, setNews] = useState([]);
   const [selectedStory, setSelectedStory] = useState(null);
+
+  useEffect(() => {
+    if (initialSelectedStory) {
+      setSelectedStory(initialSelectedStory);
+    }
+  }, [initialSelectedStory]);
 
   const fetchNews = async () => {
     const { data, error } = await supabase
@@ -123,6 +129,12 @@ const NewsScreen = ({ route, navigation }) => {
       return null;
     }
   };
+
+  useEffect(() => {
+    if (initialSelectedStory) {
+      setSelectedStory(initialSelectedStory);
+    }
+  }, [initialSelectedStory]);
 
   return (
     <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>

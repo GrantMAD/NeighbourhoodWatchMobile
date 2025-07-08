@@ -134,6 +134,12 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate, visible }) =
       headingText = 'Request Declined';
     } else if (item.type === 'check_status') {
       headingText = 'Status Update';
+    } else if (item.type === 'new_event') {
+      headingText = 'New Event';
+    } else if (item.type === 'new_news') {
+      headingText = 'New News';
+    } else if (item.type === 'new_report') {
+      headingText = 'New Report';
     }
 
     const getBorderColor = (type) => {
@@ -143,6 +149,9 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate, visible }) =
         case 'accepted_request': return '#4ade80';     // green
         case 'declined_request': return '#f87171';     // red
         case 'check_status': return '#a78bfa';         // purple
+        case 'new_event': return '#f97316';          // orange
+        case 'new_news': return '#8b5cf6';           // violet
+        case 'new_report': return '#ec4899';         // pink
         default: return '#22d3ee';                     // default cyan
       }
     };

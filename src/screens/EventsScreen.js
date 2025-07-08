@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
+
+
 
 
 
@@ -31,9 +33,13 @@ const EventModal = ({ visible, onClose, event }) => {
                             <Text style={styles.modalTitle}>{event.title}</Text>
                         </View>
                         <View style={styles.modalHr} />
-                        {event.image && (
+                        {event.image === '🗓️' ? (
+                            <View style={styles.emojiIconContainer}>
+                                <Text style={styles.emojiIcon}>🗓️</Text>
+                            </View>
+                        ) : event.image ? (
                             <Image source={{ uri: event.image }} style={styles.modalImage} />
-                        )}
+                        ) : null}
                         {event.location && (
                             <View style={styles.row}>
                                 <Text style={{ fontSize: 16, marginRight: 6 }}>📍</Text>
@@ -79,7 +85,7 @@ const EventModal = ({ visible, onClose, event }) => {
 };
 
 const EventsScreen = ({ route, navigation }) => {
-    const { groupId } = route.params;
+    const { groupId, selectedEvent: initialSelectedEvent } = route.params;
     const [events, setEvents] = useState([]);
     const [selectedEvent, setSelectedEvent] = useState(null);
 
@@ -141,7 +147,11 @@ const EventsScreen = ({ route, navigation }) => {
         }, [groupId])
     );
 
-    
+    useEffect(() => {
+        if (initialSelectedEvent) {
+            setSelectedEvent(initialSelectedEvent);
+        }
+    }, [initialSelectedEvent]);
 
     return (
         <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
@@ -184,9 +194,13 @@ const EventsScreen = ({ route, navigation }) => {
                             activeOpacity={0.8}
                             style={styles.eventCard}
                         >
-                            {event.image && (
+                            {event.image === '🗓️' ? (
+                                <View style={styles.emojiIconContainer}>
+                                    <Text style={styles.emojiIcon}>🗓️</Text>
+                                </View>
+                            ) : event.image ? (
                                 <Image source={{ uri: event.image }} style={styles.eventImage} />
-                            )}
+                            ) : null}
                             <View style={styles.eventTitleContainer}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                                     <Text style={{ fontSize: 18, marginRight: 8 }}>🗓️</Text>
@@ -210,6 +224,17 @@ const EventsScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
+    emojiIconContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: 180,
+        backgroundColor: '#374151',
+        paddingBottom: 60, // Add padding to the bottom
+    },
+    emojiIcon: {
+        fontSize: 100,
+    },
     container: {
         flex: 1,
         backgroundColor: '#ffffff',
@@ -344,7 +369,7 @@ const styles = StyleSheet.create({
         width: '90%',
         maxHeight: '80%',
         paddingTop: 40, // Make space for the absolute close button
-        
+
         shadowColor: "#000",
         shadowOffset: {
             width: 0,

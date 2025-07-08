@@ -12,6 +12,8 @@ import { supabase } from "../../lib/supabase";
 import { useFocusEffect } from "@react-navigation/native";
 
 
+
+
 export default function HomeScreen({ route, navigation }) {
   const groupId = route.params?.groupId;
   const [groupData, setGroupData] = useState(null);
@@ -65,7 +67,7 @@ export default function HomeScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollPadding}>  
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollPadding}>
       {/* Header Image */}
       {groupData.main_image ? (
         <Image source={{ uri: groupData.main_image }} style={styles.headerImage} />
@@ -91,7 +93,7 @@ export default function HomeScreen({ route, navigation }) {
       {/* Events Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ fontSize: 24, marginRight: 10, color: "#f9fafb" }}>🗓️</Text>
             <Text style={styles.sectionTitle}>EVENTS</Text>
           </View>
@@ -112,15 +114,54 @@ export default function HomeScreen({ route, navigation }) {
               <TouchableOpacity
                 key={event.id || index}
                 style={styles.card}
-                onPress={() => navigation.navigate("Events")}
+                onPress={() => navigation.navigate("Events", {
+                  groupId,
+                  selectedEvent: event
+                })}
               >
-                {event.image ? (
+                {event.image === '🗓️' ? (
+                  <View style={styles.emojiIconContainer}>
+                    <Text style={styles.emojiIcon}>🗓️</Text>
+                  </View>
+                ) : event.image ? (
                   <Image source={{ uri: event.image }} style={styles.cardImage} />
                 ) : null}
+
                 <Text style={styles.cardTitle}>{event.title}</Text>
-                <Text style={styles.cardDate}>
-                  ⏱️ {event.startDate} - {event.endDate}
+
+                <View style={styles.cardLocationContainer}>
+                  <Text style={{ marginRight: 5 }}>📍</Text>
+                  <Text style={styles.cardLocation}>{event.location}</Text>
+                </View>
+
+                <Text style={styles.cardMessage} numberOfLines={2}>
+                  {event.message}
                 </Text>
+
+                {/* Absolute-positioned date */}
+                <View style={styles.cardDateContainer}>
+                  <Text style={{ marginRight: 5, marginTop: 2 }}>⏱️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardDateText}>
+                      {new Date(event.startDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                    <Text style={styles.cardDateText}>
+                      {new Date(event.endDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+                </View>
               </TouchableOpacity>
             ))
           ) : (
@@ -134,7 +175,7 @@ export default function HomeScreen({ route, navigation }) {
       {/* News Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ fontSize: 24, marginRight: 10, color: "#f9fafb" }}>📰</Text>
             <Text style={styles.sectionTitle}>NEWS</Text>
           </View>
@@ -151,7 +192,14 @@ export default function HomeScreen({ route, navigation }) {
         <View style={styles.hr} />
         {news.length > 0 ? (
           news.map((story, index) => (
-            <TouchableOpacity key={story.id || index} style={styles.storyContainer}>
+            <TouchableOpacity
+              key={story.id || index}
+              style={styles.storyContainer}
+              onPress={() => navigation.navigate("NewsScreen", {
+                groupId,
+                selectedStory: story
+              })}
+            >
               <Text style={styles.storyTitle}>{story.title}</Text>
               <View style={styles.storyContentContainer}>
                 <Text style={styles.storyContent}>
@@ -162,6 +210,10 @@ export default function HomeScreen({ route, navigation }) {
                 {story.image ? (
                   <Image source={{ uri: story.image }} style={styles.storyImage} />
                 ) : null}
+              </View>
+              <View style={styles.storyInfoContainer}>
+                <Text style={styles.storyInfoText}>👁️ {story.views || 0} views</Text>
+                <Text style={styles.storyInfoText}>🗓️ {new Date(story.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</Text>
               </View>
             </TouchableOpacity>
           ))
@@ -182,10 +234,14 @@ export default function HomeScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  emojiIconContainer: {
+    height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#4b5563',
+  },
+  emojiIcon: {
+    fontSize: 60,
   },
   container: {
     flex: 1,
@@ -295,6 +351,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#374151",
     borderRadius: 12,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    paddingBottom: 50,
+    position: 'relative',
   },
   cardImage: {
     width: "100%",
@@ -311,6 +374,34 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     paddingHorizontal: 10,
     paddingBottom: 10,
+  },
+  cardDateText: {
+    fontSize: 14,
+    color: "#ffffff",
+  },
+  cardDateContainer: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  cardLocationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    marginBottom: 5,
+  },
+  cardLocation: {
+    fontSize: 14,
+    color: "#d1d5db",
+  },
+  cardMessage: {
+    fontSize: 14,
+    color: "#d1d5db",
+    paddingHorizontal: 10,
+    marginBottom: 5,
   },
   storyContainer: {
     marginTop: 16,
@@ -338,5 +429,17 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 10,
+  },
+  storyInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#4b5563',
+  },
+  storyInfoText: {
+    fontSize: 12,
+    color: '#9ca3af',
   },
 });

@@ -102,6 +102,7 @@ const AddReportScreen = ({ navigation, route }) => {
             if (updateError) {
                 Alert.alert("Error", "Could not save report");
             } else {
+                await notifyGroupUsersAboutNewReport(group_id, newReport.title);
                 Alert.alert("Success", "Report added");
                 navigation.goBack();
             }
@@ -111,6 +112,72 @@ const AddReportScreen = ({ navigation, route }) => {
             console.error(e);
         }
     };
+
+    function generateUniqueId() {
+        return Math.random().toString(36).substr(2, 9);
+    }
+
+    async function notifyGroupUsersAboutNewReport(groupId, reportTitle) {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("User not found");
+
+            const { data: senderProfile, error: senderError } = await supabase
+                .from("profiles")
+                .select("name, avatar_url")
+                .eq("id", user.id)
+                .single();
+
+            if (senderError) throw senderError;
+
+            const senderName = senderProfile.name || "A member";
+            const senderAvatarUrl = senderProfile.avatar_url;
+
+            const { data: groupData, error: groupError } = await supabase
+                .from("groups")
+                .select("users")
+                .eq("id", groupId)
+                .single();
+
+            if (groupError || !groupData?.users) {
+                console.error("Failed to fetch group users", groupError);
+                return;
+            }
+
+            const otherUserIds = groupData.users.filter(id => id !== user.id);
+            if (otherUserIds.length === 0) return;
+
+            const { data: profiles, error: profilesError } = await supabase
+                .from("profiles")
+                .select("id, notifications")
+                .in("id", otherUserIds);
+
+            if (profilesError) throw profilesError;
+
+            const timestamp = new Date().toISOString();
+            const notification = {
+                id: generateUniqueId(),
+                type: "new_report",
+                message: `${senderName} added a new report: ${reportTitle}`,
+                timestamp,
+                read: false,
+                avatar_url: senderAvatarUrl,
+            };
+
+            const updates = profiles.map(profile => {
+                const updatedNotifications = [...(profile.notifications || []), notification];
+                return supabase
+                    .from("profiles")
+                    .update({ notifications: updatedNotifications })
+                    .eq("id", profile.id);
+            });
+
+            await Promise.all(updates);
+
+        } catch (err) {
+            console.error("Error sending new report notification:", err.message);
+        }
+    }
 
 
     const formatDate = (date) => {

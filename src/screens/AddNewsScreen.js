@@ -145,6 +145,10 @@ export default function AddNewsScreen({ navigation, route }) {
 
       if (updateError) throw updateError;
 
+      if (!isEditMode) {
+        await notifyGroupUsersAboutNewNews(groupId, storyData.title);
+      }
+
       Alert.alert("Success", `News story ${isEditMode ? 'updated' : 'added'}!`);
       navigation.goBack();
     } catch (error) {
@@ -152,6 +156,72 @@ export default function AddNewsScreen({ navigation, route }) {
       Alert.alert("Error saving news", error.message);
     }
   };
+
+  function generateUniqueId() {
+    return Math.random().toString(36).substr(2, 9);
+  }
+
+  async function notifyGroupUsersAboutNewNews(groupId, newsTitle) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found");
+
+      const { data: senderProfile, error: senderError } = await supabase
+        .from("profiles")
+        .select("name, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      if (senderError) throw senderError;
+
+      const senderName = senderProfile.name || "A member";
+      const senderAvatarUrl = senderProfile.avatar_url;
+
+      const { data: groupData, error: groupError } = await supabase
+        .from("groups")
+        .select("users")
+        .eq("id", groupId)
+        .single();
+
+      if (groupError || !groupData?.users) {
+        console.error("Failed to fetch group users", groupError);
+        return;
+      }
+
+      const otherUserIds = groupData.users.filter(id => id !== user.id);
+      if (otherUserIds.length === 0) return;
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, notifications")
+        .in("id", otherUserIds);
+
+      if (profilesError) throw profilesError;
+
+      const timestamp = new Date().toISOString();
+      const notification = {
+        id: generateUniqueId(),
+        type: "new_news",
+        message: `${senderName} added a new news story: ${newsTitle}`,
+        timestamp,
+        read: false,
+        avatar_url: senderAvatarUrl,
+      };
+
+      const updates = profiles.map(profile => {
+        const updatedNotifications = [...(profile.notifications || []), notification];
+        return supabase
+          .from("profiles")
+          .update({ notifications: updatedNotifications })
+          .eq("id", profile.id);
+      });
+
+      await Promise.all(updates);
+
+    } catch (err) {
+      console.error("Error sending new news notification:", err.message);
+    }
+  }
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">

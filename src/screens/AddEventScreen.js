@@ -16,6 +16,8 @@ import { Buffer } from 'buffer';
 import { supabase } from '../../lib/supabase';
 import DateTimePicker from "@react-native-community/datetimepicker";
 
+import { ActivityIndicator } from 'react-native';
+
 const AddEventScreen = ({ route, navigation }) => {
   const { groupId, eventToEdit } = route.params;
   const isEditMode = !!eventToEdit;
@@ -63,7 +65,6 @@ const AddEventScreen = ({ route, navigation }) => {
 
   const uploadImage = async (uri) => {
     try {
-      setUploading(true);
       const fileExt = uri.split('.').pop() || 'jpg';
       const fileName = `${groupId}-${Date.now()}.${fileExt}`;
       const filePath = `event/${fileName}`;
@@ -90,11 +91,9 @@ const AddEventScreen = ({ route, navigation }) => {
         data: { publicUrl },
       } = supabase.storage.from('group-assets').getPublicUrl(filePath);
 
-      setUploading(false);
       return publicUrl;
     } catch (error) {
       console.error('Image upload error:', error.message);
-      setUploading(false);
       Alert.alert('Upload failed', error.message);
       return null;
     }
@@ -120,10 +119,17 @@ const AddEventScreen = ({ route, navigation }) => {
       return;
     }
 
+    setUploading(true);
+
     let imageUrl = eventToEdit?.image || null;
     if (imageUri && imageUri !== eventToEdit?.image) {
       imageUrl = await uploadImage(imageUri);
-      if (!imageUrl) return;
+      if (!imageUrl) {
+        setUploading(false);
+        return;
+      }
+    } else if (!imageUri && !isEditMode) {
+      imageUrl = "🗓️";
     }
 
     const eventData = {
@@ -166,13 +172,85 @@ const AddEventScreen = ({ route, navigation }) => {
         throw updateError;
       }
 
+      if (!isEditMode) {
+        await notifyGroupUsersAboutNewEvent(groupId, eventData.title);
+      }
+
       Alert.alert('Success', `Event ${isEditMode ? 'updated' : 'added'}!`);
       navigation.goBack();
     } catch (err) {
       console.error('Error saving event:', err.message);
       Alert.alert('Error', `Failed to save event: ${err.message}`);
+    } finally {
+      setUploading(false);
     }
   };
+
+  function generateUniqueId() {
+    return Math.random().toString(36).substr(2, 9);
+  }
+
+  async function notifyGroupUsersAboutNewEvent(groupId, eventTitle) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found");
+
+      const { data: senderProfile, error: senderError } = await supabase
+        .from("profiles")
+        .select("name, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      if (senderError) throw senderError;
+
+      const senderName = senderProfile.name || "A member";
+      const senderAvatarUrl = senderProfile.avatar_url;
+
+      const { data: groupData, error: groupError } = await supabase
+        .from("groups")
+        .select("users")
+        .eq("id", groupId)
+        .single();
+
+      if (groupError || !groupData?.users) {
+        console.error("Failed to fetch group users", groupError);
+        return;
+      }
+
+      const otherUserIds = groupData.users.filter(id => id !== user.id);
+      if (otherUserIds.length === 0) return;
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, notifications")
+        .in("id", otherUserIds);
+
+      if (profilesError) throw profilesError;
+
+      const timestamp = new Date().toISOString();
+      const notification = {
+        id: generateUniqueId(),
+        type: "new_event",
+        message: `${senderName} added a new event: ${eventTitle}`,
+        timestamp,
+        read: false,
+        avatar_url: senderAvatarUrl,
+      };
+
+      const updates = profiles.map(profile => {
+        const updatedNotifications = [...(profile.notifications || []), notification];
+        return supabase
+          .from("profiles")
+          .update({ notifications: updatedNotifications })
+          .eq("id", profile.id);
+      });
+
+      await Promise.all(updates);
+
+    } catch (err) {
+      console.error("Error sending new event notification:", err.message);
+    }
+  }
 
   const formatDate = (date) => {
     return date.toLocaleDateString();
@@ -246,7 +324,11 @@ const AddEventScreen = ({ route, navigation }) => {
         )}
 
         <View style={{ marginBottom: 50, marginTop: 10 }}>
-          <Button title={uploading ? 'Uploading...' : (isEditMode ? 'Update Event' : 'Add Event')} onPress={handleSaveEvent} disabled={uploading} />
+          {uploading ? (
+            <ActivityIndicator size="large" color="#0000ff" />
+          ) : (
+            <Button title={isEditMode ? 'Update Event' : 'Add Event'} onPress={handleSaveEvent} />
+          )}
         </View>
       </View>
     </ScrollView>
