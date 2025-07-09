@@ -97,6 +97,24 @@ const CheckedInScreen = () => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
+  // Calculate relative time from now (e.g., "10 mins ago")
+  const getRelativeTime = (timestamp) => {
+    if (!timestamp) return null;
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffMs = now - time;
+    if (diffMs < 0) return null;
+
+    const seconds = Math.floor(diffMs / 1000);
+    if (seconds < 60) return `${seconds} sec${seconds !== 1 ? "s" : ""} ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} min${minutes !== 1 ? "s" : ""} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+    const days = Math.floor(hours / 24);
+    return `${days} day${days !== 1 ? "s" : ""} ago`;
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Checked-In Members</Text>
@@ -117,6 +135,14 @@ const CheckedInScreen = () => {
         }
         renderItem={({ item }) => {
           const latestCheckIn = getLatestCheckInTime(item.check_in_time);
+          const latestCheckInRelative =
+            item.check_in_time && item.check_in_time.length > 0
+              ? getRelativeTime(
+                  item.check_in_time.reduce((latest, current) =>
+                    new Date(current) > new Date(latest) ? current : latest
+                  )
+                )
+              : null;
 
           return (
             <TouchableOpacity onPress={() => openModal(item)}>
@@ -130,7 +156,10 @@ const CheckedInScreen = () => {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.userName}>{item.name || "Unnamed User"}</Text>
                   {latestCheckIn && (
-                    <Text style={styles.checkInTimeText}>Checked in at {latestCheckIn}</Text>
+                    <Text style={styles.checkInTimeText}>
+                      Checked in at {latestCheckIn}{" "}
+                      {latestCheckInRelative ? `(${latestCheckInRelative})` : ""}
+                    </Text>
                   )}
                 </View>
                 <Animated.View
@@ -232,6 +261,11 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 5,
   },
   avatar: {
     width: 48,
@@ -260,25 +294,25 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 20,
   },
   modalContent: {
-    width: "90%",
+    width: "100%",
     maxHeight: "85%",
     backgroundColor: "#1f2937",
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 20,
   },
   modalTitleContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     marginBottom: 16,
   },
   modalAvatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    marginRight: 10,
+    marginRight: 15,
     borderWidth: 2,
     borderColor: "#22d3ee",
   },

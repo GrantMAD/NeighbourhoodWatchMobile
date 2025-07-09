@@ -16,6 +16,7 @@ function SettingsScreen({ route, navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loadingPassword, setLoadingPassword] = useState(false);
   const [isGroupCreator, setIsGroupCreator] = useState(false);
+  const [userRole, setUserRole] = useState(null);
   const [showManageDropdown, setShowManageDropdown] = useState(false);
 
   useEffect(() => {
@@ -31,12 +32,15 @@ function SettingsScreen({ route, navigation }) {
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("is_group_creator")
+        .select("is_group_creator, role")
         .eq("id", user.id)
         .single();
 
-      if (!profileError && profileData?.is_group_creator) {
-        setIsGroupCreator(true);
+      if (!profileError) {
+        if (profileData?.is_group_creator) {
+          setIsGroupCreator(true);
+        }
+        setUserRole(profileData?.role);
       }
 
       const { data, error } = await supabase
@@ -132,7 +136,7 @@ function SettingsScreen({ route, navigation }) {
       <Text style={styles.sectionHeader}>👥 Group Settings</Text>
       <Text style={styles.sectionDescription}>Oversee group-specific settings and content.</Text>
 
-      {isGroupCreator && (
+      {(isGroupCreator || userRole === 'Admin') && (
         <>
           <TouchableOpacity
             style={styles.option}

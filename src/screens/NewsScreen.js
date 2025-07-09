@@ -7,59 +7,59 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
+  RefreshControl,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../lib/supabase";
 
-
-
-
 const NewsModal = ({ visible, onClose, story }) => {
-    if (!story) return null;
+  if (!story) return null;
 
-    return (
-        <Modal
-            animationType="slide"
-            transparent={true}
-            visible={visible}
-            onRequestClose={onClose}
-        >
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                    <ScrollView>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={{ fontSize: 24, marginRight: 10 }}>📰</Text>
-                            <Text style={styles.modalTitle}>{story.title}</Text>
-                        </View>
-                        <View style={styles.modalHr} />
-                        {story.image && (
-                            <Image source={{ uri: story.image }} style={styles.modalImage} />
-                        )}
-                        <Text style={styles.modalMessage}>{story.content || story.message || "No content available."}</Text>
-                        <View style={styles.row}>
-                            <Text style={{ fontSize: 14, marginRight: 5 }}>⏱️</Text>
-                            <Text style={styles.modalDate}>
-                                {new Date(story.date).toLocaleDateString()}
-                            </Text>
-                        </View>
-                        <View style={styles.row}>
-                            <Text style={{ fontSize: 14, marginRight: 5 }}>👁️</Text>
-                            <Text style={styles.modalViews}>Views: {story.views || 0}</Text>
-                        </View>
-                    </ScrollView>
-                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                        <Text style={styles.closeButtonText}>Close</Text>
-                    </TouchableOpacity>
-                </View>
+  return (
+    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <TouchableOpacity onPress={onClose} style={styles.closeIconWrapper}>
+            <Text style={styles.closeIcon}>✕</Text>
+          </TouchableOpacity>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalEmoji}>📰</Text>
+              <Text style={styles.modalTitle}>{story.title}</Text>
             </View>
-        </Modal>
-    );
+
+            <View style={styles.modalDivider} />
+
+            {story.image && <Image source={{ uri: story.image }} style={styles.modalImage} />}
+
+            <Text style={styles.modalMessage}>
+              {story.content || story.message || "No content available."}
+            </Text>
+
+            <View style={styles.row}>
+              <Text style={styles.icon}>⏱️</Text>
+              <Text style={styles.modalDate}>
+                {new Date(story.date).toLocaleDateString()}
+              </Text>
+            </View>
+
+            <View style={styles.row}>
+              <Text style={styles.icon}>👁️</Text>
+              <Text style={styles.modalViews}>Views: {story.views || 0}</Text>
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
 };
 
 const NewsScreen = ({ route, navigation }) => {
   const { groupId, selectedStory: initialSelectedStory } = route.params;
   const [news, setNews] = useState([]);
   const [selectedStory, setSelectedStory] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (initialSelectedStory) {
@@ -84,16 +84,20 @@ const NewsScreen = ({ route, navigation }) => {
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchNews();
+    setRefreshing(false);
+  }, [groupId]);
+
   useFocusEffect(
     useCallback(() => {
       fetchNews();
     }, [groupId])
   );
 
-  // Increment views safely by fetching fresh news before update
   const incrementStoryViews = async (storyId) => {
     try {
-      // Fetch latest news array fresh from DB
       const { data, error } = await supabase
         .from("groups")
         .select("news")
@@ -104,7 +108,6 @@ const NewsScreen = ({ route, navigation }) => {
         console.error("Error fetching news before updating views:", error.message);
         return null;
       }
-
       if (!data?.news) return null;
 
       const newsCopy = [...data.news];
@@ -130,19 +133,15 @@ const NewsScreen = ({ route, navigation }) => {
     }
   };
 
-  useEffect(() => {
-    if (initialSelectedStory) {
-      setSelectedStory(initialSelectedStory);
-    }
-  }, [initialSelectedStory]);
-
   return (
-    <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.scrollViewContent}
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       <View style={styles.headerRow}>
         <View style={styles.headingContainer}>
-          <Text
-            style={styles.headingIcon}
-          >📰</Text>
+          <Text style={styles.headingIcon}>📰</Text>
           <Text style={styles.mainHeading}>News</Text>
         </View>
 
@@ -161,39 +160,33 @@ const NewsScreen = ({ route, navigation }) => {
       {news.length === 0 ? (
         <Text style={styles.noNewsText}>No news stories available.</Text>
       ) : (
-        news.map((story, index) => {
-          return (
-            <TouchableOpacity
-              key={story.id || index}
-              onPress={async () => {
-                const updatedViews = await incrementStoryViews(story.id);
-                if (updatedViews !== null) {
-                  const updatedStory = { ...story, views: updatedViews };
-                  setSelectedStory(updatedStory);
-                } else {
-                  setSelectedStory(story);
-                }
-              }}
-              activeOpacity={0.8}
-              style={styles.newsCard}
-            >
-              {story.image && (
-                <Image source={{ uri: story.image }} style={styles.newsImage} />
-              )}
-              <View style={styles.newsTitleContainer}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'space-between' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 18, marginRight: 8, color: "#fff" }}>📰</Text>
-                    <Text style={styles.newsCardTitle}>{story.title}</Text>
-                  </View>
-                  <Text style={styles.newsDateText}>
-                    {new Date(story.date).toLocaleDateString()}
-                  </Text>
+        news.map((story, index) => (
+          <TouchableOpacity
+            key={story.id || index}
+            onPress={async () => {
+              const updatedViews = await incrementStoryViews(story.id);
+              if (updatedViews !== null) {
+                const updatedStory = { ...story, views: updatedViews };
+                setSelectedStory(updatedStory);
+              } else {
+                setSelectedStory(story);
+              }
+            }}
+            activeOpacity={0.85}
+            style={styles.newsCard}
+          >
+            {story.image && <Image source={{ uri: story.image }} style={styles.newsImage} />}
+            <View style={styles.newsTitleContainer}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flex: 1 }}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Text style={styles.newsEmoji}>📰</Text>
+                  <Text style={styles.newsCardTitle}>{story.title}</Text>
                 </View>
+                <Text style={styles.newsDateText}>{new Date(story.date).toLocaleDateString()}</Text>
               </View>
-            </TouchableOpacity>
-          );
-        })
+            </View>
+          </TouchableOpacity>
+        ))
       )}
       <NewsModal
         visible={!!selectedStory}
@@ -207,19 +200,19 @@ const NewsScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#fff",
     paddingTop: 40,
     paddingHorizontal: 20,
   },
   scrollViewContent: {
     flexGrow: 1,
-    paddingBottom: 80, // Add padding to the bottom
+    paddingBottom: 80,
   },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 16,
   },
   headingContainer: {
     flexDirection: "row",
@@ -227,6 +220,7 @@ const styles = StyleSheet.create({
   },
   headingIcon: {
     marginRight: 8,
+    fontSize: 24,
   },
   mainHeading: {
     fontSize: 28,
@@ -234,13 +228,13 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   buttonSecondary: {
-    backgroundColor: "#22d3ee", // bright cyan background
+    backgroundColor: "#22d3ee",
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 30,
   },
   buttonSecondaryText: {
-    color: "#1f2937", // dark text for contrast
+    color: "#1f2937",
     fontWeight: "700",
     fontSize: 16,
   },
@@ -249,6 +243,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 20,
     fontWeight: "500",
+    textAlign: "center",
   },
   noNewsText: {
     color: "#6b7280",
@@ -259,121 +254,131 @@ const styles = StyleSheet.create({
   newsCard: {
     borderRadius: 8,
     marginVertical: 6,
-    backgroundColor: '#333',
-    overflow: 'hidden',
-    position: 'relative',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    backgroundColor: "#333",
+    overflow: "hidden",
+    position: "relative",
   },
   newsImage: {
-    width: '100%',
+    width: "100%",
     height: 180,
     borderRadius: 8,
   },
-  newsCardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    padding: 10,
-  },
   newsTitleContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(31, 41, 55, 0.7)', // Semi-transparent dark background
+    backgroundColor: "rgba(31, 41, 55, 0.7)",
     padding: 10,
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  },
+  newsEmoji: {
+    fontSize: 18,
+    marginRight: 8,
+    color: "#fff",
+  },
+  newsCardTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#fff",
   },
   newsDateText: {
-    color: '#d1d5db',
+    color: "#d1d5db",
     fontSize: 12,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
+  // MODAL STYLES
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    paddingHorizontal: 20,
   },
   modalContent: {
-    backgroundColor: '#1f2937',
-    borderRadius: 10,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
-    paddingTop: 40, // Make space for the absolute close button
-    
+    backgroundColor: "#fefefe",
+    borderRadius: 16,
+    padding: 24,
+    maxHeight: "85%",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+    position: "relative",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
   },
-    closeButton: {
-    marginTop: 20,
-    backgroundColor: '#2563eb',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
+  closeIconWrapper: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    backgroundColor: "#2563eb",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#2563eb",
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    zIndex: 10,
   },
-  closeButtonText: {
-    color: '#f9fafb',
+  closeIcon: {
+    color: "#fff",
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
+    lineHeight: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalEmoji: {
+    fontSize: 30,
+    marginRight: 12,
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#f9fafb',
+    fontSize: 26,
+    fontWeight: "700",
+    color: "#111827",
+    flexShrink: 1,
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: "#d1d5db",
+    marginBottom: 20,
   },
   modalImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    width: "100%",
+    height: 220,
+    borderRadius: 12,
+    marginBottom: 16,
   },
   modalMessage: {
     fontSize: 16,
-    color: '#e5e7eb',
-    marginBottom: 15,
-    lineHeight: 22,
+    color: "#1f2937",
+    marginBottom: 20,
+    lineHeight: 24,
   },
   modalDate: {
     fontSize: 14,
-    color: '#9ca3af',
-    fontStyle: 'italic',
+    color: "#6b7280",
+    fontStyle: "italic",
   },
   modalViews: {
     fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 5,
-  },
-  modalHr: {
-    height: 1,
-    backgroundColor: '#4b5563',
-    marginVertical: 10,
+    color: "#6b7280",
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  icon: {
+    fontSize: 18,
+    marginRight: 6,
   },
 });
 

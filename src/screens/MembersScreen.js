@@ -10,12 +10,10 @@ import {
   Platform,
   UIManager,
   Animated,
-  Easing
+  Easing,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-
 import { supabase } from '../../lib/supabase';
-
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -31,8 +29,6 @@ const MembersScreen = ({ route }) => {
   const [loading, setLoading] = useState(true);
   const [selectedMember, setSelectedMember] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [checkInAnimation, setCheckInAnimation] = useState(new Animated.Value(0));
-  const [checkOutAnimation, setCheckOutAnimation] = useState(new Animated.Value(0));
 
   const fetchGroupMembers = async () => {
     setLoading(true);
@@ -59,7 +55,7 @@ const MembersScreen = ({ route }) => {
 
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, name, email, avatar_url, number, street, emergency_contact, check_in_time, check_out_time, is_group_creator, vehicle_info, neighbourhoodwatch, checked_in')
+      .select('id, name, email, avatar_url, number, street, emergency_contact, is_group_creator, vehicle_info, neighbourhoodwatch, checked_in, role')
       .in('id', userIds);
 
     if (profilesError) {
@@ -113,8 +109,6 @@ const MembersScreen = ({ route }) => {
   const closeModal = () => {
     setSelectedMember(null);
     setModalVisible(false);
-    setCheckInAnimation(new Animated.Value(0));
-    setCheckOutAnimation(new Animated.Value(0));
   };
 
   const toggleGroupExpansion = (groupName) => {
@@ -136,46 +130,6 @@ const MembersScreen = ({ route }) => {
     });
   };
 
-  const toggleCheckIn = () => {
-    const toValue = checkInAnimation._value === 0 ? 1 : 0;
-    Animated.timing(checkInAnimation, {
-      toValue,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const toggleCheckOut = () => {
-    const toValue = checkOutAnimation._value === 0 ? 1 : 0;
-    Animated.timing(checkOutAnimation, {
-      toValue,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const groupByDayWithDate = (timestamps) => {
-    if (!Array.isArray(timestamps)) return {};
-
-    return timestamps.reduce((acc, ts) => {
-      const date = new Date(ts);
-      const day = date.toLocaleDateString('en-US', { weekday: 'long' });
-      const fullDate = date.toLocaleDateString('en-ZA', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      });
-      const key = `${day} - ${fullDate}`;
-      const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(formattedTime);
-      return acc;
-    }, {});
-  };
-
   const renderItem = ({ item }) => {
     return (
       <TouchableOpacity
@@ -189,12 +143,13 @@ const MembersScreen = ({ route }) => {
             style={styles.avatar}
           />
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{item.name || 'No Name'}</Text>
+            <View style={{ flexDirection: 'row' }}>
+              <Text style={{ marginRight: 6, marginTop: 2, fontSize: 16, color: "#fff" }}>👤</Text>
+              <Text style={styles.name}>{item.name || 'No Name'}</Text>
+            </View>
             <Text style={styles.cardEmail}>{item.email || 'No Email'}</Text>
           </View>
-          <Text
-            style={{ fontSize: 24, color: "#fff", fontWeight: 'bold' }}
-          >›</Text>
+          <Text style={{ fontSize: 24, color: "#fff", fontWeight: 'bold' }}>›</Text>
         </View>
       </TouchableOpacity>
     );
@@ -202,19 +157,6 @@ const MembersScreen = ({ route }) => {
 
   const renderModalContent = () => {
     if (!selectedMember) return null;
-
-    const checkInsByDay = groupByDayWithDate(selectedMember.check_in_time);
-    const checkOutsByDay = groupByDayWithDate(selectedMember.check_out_time);
-
-    const checkInHeight = checkInAnimation.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 1000] // Large enough value
-    });
-
-    const checkOutHeight = checkOutAnimation.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 1000] // Large enough value
-    });
 
     return (
       <Modal
@@ -242,72 +184,34 @@ const MembersScreen = ({ route }) => {
                 <Text style={styles.detailLabel}>Contact Number:</Text>
                 <Text style={styles.detailText}>{selectedMember.number || '-'}</Text>
               </View>
-              
+
               <View style={styles.detailRow}>
                 <Text style={styles.icon}>❗</Text>
                 <Text style={styles.detailLabel}>Emergency Contact:</Text>
                 <Text style={styles.detailText}>{selectedMember.emergency_contact || '-'}</Text>
               </View>
+
               <View style={styles.detailRow}>
                 <Text style={styles.icon}>📍</Text>
                 <Text style={styles.detailLabel}>Street:</Text>
                 <Text style={styles.detailText}>{selectedMember.street || '-'}</Text>
               </View>
+
               <View style={styles.detailRow}>
                 <Text style={styles.icon}>⭐</Text>
                 <Text style={styles.detailLabel}>Role:</Text>
                 <Text style={styles.detailText}>
-                  {selectedMember.is_group_creator ? 'Group Creator' : 'Member'}
+                  {selectedMember.role}
                 </Text>
               </View>
+
               <View style={styles.detailRow}>
                 <Text style={styles.icon}>🚗</Text>
                 <Text style={styles.detailLabel}>Vehicle Info:</Text>
                 <Text style={styles.detailText}>{selectedMember.vehicle_info || '-'}</Text>
               </View>
-
-              <TouchableOpacity onPress={toggleCheckIn} style={styles.toggleHeader}>
-                <Text style={styles.dropdownSubHeading}>⏱️ Check-in Times</Text>
-                <Animated.View style={{ transform: [{ rotate: checkInAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-                  <Text style={{color: '#fff'}}>▼</Text>
-                </Animated.View>
-              </TouchableOpacity>
-              <Animated.View style={{ maxHeight: checkInHeight, overflow: 'hidden' }}>
-                {Object.keys(checkInsByDay).length > 0 ? (
-                  Object.entries(checkInsByDay).map(([dayKey, times]) => (
-                    <View key={dayKey} style={styles.historySection}>
-                      <Text style={styles.historyDay}>{dayKey}</Text>
-                      {times.map((time, idx) => (
-                        <Text key={idx} style={styles.historyTime}>• {time}</Text>
-                      ))}
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.noHistoryText}>No check-ins</Text>
-                )}
-              </Animated.View>
-
-              <TouchableOpacity onPress={toggleCheckOut} style={styles.toggleHeader}>
-                <Text style={styles.dropdownSubHeading}>⏱️ Check-out Times</Text>
-                <Animated.View style={{ transform: [{ rotate: checkOutAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-                  <Text style={{color: '#fff'}}>▼</Text>
-                </Animated.View>
-              </TouchableOpacity>
-              <Animated.View style={{ maxHeight: checkOutHeight, overflow: 'hidden' }}>
-                {Object.keys(checkOutsByDay).length > 0 ? (
-                  Object.entries(checkOutsByDay).map(([dayKey, times]) => (
-                    <View key={dayKey} style={styles.historySection}>
-                      <Text style={styles.historyDay}>{dayKey}</Text>
-                      {times.map((time, idx) => (
-                        <Text key={idx} style={styles.historyTime}>• {time}</Text>
-                      ))}
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.noHistoryText}>No check-outs</Text>
-                )}
-              </Animated.View>
             </ScrollView>
+
             <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
               <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
@@ -316,7 +220,6 @@ const MembersScreen = ({ route }) => {
       </Modal>
     );
   };
-
 
   return (
     <View style={styles.container}>
@@ -343,7 +246,7 @@ const MembersScreen = ({ route }) => {
                     maxHeight: groupAnimations[groupName]
                       ? groupAnimations[groupName].interpolate({
                           inputRange: [0, 1],
-                          outputRange: [0, 1000], // Large enough value
+                          outputRange: [0, 1000],
                         })
                       : 0,
                     opacity: groupAnimations[groupName]
@@ -415,13 +318,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+    paddingTop: 2,
   },
   cardEmail: {
     fontSize: 12,
     color: '#d1d5db',
     marginTop: 2,
   },
-  // Modal Styles
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -434,26 +337,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#1f2937',
     borderRadius: 10,
     padding: 20,
-    paddingTop: 40, // Make space for the absolute close button
+    paddingTop: 40,
     shadowColor: "#000",
-    shadowOffset: {
-        width: 0,
-        height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#f9fafb',
-    lineHeight: 22, // Explicitly set line height to match font size for precise vertical centering
-  },
-  modalEmail: {
-    fontSize: 14,
-    color: '#fff',
-    marginTop: 2,
   },
   modalTitleContainer: {
     flexDirection: 'row',
@@ -468,6 +357,17 @@ const styles = StyleSheet.create({
     marginRight: 10,
     borderWidth: 2,
     borderColor: '#22d3ee',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#f9fafb',
+    lineHeight: 22,
+  },
+  modalEmail: {
+    fontSize: 14,
+    color: '#fff',
+    marginTop: 2,
   },
   detailRow: {
     flexDirection: 'row',
@@ -490,34 +390,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#e5e7eb',
   },
-  dropdownSubHeading: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#f9fafb',
-    marginTop: 10,
-    marginBottom: 4,
-    borderTopColor: '#4b5563',
-    borderTopWidth: 1,
-    paddingTop: 10
-  },
-  historySection: {
-    marginBottom: 10,
-    paddingLeft: 10,
-  },
-  historyDay: {
-    fontWeight: 'bold',
-    color: '#d1d5db',
-  },
-  historyTime: {
-    color: '#e5e7eb',
-    marginLeft: 10,
-  },
-  noHistoryText: {
-    color: '#9ca3af',
-    fontStyle: 'italic',
-    marginLeft: 10,
-    marginBottom: 10,
-  },
   closeButton: {
     marginTop: 20,
     backgroundColor: '#2563eb',
@@ -530,12 +402,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  toggleHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
   groupContainer: {
     marginBottom: 10,
     borderRadius: 8,
@@ -546,10 +412,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
+    paddingVertical: 18,
+    paddingHorizontal: 15,
     backgroundColor: '#2d3748',
     borderBottomWidth: 1,
     borderBottomColor: '#4a5568',
+    borderRadius: 8,
+    marginBottom: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   groupTitle: {
     fontSize: 18,
