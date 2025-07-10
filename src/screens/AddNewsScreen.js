@@ -29,6 +29,7 @@ export default function AddNewsScreen({ navigation, route }) {
   const [content, setContent] = useState("");
   const [image, setImage] = useState(null); // local image URI
   const [uploading, setUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isEditMode) {
@@ -105,22 +106,24 @@ export default function AddNewsScreen({ navigation, route }) {
       return;
     }
 
-    let imageUrl = storyToEdit?.image || null;
-    if (image && image !== storyToEdit?.image) {
-        imageUrl = await uploadImage(image);
-        if (!imageUrl) return;
-    }
-
-    const storyData = {
-        id: isEditMode ? storyToEdit.id : Date.now(),
-        title: title.trim(),
-        content: content.trim(),
-        image: imageUrl,
-        date: isEditMode ? storyToEdit.date : new Date().toISOString(),
-        views: isEditMode ? storyToEdit.views : 0,
-    };
+    setIsSaving(true);
 
     try {
+      let imageUrl = storyToEdit?.image || null;
+      if (image && image !== storyToEdit?.image) {
+          imageUrl = await uploadImage(image);
+          if (!imageUrl) return;
+      }
+
+      const storyData = {
+          id: isEditMode ? storyToEdit.id : Date.now(),
+          title: title.trim(),
+          content: content.trim(),
+          image: imageUrl,
+          date: isEditMode ? storyToEdit.date : new Date().toISOString(),
+          views: isEditMode ? storyToEdit.views : 0,
+      };
+
       const { data: groupData, error: fetchError } = await supabase
         .from("groups")
         .select("news")
@@ -154,6 +157,8 @@ export default function AddNewsScreen({ navigation, route }) {
     } catch (error) {
       console.error("Error saving news:", error.message);
       Alert.alert("Error saving news", error.message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -193,7 +198,7 @@ export default function AddNewsScreen({ navigation, route }) {
 
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, notifications")
+        .select("id, notifications, receive_news_notifications")
         .in("id", otherUserIds);
 
       if (profilesError) throw profilesError;
@@ -208,13 +213,15 @@ export default function AddNewsScreen({ navigation, route }) {
         avatar_url: senderAvatarUrl,
       };
 
-      const updates = profiles.map(profile => {
-        const updatedNotifications = [...(profile.notifications || []), notification];
-        return supabase
-          .from("profiles")
-          .update({ notifications: updatedNotifications })
-          .eq("id", profile.id);
-      });
+      const updates = profiles
+        .filter(profile => profile.receive_news_notifications) // Filter based on preference
+        .map(profile => {
+          const updatedNotifications = [...(profile.notifications || []), notification];
+          return supabase
+            .from("profiles")
+            .update({ notifications: updatedNotifications })
+            .eq("id", profile.id);
+        });
 
       await Promise.all(updates);
 
@@ -257,13 +264,19 @@ export default function AddNewsScreen({ navigation, route }) {
           )}
         </TouchableOpacity>
 
-        {uploading ? (
-          <ActivityIndicator size="large" color="#4338ca" style={{ marginTop: 20 }} />
-        ) : (
-          <View style={{ marginTop: 20, marginBottom: 50 }}>
-            <Button title={isEditMode ? "Update Story" : "Save News"} onPress={saveNews} color="#4338ca" />
-          </View>
-        )}
+        <TouchableOpacity
+          onPress={saveNews}
+          style={styles.saveButton}
+          disabled={isSaving || uploading}
+        >
+          {isSaving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.saveButtonText}>
+              {isEditMode ? "Update Story" : "Save News"}
+            </Text>
+          )}
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -317,5 +330,18 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginBottom: 16,
     textAlign: "center",
+  },
+  saveButton: {
+    backgroundColor: "#4338ca",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 50,
+  },
+  saveButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
   },
 });

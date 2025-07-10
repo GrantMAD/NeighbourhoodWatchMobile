@@ -175,15 +175,19 @@ const NewsScreen = ({ route, navigation }) => {
             activeOpacity={0.85}
             style={styles.newsCard}
           >
-            {story.image && <Image source={{ uri: story.image }} style={styles.newsImage} />}
-            <View style={styles.newsTitleContainer}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flex: 1 }}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Text style={styles.newsEmoji}>📰</Text>
-                  <Text style={styles.newsCardTitle}>{story.title}</Text>
-                </View>
-                <Text style={styles.newsDateText}>{new Date(story.date).toLocaleDateString()}</Text>
+            {story.image ? (
+              <Image source={{ uri: story.image }} style={styles.newsImageSmall} />
+            ) : (
+              <View style={styles.emojiPlaceholderSmall}>
+                <Text style={styles.emojiLargeSmall}>📰</Text>
               </View>
+            )}
+
+            <View style={styles.newsContent}>
+              <Text style={styles.newsCardTitle}>{story.title}</Text>
+              <View style={styles.newsCardHr} />
+              <Text style={styles.newsDescription} numberOfLines={3}>{story.content}</Text>
+              <Text style={styles.newsDateText}>🗓️ {new Date(story.date).toLocaleDateString()}</Text>
             </View>
           </TouchableOpacity>
         ))
@@ -252,41 +256,59 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   newsCard: {
-    borderRadius: 8,
-    marginVertical: 6,
-    backgroundColor: "#333",
+    flexDirection: 'row',
+    backgroundColor: "#1f2937",
+    borderRadius: 10,
+    marginBottom: 16,
     overflow: "hidden",
-    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+    minHeight: 130,
+    maxHeight: 130,
+    borderWidth: 1,
+    borderColor: "#374151",
   },
-  newsImage: {
-    width: "100%",
-    height: 180,
-    borderRadius: 8,
+  newsImageSmall: {
+    width: 100,
+    height: '100%',
   },
-  newsTitleContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(31, 41, 55, 0.7)",
+  emojiPlaceholderSmall: {
+    width: 100,
+    height: '100%',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#374151",
+  },
+  emojiLargeSmall: {
+    fontSize: 50,
+  },
+  newsContent: {
+    flex: 1,
     padding: 10,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-  },
-  newsEmoji: {
-    fontSize: 18,
-    marginRight: 8,
-    color: "#fff",
+    justifyContent: 'space-between',
   },
   newsCardTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#f9fafb",
+    marginBottom: 4,
+  },
+  newsCardHr: {
+    height: 1,
+    backgroundColor: "#374151",
+    marginVertical: 4,
+  },
+  newsDescription: {
+    fontSize: 13,
+    color: "#e5e7eb",
+    marginBottom: 8,
   },
   newsDateText: {
-    color: "#d1d5db",
     fontSize: 12,
-    fontStyle: "italic",
+    color: "#9ca3af",
   },
   // MODAL STYLES
   modalOverlay: {

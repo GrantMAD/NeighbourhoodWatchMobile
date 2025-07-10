@@ -202,21 +202,27 @@ const EventsScreen = ({ route, navigation }) => {
                             style={styles.eventCard}
                         >
                             {event.image === "🗓️" ? (
-                                <View style={styles.emojiPlaceholder}>
-                                    <Text style={styles.emojiLarge}>🗓️</Text>
+                                <View style={styles.emojiPlaceholderSmall}>
+                                    <Text style={styles.emojiLargeSmall}>🗓️</Text>
                                 </View>
                             ) : event.image ? (
-                                <Image source={{ uri: event.image }} style={styles.eventImage} />
+                                <Image source={{ uri: event.image }} style={styles.eventImageSmall} />
                             ) : null}
 
-                            <View style={styles.eventTitleContainer}>
-                                <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-                                    <Text style={styles.icon}>🗓️</Text>
+                            <View style={styles.eventContent}>
+                                <View>
                                     <Text style={styles.eventCardTitle}>{event.title}</Text>
+                                    <View style={styles.eventCardHr} />
+                                    {event.location ? (
+                                        <View style={styles.eventRow}>
+                                            <Text style={styles.eventIcon}>📍</Text>
+                                            <Text style={styles.eventLocation}>{event.location}</Text>
+                                        </View>
+                                    ) : null}
+                                    <Text style={styles.eventDescription} numberOfLines={2}>{event.message}</Text>
                                 </View>
                                 <Text style={styles.eventDateText}>
-                                    {new Date(event.startDate).toLocaleDateString()} -{" "}
-                                    {new Date(event.endDate).toLocaleDateString()}
+                                    🗓️ {new Date(event.startDate).toLocaleDateString("en-US", { month: 'short', day: 'numeric' })}, {new Date(event.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(event.endDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </Text>
                             </View>
                         </TouchableOpacity>
@@ -283,49 +289,73 @@ const styles = StyleSheet.create({
         marginTop: 40,
     },
     eventCard: {
-        borderRadius: 10,
+        flexDirection: 'row',
         backgroundColor: "#1f2937",
+        borderRadius: 10,
         marginBottom: 16,
         overflow: "hidden",
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.25,
-        shadowRadius: 6,
-        elevation: 7,
+        shadowOffset: { width: 0, height: 4 }, // Increased shadow offset
+        shadowOpacity: 0.3, // Increased shadow opacity
+        shadowRadius: 6, // Increased shadow radius
+        elevation: 8, // Increased elevation
+        minHeight: 140,
+        maxHeight: 140,
+        borderWidth: 1, // Added border
+        borderColor: "#374151", // Border color
     },
-    emojiPlaceholder: {
-        height: 180,
+    emojiPlaceholderSmall: {
+        width: 100,
+        height: '100%', // Take full height of the card
         justifyContent: "center",
         alignItems: "center",
         backgroundColor: "#374151",
     },
-    emojiLarge: {
-        fontSize: 100,
+    emojiLargeSmall: {
+        fontSize: 50,
     },
-    eventImage: {
-        width: "100%",
-        height: 180,
+    eventImageSmall: {
+        width: 100,
+        height: '100%', // Take full height of the card
     },
-    eventTitleContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        padding: 12,
-        backgroundColor: "rgba(31, 41, 55, 0.9)",
+    eventContent: {
+        flex: 1,
+        padding: 10,
+        justifyContent: 'space-between',
     },
     eventCardTitle: {
-        color: "#f9fafb",
+        fontSize: 16,
         fontWeight: "700",
-        fontSize: 18,
-        marginLeft: 6,
-        flexShrink: 1,
+        color: "#f9fafb",
+        marginBottom: 4,
+    },
+    eventCardHr: {
+        height: 1,
+        backgroundColor: "#374151",
+        marginVertical: 4,
+    },
+    eventRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 4,
+    },
+    eventIcon: {
+        fontSize: 14,
+        marginRight: 5,
+        color: "#d1d5db",
+    },
+    eventLocation: {
+        fontSize: 14,
+        color: "#d1d5db",
+    },
+    eventDescription: {
+        fontSize: 13,
+        color: "#e5e7eb",
+        marginBottom: 8,
     },
     eventDateText: {
-        color: "#9ca3af",
         fontSize: 12,
-        alignSelf: "center",
-    },
-    icon: {
-        fontSize: 20,
+        color: "#9ca3af",
     },
     row: {
         flexDirection: "row",

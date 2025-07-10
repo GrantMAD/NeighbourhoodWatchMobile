@@ -12,7 +12,8 @@ import {
     Platform,
     UIManager,
     Modal,
-    ScrollView
+    ScrollView,
+    TextInput
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { supabase } from '../../lib/supabase';
@@ -34,6 +35,7 @@ export default function ManageMembersScreen() {
     const [isGroupCreator, setIsGroupCreator] = useState(false);
     const [selectedMember, setSelectedMember] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const toggleCheckIn = () => {
         const toValue = checkInAnimation._value === 0 ? 1 : 0;
@@ -238,20 +240,19 @@ export default function ManageMembersScreen() {
 
     const renderItem = ({ item }) => {
         return (
-            <TouchableOpacity
-                onPress={() => openModal(item)}
-                activeOpacity={0.9}
-                style={styles.memberCard}
-            >
-                <View style={styles.mainRow}>
-                    <Image source={item.avatar_url ? { uri: item.avatar_url } : defaultAvatar} style={styles.avatar} />
-                    <View style={{ flex: 1, flexDirection: 'row' }}>
-                        <Text style={{ marginRight: 6, marginTop: 2, fontSize: 16, color: "#fff" }}>👤</Text>
-                        <Text style={styles.name}>{item.name || 'No Name'}</Text>
-                    </View>
-                    <Text style={{ fontSize: 18, color: "#fff" }}>›</Text>
+            <View style={styles.memberCard}>
+                <Image source={item.avatar_url ? { uri: item.avatar_url } : defaultAvatar} style={styles.avatar} />
+                <View style={styles.memberInfo}>
+                    <Text style={styles.name}>{item.name || 'No Name'}</Text>
+                    <Text style={styles.role}>{item.role}</Text>
                 </View>
-            </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => openModal(item)}
+                    style={styles.manageButton}
+                >
+                    <Text style={styles.manageButtonText}>Manage</Text>
+                </TouchableOpacity>
+            </View>
         );
     };
 
@@ -269,100 +270,115 @@ export default function ManageMembersScreen() {
             >
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
-                        <ScrollView>
-                            <View style={styles.modalHeader}>
-                                <Image source={selectedMember.avatar_url ? { uri: selectedMember.avatar_url } : defaultAvatar} style={styles.modalAvatar} />
+                        <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
+                            <Text style={styles.closeButtonText}>X</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.modalHeader}>
+                            <Image
+                                source={selectedMember.avatar_url ? { uri: selectedMember.avatar_url } : defaultAvatar}
+                                style={styles.modalAvatar}
+                            />
+                            <View>
                                 <Text style={styles.modalName}>{selectedMember.name || 'No Name'}</Text>
+                                <Text style={styles.modalRole}>{selectedMember.role}</Text>
+                            </View>
+                        </View>
+
+                        <ScrollView>
+                            {/* Contact Info Card */}
+                            <View style={styles.detailCard}>
+                                <Text style={styles.cardHeader}>Contact Information</Text>
+                                <View style={styles.detailRow}>
+                                    <Text style={styles.icon}>✉️</Text>
+                                    <Text style={styles.detailLabel}>Email:</Text>
+                                    <Text style={styles.detailText}>{selectedMember.email || '-'}</Text>
+                                </View>
+                                <View style={styles.detailRow}>
+                                    <Text style={styles.icon}>📞</Text>
+                                    <Text style={styles.detailLabel}>Contact:</Text>
+                                    <Text style={styles.detailText}>{selectedMember.number || '-'}</Text>
+                                </View>
+                                <View style={styles.detailRow}>
+                                    <Text style={styles.icon}>❗</Text>
+                                    <Text style={styles.detailLabel}>Emergency Contact:</Text>
+                                    <Text style={styles.detailText}>{selectedMember.emergency_contact || '-'}</Text>
+                                </View>
                             </View>
 
-                            <View style={styles.detailRow}>
-                                <Text style={styles.icon}>👑</Text>
-                                <Text style={styles.detailLabel}>Role:</Text>
-                                {isGroupCreator ? (
-                                    <View style={styles.pickerContainer}>
-                                        <Picker
-                                            selectedValue={selectedMember.role}
-                                            style={styles.picker}
-                                            onValueChange={(itemValue) => handleRoleChange(selectedMember.id, itemValue)}
-                                        >
-                                            <Picker.Item label="Member" value="member" />
-                                            <Picker.Item label="Admin" value="Admin" />
-                                        </Picker>
-                                    </View>
-                                ) : (
-                                    <Text style={styles.detailText}>{selectedMember.role}</Text>
-                                )}
+                            {/* Details Card */}
+                            <View style={styles.detailCard}>
+                                <Text style={styles.cardHeader}>Details</Text>
+                                <View style={styles.detailRow}>
+                                    <Text style={styles.icon}>📍</Text>
+                                    <Text style={styles.detailLabel}>Street:</Text>
+                                    <Text style={styles.detailText}>{selectedMember.street || '-'}</Text>
+                                </View>
+                                <View style={styles.detailRow}>
+                                    <Text style={styles.icon}>👑</Text>
+                                    <Text style={styles.detailLabel}>Role:</Text>
+                                    {isGroupCreator ? (
+                                        <View style={styles.pickerContainer}>
+                                            <Picker
+                                                selectedValue={memberRoles[selectedMember.id] || selectedMember.role}
+                                                style={styles.picker}
+                                                onValueChange={(itemValue) => handleRoleChange(selectedMember.id, itemValue)}
+                                            >
+                                                <Picker.Item label="Member" value="member" />
+                                                <Picker.Item label="Admin" value="Admin" />
+                                            </Picker>
+                                        </View>
+                                    ) : (
+                                        <Text style={styles.detailText}>{selectedMember.role}</Text>
+                                    )}
+                                </View>
                             </View>
 
-                            <View style={styles.detailRow}>
-                                <Text style={styles.icon}>📞</Text>
-                                <Text style={styles.detailLabel}>Contact:</Text>
-                                <Text style={styles.detailText}>{selectedMember.number || '-'}</Text>
-                            </View>
-
-                            <View style={styles.detailRow}>
-                                <Text style={styles.icon}>✉️</Text>
-                                <Text style={styles.detailLabel}>Email:</Text>
-                                <Text style={styles.detailText}>{selectedMember.email || '-'}</Text>
-                            </View>
-
-                            <View style={styles.detailRow}>
-                                <Text style={styles.icon}>💳</Text>
-                                <Text style={styles.detailLabel}>Emergency Contact:</Text>
-                                <Text style={styles.detailText}>{selectedMember.emergency_contact || '-'}</Text>
-                            </View>
-
-                            <View style={styles.detailRow}>
-                                <Text style={styles.icon}>📍</Text>
-                                <Text style={styles.detailLabel}>Street:</Text>
-                                <Text style={styles.detailText}>{selectedMember.street || '-'}</Text>
-                            </View>
-
-                            {selectedMember && (
-                                <>
-                                    <TouchableOpacity onPress={toggleCheckIn} style={styles.toggleHeader}>
-                                        <Text style={styles.dropdownSubHeading}>⏱️ Check-in Times</Text>
-                                        <Animated.View style={{ transform: [{ rotate: checkInAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-                                            <Text style={{ color: '#fff' }}>▼</Text>
-                                        </Animated.View>
-                                    </TouchableOpacity>
-                                    <Animated.View style={{ maxHeight: checkInAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, 1000] }), overflow: 'hidden' }}>
-                                        {Object.keys(groupByDayWithDate(selectedMember.check_in_time)).length > 0 ? (
-                                            Object.entries(groupByDayWithDate(selectedMember.check_in_time)).map(([dayKey, times]) => (
-                                                <View key={dayKey} style={{ marginBottom: 10, paddingLeft: 10 }}>
-                                                    <Text style={{ fontWeight: 'bold', color: '#d1d5db' }}>{dayKey}</Text>
-                                                    {times.map((time, idx) => (
-                                                        <Text key={idx} style={{ color: '#e5e7eb', marginLeft: 10 }}>• {time}</Text>
-                                                    ))}
-                                                </View>
-                                            ))
-                                        ) : (
-                                            <Text style={{ color: '#9ca3af', fontStyle: 'italic', marginLeft: 10, marginBottom: 10 }}>No check-ins</Text>
-                                        )}
+                            {/* Check-in/out Card */}
+                            <View style={styles.detailCard}>
+                                <Text style={styles.cardHeader}>Activity</Text>
+                                <TouchableOpacity onPress={toggleCheckIn} style={styles.toggleHeader}>
+                                    <Text style={styles.dropdownSubHeading}>Check-in Times</Text>
+                                    <Animated.View style={{ transform: [{ rotate: checkInAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
+                                        <Text style={{ color: '#fff' }}>▼</Text>
                                     </Animated.View>
+                                </TouchableOpacity>
+                                <Animated.View style={{ maxHeight: checkInAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, 1000] }), overflow: 'hidden' }}>
+                                    {Object.keys(groupByDayWithDate(selectedMember.check_in_time)).length > 0 ? (
+                                        Object.entries(groupByDayWithDate(selectedMember.check_in_time)).map(([dayKey, times]) => (
+                                            <View key={dayKey} style={{ marginBottom: 10, paddingLeft: 10 }}>
+                                                <Text style={{ fontWeight: 'bold', color: '#d1d5db' }}>{dayKey}</Text>
+                                                {times.map((time, idx) => (
+                                                    <Text key={idx} style={{ color: '#e5e7eb', marginLeft: 10 }}>• {time}</Text>
+                                                ))}
+                                            </View>
+                                        ))
+                                    ) : (
+                                        <Text style={{ color: '#9ca3af', fontStyle: 'italic', marginLeft: 10, marginBottom: 10 }}>No check-ins</Text>
+                                    )}
+                                </Animated.View>
 
-                                    <TouchableOpacity onPress={toggleCheckOut} style={styles.toggleHeader}>
-                                        <Text style={styles.dropdownSubHeading}>⏱️ Check-out Times</Text>
-                                        <Animated.View style={{ transform: [{ rotate: checkOutAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-                                            <Text style={{ color: '#fff' }}>▼</Text>
-                                        </Animated.View>
-                                    </TouchableOpacity>
-                                    <Animated.View style={{ maxHeight: checkOutAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, 1000] }), overflow: 'hidden' }}>
-                                        {Object.keys(groupByDayWithDate(selectedMember.check_out_time)).length > 0 ? (
-                                            Object.entries(groupByDayWithDate(selectedMember.check_out_time)).map(([dayKey, times]) => (
-                                                <View key={dayKey} style={{ marginBottom: 10, paddingLeft: 10 }}>
-                                                    <Text style={{ fontWeight: 'bold', color: '#d1d5db' }}>{dayKey}</Text>
-                                                    {times.map((time, idx) => (
-                                                        <Text key={idx} style={{ color: '#e5e7eb', marginLeft: 10 }}>• {time}</Text>
-                                                    ))}
-                                                </View>
-                                            ))
-                                        ) : (
-                                            <Text style={{ color: '#9ca3af', fontStyle: 'italic', marginLeft: 10, marginBottom: 10 }}>No check-outs</Text>
-                                        )}
+                                <TouchableOpacity onPress={toggleCheckOut} style={styles.toggleHeader}>
+                                    <Text style={styles.dropdownSubHeading}>Check-out Times</Text>
+                                    <Animated.View style={{ transform: [{ rotate: checkOutAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
+                                        <Text style={{ color: '#fff' }}>▼</Text>
                                     </Animated.View>
-                                </>
-                            )}
+                                </TouchableOpacity>
+                                <Animated.View style={{ maxHeight: checkOutAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, 1000] }), overflow: 'hidden' }}>
+                                    {Object.keys(groupByDayWithDate(selectedMember.check_out_time)).length > 0 ? (
+                                        Object.entries(groupByDayWithDate(selectedMember.check_out_time)).map(([dayKey, times]) => (
+                                            <View key={dayKey} style={{ marginBottom: 10, paddingLeft: 10 }}>
+                                                <Text style={{ fontWeight: 'bold', color: '#d1d5db' }}>{dayKey}</Text>
+                                                {times.map((time, idx) => (
+                                                    <Text key={idx} style={{ color: '#e5e7eb', marginLeft: 10 }}>• {time}</Text>
+                                                ))}
+                                            </View>
+                                        ))
+                                    ) : (
+                                        <Text style={{ color: '#9ca3af', fontStyle: 'italic', marginLeft: 10, marginBottom: 10 }}>No check-outs</Text>
+                                    )}
+                                </Animated.View>
+                            </View>
 
                             <TouchableOpacity
                                 onPress={() => confirmRemoveMember(selectedMember)}
@@ -371,22 +387,31 @@ export default function ManageMembersScreen() {
                                 <Text style={styles.removeButtonText}>Remove from Group</Text>
                             </TouchableOpacity>
                         </ScrollView>
-                        <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-                            <Text style={styles.closeButtonText}>Close</Text>
-                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
         );
     };
 
+    const filteredMembers = members.filter(member =>
+        member.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
         <View style={styles.container}>
             <Text style={styles.heading}>Manage Members</Text>
             <Text style={styles.description}>Tap a member to view details and remove them from the group.</Text>
 
+            <TextInput
+                style={styles.searchInput}
+                placeholder="Search members by name..."
+                placeholderTextColor="#999"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+            />
+
             <FlatList
-                data={members}
+                data={filteredMembers}
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
                 contentContainerStyle={{ paddingBottom: 16 }}
@@ -414,31 +439,57 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: 16,
     },
-    memberCard: {
+    searchInput: {
+        height: 40,
+        borderColor: '#ccc',
+        borderWidth: 1,
         borderRadius: 8,
-        marginVertical: 6,
-        backgroundColor: '#333',
-        overflow: 'hidden',
+        paddingHorizontal: 10,
+        marginBottom: 16,
+        color: '#333',
     },
-    mainRow: {
+    memberCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 12,
         backgroundColor: '#1f2937',
+        borderRadius: 10,
+        padding: 15,
+        marginVertical: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
     avatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        marginRight: 12,
-        backgroundColor: '#666',
-        borderWidth: 2,
-        borderColor: '#22d3ee',
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        marginRight: 15,
+    },
+    memberInfo: {
+        flex: 1,
     },
     name: {
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#f9fafb',
+    },
+    role: {
+        fontSize: 14,
+        color: '#d1d5db',
+        marginTop: 2,
+    },
+    manageButton: {
+        backgroundColor: '#007bff',
+        borderRadius: 20,
+        paddingVertical: 8,
+        paddingHorizontal: 15,
+    },
+    manageButtonText: {
         color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 14,
     },
     picker: {
         flex: 1,
@@ -469,54 +520,84 @@ const styles = StyleSheet.create({
         width: '90%',
         maxHeight: '80%',
         backgroundColor: '#1f2937',
-        borderRadius: 10,
+        borderRadius: 15,
         padding: 20,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 10,
     },
     modalHeader: {
+        flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 20,
+        paddingBottom: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#34495e',
+        marginBottom: 15,
     },
     modalAvatar: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        marginBottom: 10,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        marginRight: 15,
         borderWidth: 2,
-        borderColor: '#22d3ee',
+        borderColor: '#3498db',
     },
     modalName: {
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: 'bold',
-        color: '#f9fafb',
+        color: '#ecf0f1',
+    },
+    modalRole: {
+        fontSize: 16,
+        color: '#95a5a6',
+        marginTop: 2,
+    },
+    detailCard: {
+        backgroundColor: '#2c3e50',
+        borderRadius: 10,
+        padding: 15,
+        marginBottom: 15,
+    },
+    cardHeader: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#ecf0f1',
+        marginBottom: 10,
     },
     detailRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 15,
+        marginBottom: 12,
     },
     icon: {
-        marginRight: 10,
+        marginRight: 12,
         fontSize: 20,
-        color: '#f9fafb',
     },
     detailLabel: {
         fontWeight: 'bold',
+        color: '#bdc3c7',
         marginRight: 5,
-        color: '#d1d5db',
     },
     detailText: {
         flex: 1,
-        color: '#e5e7eb',
+        fontSize: 14,
+        color: '#ecf0f1',
     },
     closeButton: {
-        marginTop: 20,
-        backgroundColor: '#2563eb',
-        padding: 12,
-        borderRadius: 8,
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        backgroundColor: '#34495e',
+        borderRadius: 15,
+        width: 30,
+        height: 30,
+        justifyContent: 'center',
         alignItems: 'center',
     },
     closeButtonText: {
-        color: '#fff',
+        color: '#ecf0f1',
         fontWeight: 'bold',
         fontSize: 16,
     },

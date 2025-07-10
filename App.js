@@ -140,7 +140,7 @@ export default function App() {
         <Stack.Screen
           name="NotificationSetting"
           component={NotificationSetting}
-          options={{ title: "Notification Setting" }}
+          options={{ title: "Notification Settings" }}
         />
         <Stack.Screen
           name="ManageMembersScreen"

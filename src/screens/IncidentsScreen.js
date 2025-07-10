@@ -140,7 +140,35 @@ const IncidentScreen = ({ navigation, route }) => {
                 console.log("Error fetching reports:", error.message);
                 setReports([]);
             } else {
-                let sorted = [...(data?.reports ?? [])];
+                let fetchedReports = data?.reports ?? [];
+
+                // Extract unique reporter IDs
+                const reporterIds = [...new Set(fetchedReports.map(report => report.reported_by).filter(Boolean))];
+
+                let reporterNamesMap = {};
+                if (reporterIds.length > 0) {
+                    const { data: profilesData, error: profilesError } = await supabase
+                        .from("profiles")
+                        .select("id, name")
+                        .in("id", reporterIds);
+
+                    if (profilesError) {
+                        console.error("Error fetching reporter profiles:", profilesError.message);
+                    } else {
+                        reporterNamesMap = profilesData.reduce((acc, profile) => {
+                            acc[profile.id] = profile.name;
+                            return acc;
+                        }, {});
+                    }
+                }
+
+                // Attach reporter names to reports
+                fetchedReports = fetchedReports.map(report => ({
+                    ...report,
+                    reporterName: reporterNamesMap[report.reported_by] || "Unknown Patroller"
+                }));
+
+                let sorted = [...fetchedReports];
 
                 if (sortOrder.startsWith("date")) {
                     sorted.sort((a, b) => {
@@ -251,9 +279,12 @@ const IncidentScreen = ({ navigation, route }) => {
                                         <Text style={styles.cardTitle}>{report.title || "Untitled"}</Text>
                                     </View>
                                     <Text style={styles.cardSubtitle}>
-                                        {report.date_of_incident
-                                            ? new Date(report.date_of_incident).toLocaleDateString()
+                                        🗓️ Reported on: {report.date_of_incident
+                                            ? new Date(report.date_of_incident).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
                                             : "No Date"}
+                                    </Text>
+                                    <Text style={styles.cardPatrollerName}>
+                                        👮 Added by: {report.reporterName}
                                     </Text>
                                 </View>
 
@@ -407,7 +438,14 @@ const styles = StyleSheet.create({
     cardSubtitle: {
         fontSize: 12,
         color: "#9ca3af",
-        paddingTop: 5, 
+        paddingTop: 5,
+        marginLeft: 32, // Align with title text
+    },
+    cardPatrollerName: {
+        fontSize: 12,
+        color: "#9ca3af",
+        marginTop: 2,
+        marginLeft: 32, // Adjust this value if needed for perfect alignment
     },
     severityTag: {
         paddingHorizontal: 8,
@@ -430,9 +468,7 @@ const styles = StyleSheet.create({
         paddingBottom: 2,
     },
     leftHeaderGroup: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
+        flexDirection: "column",
     },
     modalOverlay: {
         flex: 1,

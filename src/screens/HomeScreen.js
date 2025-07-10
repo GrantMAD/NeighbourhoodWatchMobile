@@ -1,4 +1,3 @@
-// Redesigned HomeScreen with modern look, improved cards, and better visual structure
 import React, { useState, useCallback } from "react";
 import {
   View,
@@ -9,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
+  RefreshControl,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../lib/supabase";
@@ -20,39 +20,48 @@ export default function HomeScreen({ route, navigation }) {
   const [events, setEvents] = useState([]);
   const [news, setNews] = useState([]);
   const [userRole, setUserRole] = useState(null);
+  const [userName, setUserName] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchGroupData = async () => {
+    if (!groupId) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role, name')
+        .eq('id', user.id)
+        .single();
+      if (!error) {
+        setUserRole(profile.role);
+        setUserName(profile.name);
+      }
+    }
+
+    const { data, error } = await supabase
+      .from("groups")
+      .select("welcome_text, main_image, events, news, name")
+      .eq("id", groupId)
+      .single();
+
+    if (!error) {
+      setGroupData(data);
+      setEvents(data.events || []);
+      setNews(data.news || []);
+    }
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchGroupData();
+    setRefreshing(false);
+  }, [groupId]);
 
   useFocusEffect(
     useCallback(() => {
-      const fetchGroupData = async () => {
-        if (!groupId) return;
-        setIsLoading(true);
-
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-          if (!error) setUserRole(profile.role);
-        }
-
-        const { data, error } = await supabase
-          .from("groups")
-          .select("welcome_text, main_image, events, news, name")
-          .eq("id", groupId)
-          .single();
-
-        if (!error) {
-          setGroupData(data);
-          setEvents(data.events || []);
-          setNews(data.news || []);
-        }
-
-        setIsLoading(false);
-      };
-
-      fetchGroupData();
+      setIsLoading(true);
+      fetchGroupData().finally(() => setIsLoading(false));
     }, [groupId])
   );
 
@@ -77,7 +86,13 @@ export default function HomeScreen({ route, navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollPadding}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollPadding}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       {/* Header Section */}
       {groupData.main_image && (
         <Image source={{ uri: groupData.main_image }} style={styles.headerImage} />
@@ -85,7 +100,10 @@ export default function HomeScreen({ route, navigation }) {
 
       {/* Welcome Section */}
       <View style={styles.welcomeCard}>
-        <Text style={styles.welcomeTitle}>👋 Welcome to {groupData.name}</Text>
+        <Text style={styles.welcomeTitle}>👋 Welcome, {userName}</Text>
+        <View style={styles.groupNameHighlight}>
+          <Text style={styles.groupNameText}>{groupData.name}</Text>
+        </View>
         <Text style={styles.welcomeText}>{groupData.welcome_text || "Update your welcome text in settings."}</Text>
         <TouchableOpacity
           style={styles.primaryButton}
@@ -200,6 +218,19 @@ const styles = StyleSheet.create({
     color: '#f9fafb',
     marginBottom: 8,
   },
+  groupNameText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#d1d5db',
+  },
+  groupNameHighlight: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+  },
   welcomeText: {
     fontSize: 16,
     color: '#d1d5db',
@@ -276,7 +307,7 @@ const styles = StyleSheet.create({
     color: '#374151',
   },
   newsCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1f2937',
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
@@ -285,12 +316,12 @@ const styles = StyleSheet.create({
   newsTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: '#f9fafb',
     marginBottom: 6,
   },
   newsContent: {
     fontSize: 14,
-    color: '#374151',
+    color: '#d1d5db',
     marginBottom: 8,
   },
   newsFooter: {
@@ -299,6 +330,6 @@ const styles = StyleSheet.create({
   },
   newsMeta: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#9ca3af',
   },
 });

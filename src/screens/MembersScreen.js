@@ -11,6 +11,7 @@ import {
   UIManager,
   Animated,
   Easing,
+  Linking,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
@@ -167,54 +168,57 @@ const MembersScreen = ({ route }) => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
+            <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>X</Text>
+            </TouchableOpacity>
+
+            <View style={styles.modalHeader}>
+              <Image
+                source={selectedMember.avatar_url ? { uri: selectedMember.avatar_url } : defaultAvatar}
+                style={styles.modalAvatar}
+              />
+              <View>
+                <Text style={styles.modalTitle}>{selectedMember.name || 'No Name'}</Text>
+                <Text style={styles.modalRole}>{selectedMember.role}</Text>
+              </View>
+            </View>
+
             <ScrollView>
-              <View style={styles.modalTitleContainer}>
-                <Image
-                  source={selectedMember.avatar_url ? { uri: selectedMember.avatar_url } : defaultAvatar}
-                  style={styles.modalAvatar}
-                />
-                <View>
-                  <Text style={styles.modalTitle}>{selectedMember.name || 'No Name'}</Text>
-                  <Text style={styles.modalEmail}>{selectedMember.email || 'No Email'}</Text>
+              {/* Contact Info Card */}
+              <View style={styles.detailCard}>
+                <Text style={styles.cardHeader}>Contact Information</Text>
+                <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`mailto:${selectedMember.email}`)}>
+                  <Text style={styles.icon}>📧</Text>
+                  <Text style={styles.detailLabel}>Email:</Text>
+                  <Text style={styles.detailText}>{selectedMember.email || '-'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`tel:${selectedMember.number}`)}>
+                  <Text style={styles.icon}>📞</Text>
+                  <Text style={styles.detailLabel}>Contact Number:</Text>
+                  <Text style={styles.detailText}>{selectedMember.number || '-'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`tel:${selectedMember.emergency_contact}`)}>
+                  <Text style={styles.icon}>❗</Text>
+                  <Text style={styles.detailLabel}>Emergency Contact:</Text>
+                  <Text style={styles.detailText}>{selectedMember.emergency_contact || '-'}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Location & Vehicle Card */}
+              <View style={styles.detailCard}>
+                <Text style={styles.cardHeader}>Location & Vehicle</Text>
+                <View style={styles.detailRow}>
+                  <Text style={styles.icon}>📍</Text>
+                  <Text style={styles.detailLabel}>Street:</Text>
+                  <Text style={styles.detailText}>{selectedMember.street || '-'}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.icon}>🚗</Text>
+                  <Text style={styles.detailLabel}>Vehicle Info:</Text>
+                  <Text style={styles.detailText}>{selectedMember.vehicle_info || '-'}</Text>
                 </View>
               </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.icon}>📞</Text>
-                <Text style={styles.detailLabel}>Contact Number:</Text>
-                <Text style={styles.detailText}>{selectedMember.number || '-'}</Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.icon}>❗</Text>
-                <Text style={styles.detailLabel}>Emergency Contact:</Text>
-                <Text style={styles.detailText}>{selectedMember.emergency_contact || '-'}</Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.icon}>📍</Text>
-                <Text style={styles.detailLabel}>Street:</Text>
-                <Text style={styles.detailText}>{selectedMember.street || '-'}</Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.icon}>⭐</Text>
-                <Text style={styles.detailLabel}>Role:</Text>
-                <Text style={styles.detailText}>
-                  {selectedMember.role}
-                </Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.icon}>🚗</Text>
-                <Text style={styles.detailLabel}>Vehicle Info:</Text>
-                <Text style={styles.detailText}>{selectedMember.vehicle_info || '-'}</Text>
-              </View>
             </ScrollView>
-
-            <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -234,7 +238,18 @@ const MembersScreen = ({ route }) => {
                 onPress={() => toggleGroupExpansion(groupName)}
                 style={styles.groupHeader}
               >
-                <Text style={styles.groupTitle}>🏠 {groupName} <Text style={styles.memberCountText}>({membersInGroup.length} Members, {membersInGroup.filter(m => m.checked_in).length} Checked In)</Text></Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.groupTitle}>🏘️ {groupName}</Text>
+                  <View style={styles.hr} />
+                  <View style={styles.memberCountContainer}>
+                    <Text style={styles.memberCountText}>
+                      👥 {membersInGroup.length} Members
+                    </Text>
+                    <Text style={styles.memberCountText}>
+                      ✅ {membersInGroup.filter(m => m.checked_in).length} Checked In
+                    </Text>
+                  </View>
+                </View>
                 <Text style={styles.groupToggleIcon}>
                   {expandedGroups[groupName] ? '▲' : '▼'}
                 </Text>
@@ -335,39 +350,51 @@ const styles = StyleSheet.create({
     width: '90%',
     maxHeight: '80%',
     backgroundColor: '#1f2937',
-    borderRadius: 10,
+    borderRadius: 15,
     padding: 20,
-    paddingTop: 40,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 10,
   },
-  modalTitleContainer: {
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#34495e',
+    marginBottom: 15,
   },
   modalAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 10,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 15,
     borderWidth: 2,
-    borderColor: '#22d3ee',
+    borderColor: '#3498db',
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#f9fafb',
-    lineHeight: 22,
+    color: '#ecf0f1',
   },
-  modalEmail: {
-    fontSize: 14,
-    color: '#fff',
+  modalRole: {
+    fontSize: 16,
+    color: '#95a5a6',
     marginTop: 2,
+  },
+  detailCard: {
+    backgroundColor: '#2c3e50',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+  },
+  cardHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ecf0f1',
+    marginBottom: 10,
   },
   detailRow: {
     flexDirection: 'row',
@@ -375,30 +402,32 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   icon: {
-    marginRight: 10,
-    width: 20,
-    textAlign: 'center',
-    color: '#f9fafb',
+    marginRight: 12,
+    fontSize: 20,
   },
   detailLabel: {
     fontWeight: 'bold',
+    color: '#bdc3c7',
     marginRight: 5,
-    color: '#d1d5db',
   },
   detailText: {
     flex: 1,
     fontSize: 14,
-    color: '#e5e7eb',
+    color: '#ecf0f1',
   },
   closeButton: {
-    marginTop: 20,
-    backgroundColor: '#2563eb',
-    padding: 12,
-    borderRadius: 8,
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#34495e',
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   closeButtonText: {
-    color: '#fff',
+    color: '#ecf0f1',
     fontWeight: 'bold',
     fontSize: 16,
   },
@@ -412,13 +441,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 15,
-    backgroundColor: '#2d3748',
-    borderBottomWidth: 1,
-    borderBottomColor: '#4a5568',
-    borderRadius: 8,
-    marginBottom: 5,
+    padding: 16,
+    backgroundColor: '#2c3e50', // Darker, richer blue
+    borderRadius: 10,
+    marginBottom: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -426,18 +452,29 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   groupTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#cccccc',
+    color: '#ecf0f1', // Lighter text for contrast
   },
   groupToggleIcon: {
-    fontSize: 18,
-    color: '#cccccc',
+    fontSize: 22,
+    color: '#ecf0f1',
+  },
+  memberCountContainer: {
+    flexDirection: 'row',
+    marginTop: 8,
   },
   memberCountText: {
     fontSize: 14,
-    color: '#999999',
-    fontWeight: 'normal',
+    color: '#bdc3c7', // Softer grey for secondary info
+    marginRight: 16,
+  },
+  hr: {
+    height: 1,
+    backgroundColor: '#34495e',
+    marginTop: 8,
+    marginBottom: 8,
+    width: '50%',
   },
   groupContent: {
     paddingHorizontal: 10,

@@ -222,7 +222,7 @@ const AddEventScreen = ({ route, navigation }) => {
 
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, notifications")
+        .select("id, notifications, receive_event_notifications")
         .in("id", otherUserIds);
 
       if (profilesError) throw profilesError;
@@ -237,12 +237,14 @@ const AddEventScreen = ({ route, navigation }) => {
         avatar_url: senderAvatarUrl,
       };
 
-      const updates = profiles.map(profile => {
-        const updatedNotifications = [...(profile.notifications || []), notification];
-        return supabase
-          .from("profiles")
-          .update({ notifications: updatedNotifications })
-          .eq("id", profile.id);
+      const updates = profiles
+        .filter(profile => profile.receive_event_notifications) // Filter based on preference
+        .map(profile => {
+          const updatedNotifications = [...(profile.notifications || []), notification];
+          return supabase
+            .from("profiles")
+            .update({ notifications: updatedNotifications })
+            .eq("id", profile.id);
       });
 
       await Promise.all(updates);
