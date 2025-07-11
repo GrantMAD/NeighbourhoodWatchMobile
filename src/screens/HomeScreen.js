@@ -13,6 +13,36 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../lib/supabase";
 
+const LoadingState = () => (
+  <ScrollView style={styles.container} contentContainerStyle={styles.scrollPadding}>
+    <View style={styles.loadingHeaderImage} />
+    <View style={styles.loadingWelcomeCard} />
+    <View style={styles.section}>
+      <View style={styles.loadingSectionHeader} />
+      <View style={{ flexDirection: 'row' }}>
+        <View style={styles.loadingCard} />
+        <View style={styles.loadingCard} />
+      </View>
+    </View>
+    <View style={styles.section}>
+      <View style={styles.loadingSectionHeader} />
+      <View style={styles.loadingNewsCard} />
+      <View style={styles.loadingNewsCard} />
+    </View>
+  </ScrollView>
+);
+
+const formatTime = (date) =>
+  date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+const formatDate = (date) =>
+  date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
 export default function HomeScreen({ route, navigation }) {
   const groupId = route.params?.groupId;
   const [groupData, setGroupData] = useState(null);
@@ -66,9 +96,7 @@ export default function HomeScreen({ route, navigation }) {
   );
 
   if (isLoading) {
-    return (
-      <View style={styles.centered}><ActivityIndicator size="large" color="#4338ca" /></View>
-    );
+    return <LoadingState />;
   }
 
   if (!groupId || !groupData) {
@@ -78,12 +106,6 @@ export default function HomeScreen({ route, navigation }) {
       </View>
     );
   }
-
-  const formatTimeRange = (start, end) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    return `🕒 ${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  };
 
   return (
     <ScrollView
@@ -143,7 +165,14 @@ export default function HomeScreen({ route, navigation }) {
               )}
               <View style={styles.cardContent}>
                 <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={styles.cardSub}>{formatTimeRange(item.startDate, item.endDate)}</Text>
+                <Text style={styles.cardDateLabel}>🕒 Start:</Text>
+                <View style={styles.cardDateRow}>
+                  <Text style={styles.cardDateText}>{formatDate(new Date(item.startDate))}, {formatTime(new Date(item.startDate))}</Text>
+                </View>
+                <Text style={styles.cardDateLabel}>🕒 End:</Text>
+                <View style={styles.cardDateRow2}>
+                  <Text style={styles.cardDateText}>{formatDate(new Date(item.endDate))}, {formatTime(new Date(item.endDate))}</Text>
+                </View>
                 <Text numberOfLines={2} style={styles.cardDescription}>{item.message}</Text>
               </View>
             </TouchableOpacity>
@@ -169,11 +198,18 @@ export default function HomeScreen({ route, navigation }) {
             style={styles.newsCard}
             onPress={() => navigation.navigate("NewsScreen", { groupId, selectedStory: story })}
           >
-            <Text style={styles.newsTitle}>{story.title}</Text>
-            <Text style={styles.newsContent} numberOfLines={3}>{story.content}</Text>
-            <View style={styles.newsFooter}>
-              <Text style={styles.newsMeta}>👁️ {story.views || 0} views</Text>
-              <Text style={styles.newsMeta}>🗓️ {new Date(story.date).toLocaleDateString('en-US')}</Text>
+            {story.image ? (
+              <Image source={{ uri: story.image }} style={styles.newsImage} />
+            ) : (
+              <View style={styles.newsEmojiContainer}><Text style={styles.newsEmoji}>📰</Text></View>
+            )}
+            <View style={styles.newsContent}>
+              <Text style={styles.newsTitle}>{story.title}</Text>
+              <Text style={styles.newsDescription} numberOfLines={3}>{story.content}</Text>
+              <View style={styles.newsFooter}>
+                <Text style={styles.newsMeta}>👁️ {story.views || 0} views</Text>
+                <Text style={styles.newsMeta}>🗓️ {new Date(story.date).toLocaleDateString('en-US')}</Text>
+              </View>
             </View>
           </TouchableOpacity>
         ))}
@@ -306,12 +342,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
   },
+  cardDateText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  cardDateLabel: {
+    fontSize: 12,
+    color: 'black',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  cardDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardDateRow2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   newsCard: {
     backgroundColor: '#1f2937',
-    padding: 16,
     borderRadius: 12,
     marginBottom: 16,
     elevation: 1,
+    overflow: 'hidden',
   },
   newsTitle: {
     fontSize: 18,
@@ -320,9 +375,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   newsContent: {
-    fontSize: 14,
-    color: '#d1d5db',
-    marginBottom: 8,
+    padding: 16,
   },
   newsFooter: {
     flexDirection: 'row',
@@ -331,5 +384,62 @@ const styles = StyleSheet.create({
   newsMeta: {
     fontSize: 12,
     color: '#9ca3af',
+  },
+  newsImage: {
+    width: '100%',
+    height: 150,
+    resizeMode: 'cover',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  newsEmojiContainer: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#e5e7eb',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  newsEmoji: {
+    fontSize: 60,
+  },
+  newsDescription: {
+    paddingBottom: 8,
+    fontSize: 14,
+    color: '#d1d5db',
+  },
+  // Skeleton loader styles
+  loadingHeaderImage: {
+    height: 200,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  loadingWelcomeCard: {
+    backgroundColor: "#e5e7eb",
+    height: 150,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  loadingSectionHeader: {
+    height: 20,
+    width: "60%",
+    backgroundColor: "#d1d5db",
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  loadingCard: {
+    width: 180,
+    height: 140,
+    backgroundColor: "#d1d5db",
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  loadingNewsCard: {
+    height: 120,
+    backgroundColor: "#d1d5db",
+    borderRadius: 12,
+    marginBottom: 12,
   },
 });

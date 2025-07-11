@@ -18,6 +18,28 @@ import * as FileSystem from "expo-file-system";
 import { Buffer } from "buffer";
 import { Picker } from '@react-native-picker/picker';
 
+function LoadingState() {
+    return (
+        <ScrollView style={styles.container}>
+            <View style={styles.loadingTitle} />
+            <View style={styles.loadingAvatar} />
+            <View style={styles.loadingInputHeading} />
+            <View style={styles.loadingInput} />
+            <View style={styles.loadingInputHeading} />
+            <View style={styles.loadingInput} />
+            <View style={styles.loadingInputHeading} />
+            <View style={styles.loadingInput} />
+            <View style={styles.loadingInputHeading} />
+            <View style={styles.loadingInput} />
+            <View style={styles.loadingInputHeading} />
+            <View style={styles.loadingNeighbourhoodWatch} />
+            <View style={styles.loadingInputHeading} />
+            <View style={styles.loadingInput} />
+            <View style={styles.loadingButton} />
+        </ScrollView>
+    );
+}
+
 function ProfileScreen() {
     const [loading, setLoading] = useState(true);
     const [profile, setProfile] = useState({
@@ -452,11 +474,7 @@ function ProfileScreen() {
     }
 
     if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" />
-            </View>
-        );
+        return <LoadingState />;
     }
 
     return (
@@ -783,6 +801,51 @@ const styles = StyleSheet.create({
         color: 'white',
         borderColor: '#4B5563',
         width: '90%',
+    },
+    loadingTitle: {
+        width: '60%',
+        height: 24,
+        backgroundColor: '#e0e0e0',
+        borderRadius: 4,
+        marginBottom: 20,
+    },
+    loadingAvatar: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: '#e0e0e0',
+        alignSelf: 'center',
+        marginBottom: 20,
+    },
+    loadingInputHeading: {
+        width: '40%',
+        height: 16,
+        backgroundColor: '#e0e0e0',
+        borderRadius: 4,
+        marginBottom: 5,
+        marginTop: 10,
+    },
+    loadingInput: {
+        width: '100%',
+        height: 48,
+        backgroundColor: '#f0f0f0',
+        borderRadius: 6,
+        marginBottom: 15,
+    },
+    loadingNeighbourhoodWatch: {
+        width: '100%',
+        height: 40,
+        backgroundColor: '#f0f0f0',
+        borderRadius: 6,
+        marginBottom: 15,
+    },
+    loadingButton: {
+        width: '100%',
+        height: 50,
+        backgroundColor: '#e0e0e0',
+        borderRadius: 8,
+        marginTop: 10,
+        marginBottom: 60,
     },
 });
 

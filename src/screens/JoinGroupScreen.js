@@ -12,6 +12,15 @@ import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 
+const LoadingState = () => (
+    <View style={styles.container}>
+        <View style={styles.loadingTitle} />
+        <View style={styles.loadingDescription} />
+        <View style={styles.loadingPicker} />
+        <View style={styles.loadingButton} />
+    </View>
+);
+
 const JoinGroupScreen = () => {
   const [groups, setGroups] = useState([]);
   const [selectedGroupId, setSelectedGroupId] = useState(null);
@@ -200,7 +209,7 @@ const JoinGroupScreen = () => {
       </Text>
 
       {groups.length === 0 ? (
-        <ActivityIndicator size="large" />
+        <LoadingState />
       ) : (
         <View style={styles.pickerWrapper}>
           <Picker
@@ -277,6 +286,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#d1d5db',
     marginBottom: 20,
+  },
+  loadingTitle: {
+    width: '70%',
+    height: 30,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  loadingDescription: {
+    width: '90%',
+    height: 20,
+    backgroundColor: '#4b5563',
+    borderRadius: 6,
+    marginBottom: 20,
+  },
+  loadingPicker: {
+    width: '100%',
+    height: 60,
+    backgroundColor: '#4b5563',
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  loadingButton: {
+    width: '100%',
+    height: 50,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    marginTop: 10,
   },
 });
 

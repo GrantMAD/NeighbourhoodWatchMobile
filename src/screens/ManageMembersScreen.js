@@ -26,6 +26,18 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+// Skeleton loader component for member cards while loading
+const SkeletonMemberCard = () => (
+    <View style={[styles.memberCard, { backgroundColor: '#e5e7eb' }]}>
+        <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: '#cbd5e1', marginRight: 15 }} />
+        <View style={{ flex: 1 }}>
+            <View style={{ height: 16, backgroundColor: '#cbd5e1', marginBottom: 6, borderRadius: 4, width: '60%' }} />
+            <View style={{ height: 12, backgroundColor: '#cbd5e1', borderRadius: 4, width: '40%' }} />
+        </View>
+        <View style={{ width: 70, height: 32, borderRadius: 16, backgroundColor: '#cbd5e1' }} />
+    </View>
+);
+
 export default function ManageMembersScreen() {
     const [members, setMembers] = useState([]);
     const [groupId, setGroupId] = useState(null);
@@ -36,6 +48,7 @@ export default function ManageMembersScreen() {
     const [selectedMember, setSelectedMember] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [loading, setLoading] = useState(true); // <-- Added loading state
 
     const toggleCheckIn = () => {
         const toValue = checkInAnimation._value === 0 ? 1 : 0;
@@ -77,12 +90,17 @@ export default function ManageMembersScreen() {
     };
 
     const fetchGroupAndMembers = async () => {
+        setLoading(true); // <-- Start loading
+
         const {
             data: { user },
             error: userError,
         } = await supabase.auth.getUser();
 
-        if (userError || !user) return;
+        if (userError || !user) {
+            setLoading(false);
+            return;
+        }
 
         const currentUserId = user.id;
 
@@ -92,7 +110,10 @@ export default function ManageMembersScreen() {
             .eq('id', currentUserId)
             .single();
 
-        if (profileError || !profile?.group_id) return;
+        if (profileError || !profile?.group_id) {
+            setLoading(false);
+            return;
+        }
 
         setGroupId(profile.group_id);
         setIsGroupCreator(profile.is_group_creator);
@@ -103,7 +124,10 @@ export default function ManageMembersScreen() {
             .eq('id', profile.group_id)
             .single();
 
-        if (groupError || !group?.users) return;
+        if (groupError || !group?.users) {
+            setLoading(false);
+            return;
+        }
 
         const { data: memberProfiles, error: membersError } = await supabase
             .from('profiles')
@@ -112,6 +136,7 @@ export default function ManageMembersScreen() {
 
         if (membersError) {
             console.error('Failed to fetch members:', membersError);
+            setLoading(false);
             return;
         }
 
@@ -120,6 +145,8 @@ export default function ManageMembersScreen() {
 
         setMembers(filteredMembers);
 
+        // Setup animations and roles states for members
+        const newCheckIn = {};
         const newCheckOut = {};
         const roles = {};
         filteredMembers.forEach(m => {
@@ -127,9 +154,11 @@ export default function ManageMembersScreen() {
             newCheckOut[m.id] = new Animated.Value(0);
             roles[m.id] = m.role;
         });
-        setCheckInAnimations(newCheckIn);
-        setCheckOutAnimations(newCheckOut);
+        setCheckInAnimation(newCheckIn);
+        setCheckOutAnimation(newCheckOut);
         setMemberRoles(roles);
+
+        setLoading(false); // <-- Done loading
     };
 
     useEffect(() => {
@@ -156,7 +185,6 @@ export default function ManageMembersScreen() {
         }
 
         try {
-            // Step 1: Remove group_id from the user's profile
             const { error: profileUpdateError } = await supabase
                 .from("profiles")
                 .update({ group_id: null })
@@ -168,7 +196,6 @@ export default function ManageMembersScreen() {
                 return;
             }
 
-            // Step 2: Fetch current group users
             const { data: groupData, error: groupFetchError } = await supabase
                 .from("groups")
                 .select("users")
@@ -181,7 +208,6 @@ export default function ManageMembersScreen() {
                 return;
             }
 
-            // Step 3: Remove user from group's users array
             const updatedUsers = groupData.users.filter((id) => id !== userId);
 
             const { error: groupUpdateError } = await supabase
@@ -195,10 +221,7 @@ export default function ManageMembersScreen() {
                 return;
             }
 
-            // Show success toast
             Toast.show('User has been removed');
-
-            // Step 4: Refresh list
             fetchGroupAndMembers();
         } catch (err) {
             console.error("Unexpected error removing member:", err);
@@ -231,7 +254,6 @@ export default function ManageMembersScreen() {
 
         if (error) {
             Toast.show('Failed to update role');
-            // Revert state if update fails
             fetchGroupAndMembers();
         } else {
             Toast.show('Role updated successfully');
@@ -410,12 +432,16 @@ export default function ManageMembersScreen() {
                 onChangeText={setSearchQuery}
             />
 
-            <FlatList
-                data={filteredMembers}
-                keyExtractor={(item) => item.id}
-                renderItem={renderItem}
-                contentContainerStyle={{ paddingBottom: 16 }}
-            />
+            {loading ? (
+                Array.from({ length: 5 }).map((_, i) => <SkeletonMemberCard key={i} />)
+            ) : (
+                <FlatList
+                    data={filteredMembers}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderItem}
+                    contentContainerStyle={{ paddingBottom: 16 }}
+                />
+            )}
             {renderModal()}
         </View>
     );
@@ -491,142 +517,120 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 14,
     },
-    picker: {
-        flex: 1,
-        height: 50,
-        color: '#000',
-    },
-    removeButton: {
-        marginTop: 20,
-        backgroundColor: '#ef4444',
-        paddingVertical: 10,
-        borderRadius: 6,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    removeButtonText: {
-        color: '#fff',
-        fontWeight: '600',
-    },
-    // Modal Styles
     modalContainer: {
         flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.75)',
         justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        padding: 16,
     },
     modalContent: {
-        width: '90%',
-        maxHeight: '80%',
-        backgroundColor: '#1f2937',
+        backgroundColor: '#374151',
         borderRadius: 15,
         padding: 20,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-        elevation: 10,
+        maxHeight: '90%',
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 12,
+        right: 12,
+        zIndex: 10,
+        padding: 6,
+    },
+    closeButtonText: {
+        fontSize: 20,
+        color: '#f9fafb',
     },
     modalHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingBottom: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#34495e',
-        marginBottom: 15,
+        marginBottom: 20,
     },
     modalAvatar: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 70,
+        height: 70,
+        borderRadius: 35,
         marginRight: 15,
-        borderWidth: 2,
-        borderColor: '#3498db',
     },
     modalName: {
         fontSize: 24,
-        fontWeight: 'bold',
-        color: '#ecf0f1',
+        fontWeight: '700',
+        color: '#f9fafb',
     },
     modalRole: {
         fontSize: 16,
-        color: '#95a5a6',
-        marginTop: 2,
+        color: '#9ca3af',
+        marginTop: 4,
     },
     detailCard: {
-        backgroundColor: '#2c3e50',
-        borderRadius: 10,
+        backgroundColor: '#4b5563',
+        borderRadius: 12,
         padding: 15,
-        marginBottom: 15,
+        marginBottom: 16,
     },
     cardHeader: {
         fontSize: 18,
-        fontWeight: 'bold',
-        color: '#ecf0f1',
+        fontWeight: '600',
+        color: '#f3f4f6',
         marginBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#9ca3af',
+        paddingBottom: 6,
     },
     detailRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 8,
     },
     icon: {
-        marginRight: 12,
-        fontSize: 20,
+        fontSize: 16,
+        marginRight: 6,
+        color: '#d1d5db',
     },
     detailLabel: {
-        fontWeight: 'bold',
-        color: '#bdc3c7',
-        marginRight: 5,
+        fontWeight: '600',
+        color: '#f3f4f6',
+        marginRight: 8,
+        minWidth: 130,
     },
     detailText: {
-        flex: 1,
-        fontSize: 14,
-        color: '#ecf0f1',
-    },
-    closeButton: {
-        position: 'absolute',
-        top: 10,
-        right: 10,
-        backgroundColor: '#34495e',
-        borderRadius: 15,
-        width: 30,
-        height: 30,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    closeButtonText: {
-        color: '#ecf0f1',
-        fontWeight: 'bold',
-        fontSize: 16,
+        color: '#e5e7eb',
+        flexShrink: 1,
     },
     pickerContainer: {
         flex: 1,
+        backgroundColor: '#6b7280',
         borderRadius: 8,
-        justifyContent: 'center',
-        overflow: 'hidden',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
     },
     picker: {
-        flex: 1,
-        height: 50,
+        height: 35,
         color: '#f9fafb',
-        backgroundColor: '#374151',
     },
     toggleHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 10,
+        marginBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#9ca3af',
+        paddingBottom: 6,
     },
     dropdownSubHeading: {
-        fontSize: 18,
-        fontWeight: 'bold',
+        fontSize: 16,
+        fontWeight: '600',
         color: '#f9fafb',
-        marginTop: 10,
-        marginBottom: 4,
-        borderTopColor: '#4b5563',
-        borderTopWidth: 1,
-        paddingTop: 10
+    },
+    removeButton: {
+        backgroundColor: '#dc2626',
+        paddingVertical: 12,
+        borderRadius: 12,
+        marginTop: 20,
+        alignItems: 'center',
+    },
+    removeButtonText: {
+        color: '#f9fafb',
+        fontWeight: 'bold',
+        fontSize: 16,
     },
 });

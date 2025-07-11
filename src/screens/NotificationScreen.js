@@ -16,6 +16,17 @@ import { supabase } from '../../lib/supabase';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Toast from '../components/Toast';
 
+const LoadingState = () => (
+    <View style={styles.container}>
+        <View style={styles.loadingHeader} />
+        <View style={styles.loadingDescription} />
+        <View style={styles.loadingClearButton} />
+        {[...Array(5)].map((_, i) => (
+            <View key={i} style={styles.loadingNotificationCard} />
+        ))}
+    </View>
+);
+
 const NotificationScreen = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -756,11 +767,7 @@ const NotificationScreen = () => {
   };
 
   if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#555" />
-      </View>
-    );
+    return <LoadingState />;
   }
 
   return (
@@ -1089,6 +1096,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#3a3a3a',
   },
   trashIcon: {},
+  loadingHeader: {
+    width: '70%',
+    height: 25,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+    marginBottom: 8,
+  },
+  loadingDescription: {
+    width: '90%',
+    height: 15,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+    marginBottom: 10,
+  },
+  loadingClearButton: {
+    width: '30%',
+    height: 20,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    alignSelf: 'flex-end',
+    marginBottom: 20,
+  },
+  loadingNotificationCard: {
+    height: 100,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 12,
+    marginBottom: 12,
+  },
 });
 
 export default NotificationScreen;

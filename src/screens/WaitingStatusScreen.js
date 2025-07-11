@@ -12,6 +12,16 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
 
+const LoadingState = () => (
+    <View style={styles.container}>
+        <View style={styles.loadingHeading} />
+        <View style={styles.loadingDescription} />
+        {[...Array(3)].map((_, i) => (
+            <View key={i} style={styles.loadingRequestCard} />
+        ))}
+    </View>
+);
+
 const WaitingStatusScreen = () => {
   const [userRequests, setUserRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -156,11 +166,7 @@ const WaitingStatusScreen = () => {
   );
 
   if (loading) {
-    return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#22d3ee" />
-      </View>
-    );
+    return <LoadingState />;
   }
 
   if (userRequests.length === 0) {
@@ -275,5 +281,25 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingHeading: {
+    width: '70%',
+    height: 25,
+    backgroundColor: '#374151',
+    borderRadius: 5,
+    marginBottom: 16,
+  },
+  loadingDescription: {
+    width: '90%',
+    height: 15,
+    backgroundColor: '#4b5563',
+    borderRadius: 5,
+    marginBottom: 12,
+  },
+  loadingRequestCard: {
+    height: 120,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 16,
+    marginBottom: 14,
   },
 });

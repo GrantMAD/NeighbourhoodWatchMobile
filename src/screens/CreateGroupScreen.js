@@ -266,20 +266,19 @@ const CreateGroupScreen = ({ navigation }) => {
       <TouchableOpacity
         onPress={handleCreateGroup}
         disabled={loading}
-        style={{
-          backgroundColor: loading ? '#999' : '#2196F3',
-          paddingVertical: 12,
-          borderRadius: 4,
-          alignItems: 'center',
-          flexDirection: 'row',
-          justifyContent: 'center',
-          marginTop: 20,
-        }}
+        style={[
+          styles.createButton,
+          loading && styles.loadingButton
+        ]}
       >
-        {loading && <ActivityIndicator size="small" color="#fff" style={{ marginRight: 10 }} />}
-        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
-          {loading ? 'Creating Group...' : 'Create Group'}
-        </Text>
+        {loading ? (
+          <>
+            <ActivityIndicator size="small" color="#fff" style={{ marginRight: 10 }} />
+            <Text style={styles.buttonText}>Creating Group...</Text>
+          </>
+        ) : (
+          <Text style={styles.buttonText}>Create Group</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -294,6 +293,23 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#ccc', padding: 8, marginBottom: 10, backgroundColor: '#fff' },
   image: { width: '100%', height: 200, marginVertical: 10 },
   execImage: { width: 60, height: 60, borderRadius: 30, marginRight: 10 },
+  createButton: {
+    backgroundColor: '#2196F3',
+    paddingVertical: 12,
+    borderRadius: 4,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  loadingButton: {
+    backgroundColor: '#999',
+  },
 });
 
 export default CreateGroupScreen;

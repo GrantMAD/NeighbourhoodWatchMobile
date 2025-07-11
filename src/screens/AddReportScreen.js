@@ -313,16 +313,14 @@ const AddReportScreen = ({ navigation, route }) => {
                 })}
             </View>
 
-            <TouchableOpacity style={styles.submitBtn} onPress={handleAddReport} disabled={loading}>
-                <Text style={styles.submitBtnText}>
-                    Submit Report
-                </Text>
-                {loading && (
-                    <ActivityIndicator
-                        style={{ marginLeft: 10 }}
-                        size="small"
-                        color="white"
-                    />
+            <TouchableOpacity style={[styles.submitBtn, loading && styles.loadingButton]} onPress={handleAddReport} disabled={loading}>
+                {loading ? (
+                    <>
+                        <ActivityIndicator size="small" color="#ffffff" />
+                        <Text style={{ color: '#ffffff', marginLeft: 10 }}>Submitting...</Text>
+                    </>
+                ) : (
+                    <Text style={styles.submitBtnText}>Submit Report</Text>
                 )}
             </TouchableOpacity>
         </ScrollView>
@@ -396,5 +394,8 @@ const styles = StyleSheet.create({
     severityText: {
         fontWeight: "bold",
         fontSize: 16,
+    },
+    loadingButton: {
+        backgroundColor: '#6c757d',
     },
 });

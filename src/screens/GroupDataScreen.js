@@ -1,3 +1,5 @@
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
+import { faTrash } from "@fortawesome/free-solid-svg-icons";
 import React, { useEffect, useState } from "react";
 import {
     View,
@@ -16,6 +18,24 @@ import * as FileSystem from "expo-file-system";
 import { Buffer } from "buffer";
 import { supabase } from "../../lib/supabase";
 
+const LoadingState = () => (
+    <View style={{ padding: 20, flex: 1, backgroundColor: "#fff" }}>
+        <View style={styles.loadingTitle} />
+        {[...Array(2)].map((_, i) => (
+            <View key={i} style={styles.inputContainer}>
+                <View style={styles.loadingLabel} />
+                <View style={styles.loadingInput} />
+            </View>
+        ))}
+        {[...Array(4)].map((_, i) => (
+            <View key={i + 2} style={styles.inputContainer}>
+                <View style={styles.loadingLabel} />
+                <View style={styles.loadingTextArea} />
+            </View>
+        ))}
+    </View>
+);
+
 export default function GroupDataScreen() {
     const [groupData, setGroupData] = useState({
         name: "",
@@ -31,6 +51,7 @@ export default function GroupDataScreen() {
     const [saving, setSaving] = useState(false);
     const [groupId, setGroupId] = useState(null);
     const [newImage, setNewImage] = useState(null);
+    const [deletingIndex, setDeletingIndex] = useState(null);
 
     // Inputs for adding a new executive
     const [execName, setExecName] = useState("");
@@ -166,6 +187,37 @@ export default function GroupDataScreen() {
         setExecImage(null);
     };
 
+    const handleDeleteExecutive = async (index) => {
+        setDeletingIndex(index);
+        const executiveToDelete = groupData.executives[index];
+        const imageUrlToDelete = executiveToDelete.image;
+
+        const updatedExecutives = groupData.executives.filter((_, i) => i !== index);
+
+        try {
+            const { error } = await supabase
+                .from("groups")
+                .update({ executives: updatedExecutives })
+                .eq("id", groupId);
+
+            if (error) {
+                throw error;
+            }
+
+            if (imageUrlToDelete) {
+                await deleteOldImage(imageUrlToDelete);
+            }
+
+            setGroupData((prev) => ({ ...prev, executives: updatedExecutives }));
+            Alert.alert("Success", "Executive has been removed.");
+
+        } catch (error) {
+            Alert.alert("Error", "Could not remove executive: " + error.message);
+        } finally {
+            setDeletingIndex(null);
+        }
+    };
+
     const handleSave = async () => {
         if (!groupId) return;
         setSaving(true);
@@ -209,12 +261,7 @@ export default function GroupDataScreen() {
     };
 
     if (loading) {
-        return (
-            <View style={styles.container}>
-                <ActivityIndicator size="large" color="#4338ca" />
-                <Text>Loading group data...</Text>
-            </View>
-        );
+        return <LoadingState />;
     }
 
     return (
@@ -286,6 +333,17 @@ export default function GroupDataScreen() {
                                 <Text style={styles.execName}>{exec.name}</Text>
                                 <Text style={styles.execRole}>{exec.role}</Text>
                             </View>
+                            <TouchableOpacity 
+                                onPress={() => handleDeleteExecutive(index)} 
+                                style={styles.deleteButton}
+                                disabled={deletingIndex === index} // Disable button while deleting
+                            >
+                                {deletingIndex === index ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <FontAwesomeIcon icon={faTrash} size={15} color="white" />
+                                )}
+                            </TouchableOpacity>
                         </View>
                     ))}
                 </View>
@@ -386,5 +444,40 @@ const styles = StyleSheet.create({
         fontSize: 16,
         backgroundColor: "#f9f9f9",
         marginBottom: 10,
+    },
+    loadingTitle: {
+        width: '60%',
+        height: 30,
+        backgroundColor: '#e0e0e0',
+        borderRadius: 8,
+        marginBottom: 30,
+    },
+    loadingLabel: {
+        width: '40%',
+        height: 20,
+        backgroundColor: '#e0e0e0',
+        borderRadius: 6,
+        marginBottom: 8,
+    },
+    loadingInput: {
+        width: '100%',
+        height: 40,
+        backgroundColor: '#f0f0f0',
+        borderRadius: 6,
+    },
+    loadingTextArea: {
+        width: '100%',
+        height: 80,
+        backgroundColor: '#f0f0f0',
+        borderRadius: 6,
+    },
+    deleteButton: {
+        marginLeft: 'auto',
+        backgroundColor: '#ef4444',
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });

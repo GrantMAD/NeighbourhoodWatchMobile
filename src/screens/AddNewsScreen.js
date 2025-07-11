@@ -266,11 +266,14 @@ export default function AddNewsScreen({ navigation, route }) {
 
         <TouchableOpacity
           onPress={saveNews}
-          style={styles.saveButton}
+          style={[styles.saveButton, (isSaving || uploading) && styles.loadingButton]}
           disabled={isSaving || uploading}
         >
           {isSaving ? (
-            <ActivityIndicator color="#fff" />
+            <>
+              <ActivityIndicator size="small" color="#ffffff" />
+              <Text style={{ color: '#ffffff', marginLeft: 10 }}>{isEditMode ? 'Updating...' : 'Saving...'}</Text>
+            </>
           ) : (
             <Text style={styles.saveButtonText}>
               {isEditMode ? "Update Story" : "Save News"}
@@ -343,5 +346,15 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  loadingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#a5b4fc',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 20,
+    marginBottom: 50,
   },
 });

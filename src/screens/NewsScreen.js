@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Modal,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../lib/supabase";
@@ -55,11 +56,37 @@ const NewsModal = ({ visible, onClose, story }) => {
   );
 };
 
+const LoadingState = () => (
+  <ScrollView style={styles.container} contentContainerStyle={styles.scrollViewContent}>
+    <View style={styles.headerRow}>
+      <View style={styles.headingContainer}>
+        <Text style={styles.headingIcon}>📰</Text>
+        <Text style={styles.mainHeading}>News</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.buttonSecondary}
+        onPress={() => {}}
+        disabled={true}
+      >
+        <Text style={styles.buttonSecondaryText}>Add Story</Text>
+      </TouchableOpacity>
+    </View>
+    <Text style={styles.description}>
+      Stay updated with the latest news stories from your group.
+    </Text>
+    {[...Array(3)].map((_, i) => (
+      <View key={i} style={styles.loadingNewsCard} />
+    ))}
+  </ScrollView>
+);
+
 const NewsScreen = ({ route, navigation }) => {
   const { groupId, selectedStory: initialSelectedStory } = route.params;
   const [news, setNews] = useState([]);
   const [selectedStory, setSelectedStory] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingStoryId, setLoadingStoryId] = useState(null);
 
   useEffect(() => {
     if (initialSelectedStory) {
@@ -68,6 +95,7 @@ const NewsScreen = ({ route, navigation }) => {
   }, [initialSelectedStory]);
 
   const fetchNews = async () => {
+    setLoading(true);
     const { data, error } = await supabase
       .from("groups")
       .select("news")
@@ -82,6 +110,7 @@ const NewsScreen = ({ route, navigation }) => {
     } else if (error) {
       console.error("Error fetching news:", error.message);
     }
+    setLoading(false);
   };
 
   const onRefresh = useCallback(async () => {
@@ -97,6 +126,7 @@ const NewsScreen = ({ route, navigation }) => {
   );
 
   const incrementStoryViews = async (storyId) => {
+    setLoadingStoryId(storyId);
     try {
       const { data, error } = await supabase
         .from("groups")
@@ -130,8 +160,14 @@ const NewsScreen = ({ route, navigation }) => {
     } catch (err) {
       console.error("Unexpected error updating views:", err);
       return null;
+    } finally {
+      setLoadingStoryId(null);
     }
   };
+
+  if (loading) {
+    return <LoadingState />;
+  }
 
   return (
     <ScrollView
@@ -173,21 +209,31 @@ const NewsScreen = ({ route, navigation }) => {
               }
             }}
             activeOpacity={0.85}
-            style={styles.newsCard}
+            style={[styles.newsCard, loadingStoryId === story.id && styles.newsCardLoading]}
+            disabled={loadingStoryId === story.id}
           >
-            {story.image ? (
-              <Image source={{ uri: story.image }} style={styles.newsImageSmall} />
-            ) : (
-              <View style={styles.emojiPlaceholderSmall}>
-                <Text style={styles.emojiLargeSmall}>📰</Text>
+            {loadingStoryId === story.id ? (
+              <View style={styles.newsCardLoadingOverlay}>
+                <ActivityIndicator size="large" color="#22d3ee" />
               </View>
-            )}
+            ) : null}
+            <View style={styles.newsImageContainer}>
+              {story.image ? (
+                <Image source={{ uri: story.image }} style={styles.newsImage} />
+              ) : (
+                <View style={styles.newsEmojiPlaceholder}>
+                  <Text style={styles.newsEmoji}>📰</Text>
+                </View>
+              )}
+            </View>
 
             <View style={styles.newsContent}>
               <Text style={styles.newsCardTitle}>{story.title}</Text>
-              <View style={styles.newsCardHr} />
               <Text style={styles.newsDescription} numberOfLines={3}>{story.content}</Text>
-              <Text style={styles.newsDateText}>🗓️ {new Date(story.date).toLocaleDateString()}</Text>
+              <View style={styles.newsFooter}>
+                <Text style={styles.newsDateText}>🗓️ {new Date(story.date).toLocaleDateString()}</Text>
+                <Text style={styles.newsViewsText}>👁️ {story.views || 0} views</Text>
+              </View>
             </View>
           </TouchableOpacity>
         ))
@@ -256,59 +302,87 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   newsCard: {
-    flexDirection: 'row',
     backgroundColor: "#1f2937",
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 16,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-    minHeight: 130,
-    maxHeight: 130,
-    borderWidth: 1,
-    borderColor: "#374151",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  newsImageSmall: {
-    width: 100,
+  newsImageContainer: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    overflow: 'hidden',
+  },
+  newsImage: {
+    width: '100%',
     height: '100%',
+    resizeMode: 'cover',
   },
-  emojiPlaceholderSmall: {
-    width: 100,
+  newsEmojiPlaceholder: {
+    width: '100%',
     height: '100%',
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#374151",
+    backgroundColor: "#f3f4f6",
   },
-  emojiLargeSmall: {
-    fontSize: 50,
+  newsEmoji: {
+    fontSize: 80,
   },
   newsContent: {
-    flex: 1,
-    padding: 10,
-    justifyContent: 'space-between',
+    padding: 16,
   },
   newsCardTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "700",
-    color: "#f9fafb",
-    marginBottom: 4,
-  },
-  newsCardHr: {
-    height: 1,
-    backgroundColor: "#374151",
-    marginVertical: 4,
+    color: "#ffffff",
+    marginBottom: 8,
   },
   newsDescription: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#e5e7eb",
-    marginBottom: 8,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  newsFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#374151', 
+    paddingTop: 12,
   },
   newsDateText: {
     fontSize: 12,
-    color: "#9ca3af",
+    color: "#d1d5db",
+    flex: 1,
+  },
+  newsViewsText: {
+    fontSize: 12,
+    color: "#d1d5db",
+    textAlign: "right",
+  },
+  newsCardLoading: {
+    opacity: 0.7,
+  },
+  newsCardLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
   // MODAL STYLES
   modalOverlay: {
@@ -401,6 +475,13 @@ const styles = StyleSheet.create({
   icon: {
     fontSize: 18,
     marginRight: 6,
+  },
+  loadingNewsCard: {
+    width: '100%',
+    height: 130,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    marginBottom: 16,
   },
 });
 

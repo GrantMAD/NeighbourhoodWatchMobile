@@ -96,7 +96,7 @@ export default function SignInScreen({ navigation }) {
       </View>
 
       <TouchableOpacity
-        style={styles.signInButton}
+        style={[styles.signInButton, loading && styles.loadingSignInButton]}
         onPress={handleSignIn}
         disabled={loading}
       >
@@ -185,5 +185,8 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  loadingSignInButton: {
+    backgroundColor: '#a5b4fc',
   },
 });

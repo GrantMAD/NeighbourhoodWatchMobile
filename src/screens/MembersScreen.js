@@ -22,6 +22,20 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const defaultAvatar = require('../../assets/Images/user.png');
 
+const LoadingState = () => (
+    <ScrollView style={styles.container}>
+        <View style={styles.loadingHeading} />
+        <View style={styles.loadingDescription} />
+        {[...Array(3)].map((_, i) => (
+            <View key={i} style={styles.loadingGroupContainer}>
+                <View style={styles.loadingGroupHeader} />
+                <View style={styles.loadingMemberCard} />
+                <View style={styles.loadingMemberCard} />
+            </View>
+        ))}
+    </ScrollView>
+);
+
 const MembersScreen = ({ route }) => {
   const { groupId } = route.params;
   const [groupedMembers, setGroupedMembers] = useState({});
@@ -230,61 +244,65 @@ const MembersScreen = ({ route }) => {
       <Text style={styles.heading}>Members</Text>
       <Text style={styles.description}>Here you can see all the members, grouped by their neighbourhood watch.</Text>
 
-      <ScrollView style={{ flex: 1 }}>
-        {Object.keys(groupedMembers).length > 0 ? (
-          Object.entries(groupedMembers).map(([groupName, membersInGroup]) => (
-            <View key={groupName} style={styles.groupContainer}>
-              <TouchableOpacity
-                onPress={() => toggleGroupExpansion(groupName)}
-                style={styles.groupHeader}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.groupTitle}>🏘️ {groupName}</Text>
-                  <View style={styles.hr} />
-                  <View style={styles.memberCountContainer}>
-                    <Text style={styles.memberCountText}>
-                      👥 {membersInGroup.length} Members
-                    </Text>
-                    <Text style={styles.memberCountText}>
-                      ✅ {membersInGroup.filter(m => m.checked_in).length} Checked In
-                    </Text>
+      {loading ? (
+        <LoadingState />
+      ) : (
+        <ScrollView style={{ flex: 1 }}>
+          {Object.keys(groupedMembers).length > 0 ? (
+            Object.entries(groupedMembers).map(([groupName, membersInGroup]) => (
+              <View key={groupName} style={styles.groupContainer}>
+                <TouchableOpacity
+                  onPress={() => toggleGroupExpansion(groupName)}
+                  style={styles.groupHeader}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.groupTitle}>🏘️ {groupName}</Text>
+                    <View style={styles.hr} />
+                    <View style={styles.memberCountContainer}>
+                      <Text style={styles.memberCountText}>
+                        👥 {membersInGroup.length} Members
+                      </Text>
+                      <Text style={styles.memberCountText}>
+                        ✅ {membersInGroup.filter(m => m.checked_in).length} Checked In
+                      </Text>
+                    </View>
                   </View>
-                </View>
-                <Text style={styles.groupToggleIcon}>
-                  {expandedGroups[groupName] ? '▲' : '▼'}
-                </Text>
-              </TouchableOpacity>
-              <Animated.View
-                style={[
-                  styles.groupContent,
-                  {
-                    maxHeight: groupAnimations[groupName]
-                      ? groupAnimations[groupName].interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, 1000],
-                        })
-                      : 0,
-                    opacity: groupAnimations[groupName]
-                      ? groupAnimations[groupName].interpolate({
-                          inputRange: [0, 0.5, 1],
-                          outputRange: [0, 0.5, 1],
-                        })
-                      : 0,
-                  },
-                ]}
-              >
-                {membersInGroup.map((item) => (
-                  <View key={item.id}>
-                    {renderItem({ item })}
-                  </View>
-                ))}
-              </Animated.View>
-            </View>
-          ))
-        ) : (
-          <Text style={styles.noMembersText}>No members found for this group.</Text>
-        )}
-      </ScrollView>
+                  <Text style={styles.groupToggleIcon}>
+                    {expandedGroups[groupName] ? '▲' : '▼'}
+                  </Text>
+                </TouchableOpacity>
+                <Animated.View
+                  style={[
+                    styles.groupContent,
+                    {
+                      maxHeight: groupAnimations[groupName]
+                        ? groupAnimations[groupName].interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, 1000],
+                          })
+                        : 0,
+                      opacity: groupAnimations[groupName]
+                        ? groupAnimations[groupName].interpolate({
+                            inputRange: [0, 0.5, 1],
+                            outputRange: [0, 0.5, 1],
+                          })
+                        : 0,
+                    },
+                  ]}
+                >
+                  {membersInGroup.map((item) => (
+                    <View key={item.id}>
+                      {renderItem({ item })}
+                    </View>
+                  ))}
+                </Animated.View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.noMembersText}>No members found for this group.</Text>
+          )}
+        </ScrollView>
+      )}
       {renderModalContent()}
     </View>
   );
@@ -485,6 +503,41 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 16,
     color: '#555',
+  },
+  loadingHeading: {
+    width: '70%',
+    height: 28,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+    marginBottom: 4,
+    alignSelf: 'center',
+  },
+  loadingDescription: {
+    width: '90%',
+    height: 14,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+    marginBottom: 16,
+    alignSelf: 'center',
+  },
+  loadingGroupContainer: {
+    marginBottom: 10,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
+  },
+  loadingGroupHeader: {
+    height: 80,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  loadingMemberCard: {
+    height: 60,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    marginVertical: 6,
+    marginHorizontal: 10,
   },
 });
 

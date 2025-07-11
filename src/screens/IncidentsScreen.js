@@ -104,10 +104,30 @@ const IncidentModal = ({ visible, onClose, report, getSeverityColor }) => {
     );
 };
 
+const LoadingState = () => (
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollViewContent}>
+        <Text style={styles.heading}>Incident Reports</Text>
+        <Text style={styles.description}>
+            View and submit incidents reported by community members.
+        </Text>
+        <View style={styles.actions}>
+            <TouchableOpacity style={styles.button} onPress={() => {}} disabled={true}>
+                <Text style={styles.buttonText}>Submit Report</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => {}} disabled={true}>
+                <Text style={styles.secondaryButtonText}>Sort: Date (Newest)</Text>
+            </TouchableOpacity>
+        </View>
+        {[...Array(3)].map((_, i) => (
+            <View key={i} style={styles.loadingReportCard} />
+        ))}
+    </ScrollView>
+);
+
 const IncidentScreen = ({ navigation, route }) => {
     const { groupId } = route.params;
     const [reports, setReports] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
     const [sortOrder, setSortOrder] = useState("date_newest"); // "date_newest", "date_oldest", "severity_high", "severity_low"
     const [dropdownVisible, setDropdownVisible] = useState(false);
@@ -214,6 +234,10 @@ const IncidentScreen = ({ navigation, route }) => {
         }
     };
 
+    if (loading) {
+        return <LoadingState />;
+    }
+
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.scrollViewContent}>
             <Text style={styles.heading}>Incident Reports</Text>
@@ -255,8 +279,6 @@ const IncidentScreen = ({ navigation, route }) => {
                     </View>
                 )}
             </View>
-
-            {loading && <Text style={styles.loadingText}>Loading reports...</Text>}
 
             {!loading && reports.length === 0 && (
                 <Text style={styles.emptyText}>No reports found.</Text>
@@ -525,6 +547,13 @@ const styles = StyleSheet.create({
     label: {
         fontWeight: 'bold',
         color: '#d1d5db',
+    },
+    loadingReportCard: {
+        width: '100%',
+        height: 120,
+        backgroundColor: '#f0f0f0',
+        borderRadius: 12,
+        marginBottom: 16,
     },
 });
 

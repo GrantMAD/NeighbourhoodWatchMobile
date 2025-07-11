@@ -327,7 +327,10 @@ const AddEventScreen = ({ route, navigation }) => {
 
         <View style={{ marginBottom: 50, marginTop: 10 }}>
           {uploading ? (
-            <ActivityIndicator size="large" color="#0000ff" />
+            <View style={styles.loadingButton}>
+              <ActivityIndicator size="small" color="#ffffff" />
+              <Text style={{ color: '#ffffff', marginLeft: 10 }}>{isEditMode ? 'Updating...' : 'Adding...'}</Text>
+            </View>
           ) : (
             <Button title={isEditMode ? 'Update Event' : 'Add Event'} onPress={handleSaveEvent} />
           )}
@@ -378,6 +381,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 10,
+  },
+  loadingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#a5b4fc',
+    padding: 10,
+    borderRadius: 5,
   },
 });
 

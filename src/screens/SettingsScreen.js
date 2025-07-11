@@ -187,7 +187,7 @@ function SettingsScreen({ route, navigation }) {
       {showPassword && (
         <View style={styles.passwordBox}>
           {loadingPassword ? (
-            <ActivityIndicator size="small" color="#4338ca" />
+            <Text style={styles.loadingPasswordText}>Loading password...</Text>
           ) : (
             <Text style={styles.passwordText}>
               {groupPassword || "No password set."}
@@ -275,6 +275,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6b7280",
     marginTop: 5,
+  },
+  loadingPasswordText: {
+    fontSize: 16,
+    color: "#6b7280",
+    fontStyle: "italic",
   },
   footerText: {
     marginTop: 40,

@@ -13,6 +13,17 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase'; // Adjust the path if needed
 
+const LoadingState = () => (
+    <View style={styles.container}>
+        <View style={styles.loadingTitle} />
+        <View style={styles.loadingSubtitle} />
+        <View style={styles.loadingInput} />
+        <View style={styles.loadingInput} />
+        <View style={styles.loadingTextArea} />
+        <View style={styles.loadingButton} />
+    </View>
+);
+
 const ContactScreen = ({ route }) => {
   const { groupId } = route.params;
 
@@ -77,11 +88,7 @@ const ContactScreen = ({ route }) => {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1d4ed8" />
-      </View>
-    );
+    return <LoadingState />;
   }
 
   return (
@@ -173,5 +180,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#1f2937', // Dark background
+  },
+  loadingTitle: {
+    width: '60%',
+    height: 30,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  loadingSubtitle: {
+    width: '80%',
+    height: 20,
+    backgroundColor: '#4b5563',
+    borderRadius: 6,
+    marginBottom: 30,
+  },
+  loadingInput: {
+    width: '100%',
+    height: 50,
+    backgroundColor: '#4b5563',
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  loadingTextArea: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#4b5563',
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  loadingButton: {
+    width: '100%',
+    height: 50,
+    backgroundColor: '#374151',
+    borderRadius: 10,
+    marginTop: 10,
   },
 });

@@ -114,7 +114,7 @@ export default function SignUpScreen({ navigation }) {
             </View>
 
             <TouchableOpacity
-                style={styles.signUpButton}
+                style={[styles.signUpButton, loading && styles.loadingSignUpButton]}
                 onPress={handleSignUp}
                 disabled={loading}
             >
@@ -203,6 +203,9 @@ const styles = StyleSheet.create({
     },
     loadingContainer: {
         flexDirection: 'row',
-        alignItems: 'center',
-    },
+    alignItems: 'center',
+  },
+  loadingSignUpButton: {
+    backgroundColor: '#86efac',
+  },
 });

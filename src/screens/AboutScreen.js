@@ -11,6 +11,21 @@ import {
 import { supabase } from "../../lib/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+const LoadingState = () => (
+    <ScrollView style={styles.container}>
+        <View style={styles.innerWrapper}>
+            <View style={styles.loadingBanner} />
+            {[...Array(4)].map((_, i) => (
+                <View key={i} style={styles.loadingAboutSection} />
+            ))}
+            <View style={styles.loadingExecTitle} />
+            {[...Array(3)].map((_, i) => (
+                <View key={i} style={styles.loadingExecCard} />
+            ))}
+        </View>
+    </ScrollView>
+);
+
 const AboutScreen = ({ route }) => {
   const { groupId } = route.params;
   const insets = useSafeAreaInsets();
@@ -67,11 +82,7 @@ const AboutScreen = ({ route }) => {
   );
 
   if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#2563eb" />
-      </View>
-    );
+    return <LoadingState />;
   }
 
   if (error) {
@@ -122,7 +133,9 @@ const AboutScreen = ({ route }) => {
           <Text style={styles.sectionText}>{values || "Values not provided."}</Text>
         </View>
 
-        <Text style={styles.execTitle}>👥 Executive Committee</Text>
+        <Text style={styles.execTitle}>
+          👥 Executive Committee ({executives.length})
+        </Text>
         {executives.length > 0 ? (
           executives.map((exec, index) => (
             <View key={index} style={styles.execCard}>
@@ -247,6 +260,32 @@ const styles = StyleSheet.create({
     color: "#dc2626",
     fontSize: 16,
     textAlign: "center",
+  },
+  loadingBanner: {
+    height: 120,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  loadingAboutSection: {
+    height: 100,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  loadingExecTitle: {
+    height: 30,
+    width: '70%',
+    backgroundColor: '#e0e0e0',
+    borderRadius: 8,
+    marginTop: 24,
+    marginBottom: 10,
+  },
+  loadingExecCard: {
+    height: 80,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    marginBottom: 10,
   },
 });
 
