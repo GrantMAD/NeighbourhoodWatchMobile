@@ -16,38 +16,46 @@ import { supabase } from "../../lib/supabase";
 const NewsModal = ({ visible, onClose, story }) => {
   if (!story) return null;
 
+  const isImageUrl = (str) => typeof str === "string" && str.startsWith("http");
+
   return (
-    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <TouchableOpacity onPress={onClose} style={styles.closeIconWrapper}>
-            <Text style={styles.closeIcon}>✕</Text>
+        <View style={styles.modalContainer}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Text style={styles.closeButtonText}>✕</Text>
           </TouchableOpacity>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalEmoji}>📰</Text>
-              <Text style={styles.modalTitle}>{story.title}</Text>
+          {isImageUrl(story.image) ? (
+            <Image source={{ uri: story.image }} style={styles.modalImage} />
+          ) : (
+            <View style={styles.emojiContainer}>
+              <Text style={styles.emoji}>{story.image || "📰"}</Text>
             </View>
+          )}
 
-            <View style={styles.modalDivider} />
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <Text style={styles.modalTitle}>{story.title}</Text>
 
-            {story.image && <Image source={{ uri: story.image }} style={styles.modalImage} />}
-
-            <Text style={styles.modalMessage}>
+            <Text style={styles.modalDescription}>
               {story.content || story.message || "No content available."}
             </Text>
 
-            <View style={styles.row}>
-              <Text style={styles.icon}>⏱️</Text>
-              <Text style={styles.modalDate}>
-                {new Date(story.date).toLocaleDateString()}
+            <View style={styles.modalRow}>
+              <Text style={styles.modalIcon}>🗓️</Text>
+              <Text style={styles.modalDetailText}>
+                {new Date(story.date).toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
               </Text>
             </View>
 
-            <View style={styles.row}>
-              <Text style={styles.icon}>👁️</Text>
-              <Text style={styles.modalViews}>Views: {story.views || 0}</Text>
+            <View style={styles.modalRow}>
+              <Text style={styles.modalIcon}>👁️</Text>
+              <Text style={styles.modalDetailText}>Views: {story.views || 0}</Text>
             </View>
           </ScrollView>
         </View>
@@ -387,94 +395,88 @@ const styles = StyleSheet.create({
   // MODAL STYLES
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 20,
   },
-  modalContent: {
-    backgroundColor: "#fefefe",
-    borderRadius: 16,
-    padding: 24,
-    maxHeight: "85%",
+  modalContainer: {
+    width: "100%",
+    maxHeight: "80%",
+    backgroundColor: "#1f2937",
+    borderRadius: 12,
+    padding: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
     elevation: 10,
-    position: "relative",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
   },
-  closeIconWrapper: {
+  closeButton: {
     position: "absolute",
-    top: 16,
-    right: 16,
+    top: -10,
+    right: -10,
+    zIndex: 10,
     backgroundColor: "#2563eb",
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    borderRadius: 15,
+    width: 30,
+    height: 30,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#2563eb",
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-    zIndex: 10,
   },
-  closeIcon: {
+  closeButtonText: {
+    fontSize: 22,
     color: "#fff",
-    fontSize: 20,
-    fontWeight: "bold",
-    lineHeight: 20,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  modalEmoji: {
-    fontSize: 30,
-    marginRight: 12,
-  },
-  modalTitle: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#111827",
-    flexShrink: 1,
-  },
-  modalDivider: {
-    height: 1,
-    backgroundColor: "#d1d5db",
-    marginBottom: 20,
+    lineHeight: 22,
+    marginTop: -2, // Adjust as needed for visual centering
   },
   modalImage: {
     width: "100%",
-    height: 220,
+    height: 180,
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 12,
+    resizeMode: "cover",
   },
-  modalMessage: {
-    fontSize: 16,
-    color: "#1f2937",
-    marginBottom: 20,
-    lineHeight: 24,
+  emojiContainer: {
+    width: "100%",
+    height: 180,
+    borderRadius: 12,
+    backgroundColor: "#374151",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
   },
-  modalDate: {
-    fontSize: 14,
-    color: "#6b7280",
-    fontStyle: "italic",
+  emoji: {
+    fontSize: 72,
   },
-  modalViews: {
-    fontSize: 14,
-    color: "#6b7280",
+  modalContent: {
+    paddingBottom: 16,
   },
-  row: {
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 12,
+  },
+  modalRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 12,
   },
-  icon: {
-    fontSize: 18,
-    marginRight: 6,
+  modalIcon: {
+    fontSize: 22,
+    marginRight: 8,
+    color: "#9ca3af",
+  },
+  modalDetailText: {
+    color: "#d1d5db",
+    fontSize: 14,
+    flexShrink: 1,
+  },
+  modalDescription: {
+    color: "#d1d5db",
+    fontSize: 16,
+    marginBottom: 20,
   },
   loadingNewsCard: {
     width: '100%',

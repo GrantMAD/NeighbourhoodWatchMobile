@@ -608,13 +608,21 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         position: "absolute",
-        top: 12,
-        right: 12,
+        top: -10,
+        right: -10,
         zIndex: 10,
+        backgroundColor: "#2563eb",
+        borderRadius: 15,
+        width: 30,
+        height: 30,
+        justifyContent: "center",
+        alignItems: "center",
     },
     closeButtonText: {
-        fontSize: 24,
+        fontSize: 22,
         color: "#fff",
+        lineHeight: 22,
+        marginTop: -2, // Adjust as needed for visual centering
     },
     modalImage: {
         width: "100%",
@@ -670,9 +678,9 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         borderBottomColor: "#374151",
         borderBottomWidth: 1,
-        backgroundColor: "#111827", // Optional: darker background for more contrast
-        borderRadius: 8, // Optional: rounded corners
-        marginBottom: 8, // Optional: spacing between items
+        backgroundColor: "#111827", 
+        borderRadius: 8, 
+        marginBottom: 8, 
     },
     dayEventImage: {
         width: 40,

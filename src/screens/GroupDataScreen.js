@@ -267,10 +267,19 @@ export default function GroupDataScreen() {
     return (
         <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
             <Text style={styles.title}>Edit Group Info</Text>
+            <Text style={styles.description}>Update your group's information, including contact details, welcome message, and executive team.</Text>
 
             {["name", "contact_email", "welcome_text", "vision", "mission", "objectives"].map((key) => (
                 <View key={key} style={styles.inputContainer}>
-                    <Text style={styles.label}>{key.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}</Text>
+                    <Text style={styles.label}>
+                        {key === "name" && "📝 "}
+                        {key === "contact_email" && "📧 "}
+                        {key === "welcome_text" && "👋 "}
+                        {key === "vision" && "🌟 "}
+                        {key === "mission" && "🎯 "}
+                        {key === "objectives" && "📈 "}
+                        {key.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                    </Text>
                     <TextInput
                         style={[styles.input, ["welcome_text", "vision", "mission", "objectives"].includes(key) && styles.textArea]}
                         value={groupData[key]}
@@ -282,7 +291,7 @@ export default function GroupDataScreen() {
             ))}
 
             <View style={styles.inputContainer}>
-                <Text style={styles.label}>Main Image</Text>
+                <Text style={styles.label}>🖼️ Main Image</Text>
                 {newImage ? (
                     <Image source={{ uri: newImage }} style={styles.imagePreview} />
                 ) : groupData.main_image ? (
@@ -290,12 +299,14 @@ export default function GroupDataScreen() {
                 ) : (
                     <Text>No image uploaded.</Text>
                 )}
-                <Button title="Pick/Change Image" onPress={() => pickImage(setNewImage)} />
+                <TouchableOpacity style={styles.customButton} onPress={() => pickImage(setNewImage)}>
+                    <Text style={styles.customButtonText}>Pick/Change Image</Text>
+                </TouchableOpacity>
             </View>
 
             {/* Executive inputs */}
             <View style={styles.inputContainer}>
-                <Text style={styles.label}>Add Executive</Text>
+                <Text style={styles.label}>👥 Add Executive</Text>
                 <TextInput
                     style={styles.executiveInput}
                     placeholder="Name"
@@ -313,15 +324,19 @@ export default function GroupDataScreen() {
                 </View>
 
                 <View style={{ marginBottom: 10 }}>
-                    <Button title="Pick Executive Image" onPress={() => pickImage(setExecImage)} />
+                    <TouchableOpacity style={styles.customButton} onPress={() => pickImage(setExecImage)}>
+                        <Text style={styles.customButtonText}>Pick Executive Image</Text>
+                    </TouchableOpacity>
                 </View>
-                <Button title="Add Executive" onPress={handleAddExecutive} />
+                <TouchableOpacity style={[styles.customButton, styles.addExecutiveButton]} onPress={handleAddExecutive}>
+                    <Text style={styles.customButtonText}>Add Executive</Text>
+                </TouchableOpacity>
             </View>
 
             {/* Display executives as cards */}
             {groupData.executives.length > 0 && (
                 <View style={styles.inputContainer}>
-                    <Text style={styles.label}>Executives</Text>
+                    <Text style={styles.label}>🧑‍💼 Executives</Text>
                     {groupData.executives.map((exec, index) => (
                         <View key={index} style={styles.execCard}>
                             {exec.image ? (
@@ -353,7 +368,9 @@ export default function GroupDataScreen() {
                 <ActivityIndicator size="large" color="#4338ca" />
             ) : (
                 <View style={{ paddingBottom: 30 }}>
-                    <Button title="Save Changes" onPress={handleSave} />
+                    <TouchableOpacity style={styles.customButton} onPress={handleSave}>
+                        <Text style={styles.customButtonText}>Save Changes</Text>
+                    </TouchableOpacity>
                 </View>
             )}
         </ScrollView>
@@ -369,16 +386,25 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: "700",
-        marginBottom: 20,
+        marginBottom: 5,
         color: "#4338ca",
+        textAlign: "center",
+    },
+    description: {
+        fontSize: 14,
+        color: "#6b7280",
+        marginBottom: 20,
+        textAlign: "center",
     },
     inputContainer: {
         marginBottom: 15,
     },
     label: {
-        marginBottom: 6,
-        fontWeight: "600",
-        color: "#4338ca",
+        fontSize: 16,
+        fontWeight: "bold",
+        marginBottom: 5,
+        marginTop: 10,
+        color: "#000",
     },
     input: {
         borderWidth: 1,
@@ -479,5 +505,19 @@ const styles = StyleSheet.create({
         borderRadius: 15,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    customButton: {
+        backgroundColor: '#1f2937',
+        padding: 10,
+        borderRadius: 5,
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    customButtonText: {
+        color: '#ffffff',
+        fontWeight: 'bold',
+    },
+    addExecutiveButton: {
+        backgroundColor: '#2e4053',
     },
 });

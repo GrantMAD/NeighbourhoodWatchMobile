@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     submitBtn: {
-        backgroundColor: '#007bff',
+        backgroundColor: '#1f2937',
         padding: 15,
         borderRadius: 5,
         alignItems: 'center',
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     submitBtnText: {
-        color: 'white',
+        color: '#ffffff',
         fontWeight: 'bold',
         fontSize: 16,
     },

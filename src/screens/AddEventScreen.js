@@ -14,7 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Buffer } from 'buffer';
 import { supabase } from '../../lib/supabase';
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { Calendar } from 'react-native-calendars';
 
 import { ActivityIndicator } from 'react-native';
 
@@ -27,10 +27,7 @@ const AddEventScreen = ({ route, navigation }) => {
   const [imageUri, setImageUri] = useState('');
   const [uploading, setUploading] = useState(false);
   const [location, setLocation] = useState('');
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [selectedRange, setSelectedRange] = useState({ startDate: null, endDate: null });
 
   useEffect(() => {
     if (isEditMode) {
@@ -38,8 +35,10 @@ const AddEventScreen = ({ route, navigation }) => {
       setMessage(eventToEdit.message);
       setImageUri(eventToEdit.image || '');
       setLocation(eventToEdit.location);
-      setStartDate(new Date(eventToEdit.startDate));
-      setEndDate(new Date(eventToEdit.endDate));
+      setSelectedRange({
+        startDate: eventToEdit.startDate ? new Date(eventToEdit.startDate).toISOString().split('T')[0] : null,
+        endDate: eventToEdit.endDate ? new Date(eventToEdit.endDate).toISOString().split('T')[0] : null,
+      });
       navigation.setOptions({ title: 'Edit Event' });
     }
   }, [isEditMode, eventToEdit, navigation]);
@@ -99,23 +98,48 @@ const AddEventScreen = ({ route, navigation }) => {
     }
   };
 
-  const onChangeStartDate = (event, selectedDate) => {
-    setShowStartDatePicker(false);
-    if (event.type === "set" && selectedDate) {
-      setStartDate(selectedDate);
+  const handleDayPress = (day) => {
+    if (!selectedRange.startDate) {
+      setSelectedRange({ startDate: day.dateString, endDate: null });
+    } else if (!selectedRange.endDate && day.dateString >= selectedRange.startDate) {
+      setSelectedRange({ ...selectedRange, endDate: day.dateString });
+    } else {
+      setSelectedRange({ startDate: day.dateString, endDate: null });
     }
   };
 
-  const onChangeEndDate = (event, selectedDate) => {
-    setShowEndDatePicker(false);
-    if (event.type === "set" && selectedDate) {
-      setEndDate(selectedDate);
+  const getMarkedDates = () => {
+    const markedDates = {};
+    if (selectedRange.startDate) {
+      markedDates[selectedRange.startDate] = {
+        startingDay: true,
+        color: '#22d3ee',
+        textColor: 'white',
+      };
+      if (selectedRange.endDate && selectedRange.endDate !== selectedRange.startDate) {
+        const start = new Date(selectedRange.startDate);
+        const end = new Date(selectedRange.endDate);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const dateString = d.toISOString().split('T')[0];
+          markedDates[dateString] = {
+            ...markedDates[dateString],
+            color: '#22d3ee',
+            textColor: 'white',
+          };
+        }
+        markedDates[selectedRange.endDate] = {
+          endingDay: true,
+          color: '#22d3ee',
+          textColor: 'white',
+        };
+      }
     }
+    return markedDates;
   };
 
   const handleSaveEvent = async () => {
-    if (!title || !message || !startDate || !endDate || !location) {
-      Alert.alert('Missing info', 'Please fill in all required fields.');
+    if (!title || !message || !selectedRange.startDate || !selectedRange.endDate || !location) {
+      Alert.alert('Missing info', 'Please fill in all required fields and select a date range.');
       return;
     }
 
@@ -137,8 +161,8 @@ const AddEventScreen = ({ route, navigation }) => {
       title,
       message,
       image: imageUrl,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
+      startDate: new Date(selectedRange.startDate).toISOString(),
+      endDate: new Date(selectedRange.endDate).toISOString(),
       location,
       views: isEditMode ? eventToEdit.views : 0,
     };
@@ -254,8 +278,13 @@ const AddEventScreen = ({ route, navigation }) => {
     }
   }
 
-  const formatDate = (date) => {
-    return date.toLocaleDateString();
+  const formatDateDisplay = (dateString) => {
+    if (!dateString) return 'Select Date';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   };
 
   return (
@@ -290,39 +319,48 @@ const AddEventScreen = ({ route, navigation }) => {
           )}
         </TouchableOpacity>
 
-        <Text style={styles.label}>Start Date *</Text>
-        <TouchableOpacity
-          style={styles.dateInput}
-          onPress={() => setShowStartDatePicker(true)}
-        >
-          <Text>{formatDate(startDate)}</Text>
-          <Text>🗓️</Text>
-        </TouchableOpacity>
-        {showStartDatePicker && (
-          <DateTimePicker
-            value={startDate}
-            mode="date"
-            display="default"
-            onChange={onChangeStartDate}
+        <Text style={styles.label}>Select Event Date Range *</Text>
+        <View style={{ backgroundColor: "#ffffff", borderRadius: 12, marginBottom: 20 }}>
+          <Calendar
+            markingType="period"
+            markedDates={getMarkedDates()}
+            onDayPress={handleDayPress}
+            style={{
+              borderRadius: 12,
+              backgroundColor: "#ffffff",
+            }}
+            theme={{
+              backgroundColor: "#ffffff",
+              calendarBackground: "#ffffff",
+              textSectionTitleColor: "#4b5563",
+              selectedDayBackgroundColor: "#22d3ee",
+              selectedDayTextColor: "#ffffff",
+              todayTextColor: "#22d3ee",
+              dayTextColor: "#111827",
+              textDisabledColor: "#d1d5db",
+              monthTextColor: "#1f2937",
+              arrowColor: "#3b82f6",
+              disabledArrowColor: "#d1d5db",
+              indicatorColor: "#3b82f6",
+              textDayFontWeight: "400",
+              textMonthFontWeight: "700",
+              textDayHeaderFontWeight: "600",
+              textDayFontSize: 16,
+              textMonthFontSize: 18,
+              textDayHeaderFontSize: 14,
+            }}
           />
-        )}
+        </View>
 
-        <Text style={styles.label}>End Date *</Text>
-        <TouchableOpacity
-          style={styles.dateInput}
-          onPress={() => setShowEndDatePicker(true)}
-        >
-          <Text>{formatDate(endDate)}</Text>
-          <Text>🗓️</Text>
-        </TouchableOpacity>
-        {showEndDatePicker && (
-          <DateTimePicker
-            value={endDate}
-            mode="date"
-            display="default"
-            onChange={onChangeEndDate}
-            minimumDate={startDate}
-          />
+        {selectedRange.startDate && selectedRange.endDate && (
+          <View style={styles.dateRangeDisplay}>
+            <Text style={styles.dateRangeText}>
+              Start: {formatDateDisplay(selectedRange.startDate)}
+            </Text>
+            <Text style={styles.dateRangeText}>
+              End: {formatDateDisplay(selectedRange.endDate)}
+            </Text>
+          </View>
         )}
 
         <View style={{ marginBottom: 50, marginTop: 10 }}>
@@ -332,7 +370,9 @@ const AddEventScreen = ({ route, navigation }) => {
               <Text style={{ color: '#ffffff', marginLeft: 10 }}>{isEditMode ? 'Updating...' : 'Adding...'}</Text>
             </View>
           ) : (
-            <Button title={isEditMode ? 'Update Event' : 'Add Event'} onPress={handleSaveEvent} />
+            <TouchableOpacity style={styles.saveButton} onPress={handleSaveEvent}>
+              <Text style={styles.saveButtonText}>{isEditMode ? 'Update Event' : 'Add Event'}</Text>
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -389,6 +429,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#a5b4fc',
     padding: 10,
     borderRadius: 5,
+  },
+  dateRangeDisplay: {
+    marginTop: 15,
+    marginBottom: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    backgroundColor: '#f8f8f8',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  saveButton: {
+    backgroundColor: '#1f2937',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
   },
 });
 
