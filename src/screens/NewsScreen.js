@@ -278,13 +278,13 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   buttonSecondary: {
-    backgroundColor: "#22d3ee",
+    backgroundColor: "#1f2937",
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 30,
   },
   buttonSecondaryText: {
-    color: "#1f2937",
+    color: "#ffffff",
     fontWeight: "700",
     fontSize: 16,
   },
