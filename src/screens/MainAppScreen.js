@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   Animated,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import {
   createDrawerNavigator,
@@ -32,6 +33,7 @@ import { supabase } from "../../lib/supabase";
 import IncidentsScreen from "../screens/IncidentsScreen";
 import ContactScreen from "../screens/ContactScreen";
 import CheckedInScreen from "../screens/CheckedInScreen";
+import Toast from "../components/Toast";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const Drawer = createDrawerNavigator();
@@ -351,6 +353,8 @@ const MainAppScreen = ({ route, navigation }) => {
   const [hasNotifications, setHasNotifications] = useState(false);
   const [checkedIn, setCheckedIn] = useState(false);
   const [checkedInCount, setCheckedInCount] = useState(0);
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const fetchCheckedInCount = useCallback(async () => {
@@ -478,6 +482,10 @@ const MainAppScreen = ({ route, navigation }) => {
         {/* Check In/Out Button */}
         <TouchableOpacity
           onPress={async () => {
+            if (isCheckingIn) return; // Prevent multiple presses
+            setIsCheckingIn(true);
+
+            try {
             const {
               data: { user },
             } = await supabase.auth.getUser();
@@ -526,6 +534,10 @@ const MainAppScreen = ({ route, navigation }) => {
             if (data.group_id) {
               notifyGroupUsersAboutCheckStatus(user.id, data.group_id, newCheckedIn ? "checked in" : "checked out");
             }
+            setToast({ visible: true, message: `Successfully ${newCheckedIn ? 'checked in' : 'checked out'}!` });
+          } finally {
+            setIsCheckingIn(false);
+          }
           }}
           style={{
             marginRight: 20,
@@ -534,11 +546,17 @@ const MainAppScreen = ({ route, navigation }) => {
             paddingHorizontal: 12,
             borderRadius: 6,
             marginLeft: 15,
+            opacity: isCheckingIn ? 0.6 : 1,
           }}
+          disabled={isCheckingIn}
         >
+          {isCheckingIn ? (
+            <ActivityIndicator color="#f9fafb" />
+          ) : (
           <Text style={{ color: "#f9fafb", fontWeight: "bold" }}>
             {checkedIn ? "Check Out" : "Check In"}
           </Text>
+          )}
         </TouchableOpacity>
 
         {/* Notification Bell */}
@@ -675,6 +693,7 @@ const MainAppScreen = ({ route, navigation }) => {
 
   if (!groupId) {
     return (
+      <View style={{ flex: 1 }}>
       <Drawer.Navigator
         screenOptions={({ navigation, route }) => ({
           ...screenOptionsWithDrawerButton({ navigation, route }),
@@ -696,10 +715,18 @@ const MainAppScreen = ({ route, navigation }) => {
           }}
         />
       </Drawer.Navigator>
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast({ ...toast, visible: false })}
+      />
+      </View>
     );
   }
 
   return (
+    <View style={{ flex: 1 }}>
     <Drawer.Navigator
       screenOptions={({ navigation, route }) => ({
         ...screenOptionsWithDrawerButton({ navigation, route }),
@@ -802,6 +829,13 @@ const MainAppScreen = ({ route, navigation }) => {
         }}
       />
     </Drawer.Navigator>
+    <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast({ ...toast, visible: false })}
+      />
+    </View>
   );
 };
 

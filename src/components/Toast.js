@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
-export default function Toast({ visible, message, type = 'success', onHide }) {
+export default function Toast({ visible, message, type = 'success', onHide, duration = 2000 }) {
     const opacity = new Animated.Value(0);
 
     useEffect(() => {
@@ -18,10 +18,10 @@ export default function Toast({ visible, message, type = 'success', onHide }) {
                         duration: 300,
                         useNativeDriver: true,
                     }).start(onHide);
-                }, 2000);
+                }, duration);
             });
         }
-    }, [visible]);
+    }, [visible, duration]);
 
     if (!visible) return null;
 

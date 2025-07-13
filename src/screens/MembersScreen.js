@@ -212,7 +212,7 @@ const MembersScreen = ({ route }) => {
                   <Text style={styles.detailText}>{selectedMember.number || '-'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`tel:${selectedMember.emergency_contact}`)}>
-                  <Text style={styles.icon}>❗</Text>
+                  <Text style={styles.icon}>🆘</Text>
                   <Text style={styles.detailLabel}>Emergency Contact:</Text>
                   <Text style={styles.detailText}>{selectedMember.emergency_contact || '-'}</Text>
                 </TouchableOpacity>

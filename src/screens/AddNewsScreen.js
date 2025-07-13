@@ -152,7 +152,11 @@ export default function AddNewsScreen({ navigation, route }) {
         await notifyGroupUsersAboutNewNews(groupId, storyData.title);
       }
 
-      Alert.alert("Success", `News story ${isEditMode ? 'updated' : 'added'}!`);
+      if (route.params?.onStoryUpdated) {
+        route.params.onStoryUpdated(`News story updated successfully!`);
+      } else if (route.params?.onStoryAdded) {
+        route.params.onStoryAdded(`News story added successfully!`);
+      }
       navigation.goBack();
     } catch (error) {
       console.error("Error saving news:", error.message);
@@ -335,7 +339,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   saveButton: {
-    backgroundColor: "#4338ca",
+    backgroundColor: "#1f2937",
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
@@ -343,7 +347,7 @@ const styles = StyleSheet.create({
     marginBottom: 50,
   },
   saveButtonText: {
-    color: "#fff",
+    color: "#ffffff",
     fontSize: 18,
     fontWeight: "bold",
   },

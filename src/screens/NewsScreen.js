@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../lib/supabase";
+import Toast from "../components/Toast";
 
 const NewsModal = ({ visible, onClose, story }) => {
   if (!story) return null;
@@ -95,6 +96,7 @@ const NewsScreen = ({ route, navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingStoryId, setLoadingStoryId] = useState(null);
+  const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
 
   useEffect(() => {
     if (initialSelectedStory) {
@@ -178,6 +180,13 @@ const NewsScreen = ({ route, navigation }) => {
   }
 
   return (
+    <>
+    <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast({ ...toast, visible: false })}
+    />
     <ScrollView
       contentContainerStyle={styles.scrollViewContent}
       style={styles.container}
@@ -191,7 +200,12 @@ const NewsScreen = ({ route, navigation }) => {
 
         <TouchableOpacity
           style={styles.buttonSecondary}
-          onPress={() => navigation.navigate("AddNewsScreen", { groupId })}
+          onPress={() => navigation.navigate("AddNewsScreen", { 
+              groupId, 
+              onStoryAdded: (message) => {
+                  setToast({ visible: true, message, type: "success" });
+              }
+            })}
         >
           <Text style={styles.buttonSecondaryText}>Add Story</Text>
         </TouchableOpacity>
@@ -252,6 +266,7 @@ const NewsScreen = ({ route, navigation }) => {
         story={selectedStory}
       />
     </ScrollView>
+    </>
   );
 };
 

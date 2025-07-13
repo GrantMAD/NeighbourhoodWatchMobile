@@ -17,6 +17,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { Buffer } from "buffer";
 import { supabase } from "../../lib/supabase";
+import Toast from "../components/Toast";
 
 const LoadingState = () => (
     <View style={{ padding: 20, flex: 1, backgroundColor: "#fff" }}>
@@ -52,6 +53,7 @@ export default function GroupDataScreen() {
     const [groupId, setGroupId] = useState(null);
     const [newImage, setNewImage] = useState(null);
     const [deletingIndex, setDeletingIndex] = useState(null);
+    const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
 
     // Inputs for adding a new executive
     const [execName, setExecName] = useState("");
@@ -68,7 +70,7 @@ export default function GroupDataScreen() {
                 } = await supabase.auth.getUser();
 
                 if (userError || !user) {
-                    Alert.alert("Error", "Could not get user.");
+                    setToast({ visible: true, message: "Error: Could not get user.", type: "error" });
                     setLoading(false);
                     return;
                 }
@@ -80,7 +82,7 @@ export default function GroupDataScreen() {
                     .single();
 
                 if (profileError || !profile?.group_id) {
-                    Alert.alert("Error", "Could not find user profile or group ID.");
+                    setToast({ visible: true, message: "Error: Could not find user profile or group ID.", type: "error" });
                     setLoading(false);
                     return;
                 }
@@ -94,7 +96,7 @@ export default function GroupDataScreen() {
                     .single();
 
                 if (groupError || !group) {
-                    Alert.alert("Error", "Could not fetch group data.");
+                    setToast({ visible: true, message: "Error: Could not fetch group data.", type: "error" });
                     setLoading(false);
                     return;
                 }
@@ -104,7 +106,7 @@ export default function GroupDataScreen() {
                     executives: Array.isArray(group.executives) ? group.executives : [],
                 });
             } catch (error) {
-                Alert.alert("Error", "Unexpected error: " + error.message);
+                setToast({ visible: true, message: "Error: Unexpected error: " + error.message, type: "error" });
             } finally {
                 setLoading(false);
             }
@@ -170,14 +172,14 @@ export default function GroupDataScreen() {
 
             return publicUrlData.publicUrl;
         } catch (error) {
-            Alert.alert("Upload Error", error.message);
+            setToast({ visible: true, message: "Upload Error: " + error.message, type: "error" });
             return null;
         }
     };
 
     const handleAddExecutive = () => {
         if (!execName || !execRole) {
-            Alert.alert("Missing Fields", "Please fill in both name and role.");
+            setToast({ visible: true, message: "Missing Fields: Please fill in both name and role.", type: "error" });
             return;
         }
         const newExec = { name: execName, role: execRole, image: execImage };
@@ -185,6 +187,7 @@ export default function GroupDataScreen() {
         setExecName("");
         setExecRole("");
         setExecImage(null);
+        setToast({ visible: true, message: "Executive added successfully!", type: "success" });
     };
 
     const handleDeleteExecutive = async (index) => {
@@ -209,10 +212,10 @@ export default function GroupDataScreen() {
             }
 
             setGroupData((prev) => ({ ...prev, executives: updatedExecutives }));
-            Alert.alert("Success", "Executive has been removed.");
+            setToast({ visible: true, message: "Executive has been removed.", type: "success" });
 
         } catch (error) {
-            Alert.alert("Error", "Could not remove executive: " + error.message);
+            setToast({ visible: true, message: "Error: Could not remove executive: " + error.message, type: "error" });
         } finally {
             setDeletingIndex(null);
         }
@@ -247,14 +250,14 @@ export default function GroupDataScreen() {
 
             const { error } = await supabase.from("groups").update(updatePayload).eq("id", groupId);
             if (error) {
-                Alert.alert("Error", "Failed to update group data.");
+                setToast({ visible: true, message: "Error: Failed to update group data.", type: "error" });
             } else {
                 setGroupData((prev) => ({ ...prev, main_image: updatedMainImage, executives: updatedExecutives }));
                 setNewImage(null);
-                Alert.alert("Success", "Group data updated.");
+                setToast({ visible: true, message: "Group data updated successfully!", type: "success" });
             }
         } catch (error) {
-            Alert.alert("Error", "Unexpected error: " + error.message);
+            setToast({ visible: true, message: "Error: Unexpected error: " + error.message, type: "error" });
         } finally {
             setSaving(false);
         }
@@ -265,8 +268,15 @@ export default function GroupDataScreen() {
     }
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-            <Text style={styles.title}>Edit Group Info</Text>
+        <View style={{ flex: 1 }}>
+            <Toast
+                visible={toast.visible}
+                message={toast.message}
+                type={toast.type}
+                onHide={() => setToast({ ...toast, visible: false })}
+            />
+            <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+                <Text style={styles.title}>Edit Group Info</Text>
             <Text style={styles.description}>Update your group's information, including contact details, welcome message, and executive team.</Text>
 
             {["name", "contact_email", "welcome_text", "vision", "mission", "objectives"].map((key) => (
@@ -373,7 +383,8 @@ export default function GroupDataScreen() {
                     </TouchableOpacity>
                 </View>
             )}
-        </ScrollView>
+            </ScrollView>
+        </View>
     );
 }
 

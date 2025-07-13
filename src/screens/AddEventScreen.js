@@ -3,20 +3,18 @@ import {
   View,
   Text,
   TextInput,
-  Button,
   StyleSheet,
   Alert,
   Image,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Buffer } from 'buffer';
 import { supabase } from '../../lib/supabase';
 import { Calendar } from 'react-native-calendars';
-
-import { ActivityIndicator } from 'react-native';
 
 const AddEventScreen = ({ route, navigation }) => {
   const { groupId, eventToEdit } = route.params;
@@ -200,7 +198,15 @@ const AddEventScreen = ({ route, navigation }) => {
         await notifyGroupUsersAboutNewEvent(groupId, eventData.title);
       }
 
-      Alert.alert('Success', `Event ${isEditMode ? 'updated' : 'added'}!`);
+      if (isEditMode) {
+        if (route.params?.onEventUpdated) {
+          route.params.onEventUpdated(`Event updated successfully!`);
+        }
+      } else {
+        if (route.params?.onEventAdded) {
+          route.params.onEventAdded(`Event added successfully!`);
+        }
+      }
       navigation.goBack();
     } catch (err) {
       console.error('Error saving event:', err.message);
@@ -288,6 +294,7 @@ const AddEventScreen = ({ route, navigation }) => {
   };
 
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.container}>
         <Text style={styles.label}>Title *</Text>
@@ -377,6 +384,7 @@ const AddEventScreen = ({ route, navigation }) => {
         </View>
       </View>
     </ScrollView>
+    </View>
   );
 };
 

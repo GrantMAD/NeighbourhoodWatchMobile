@@ -9,6 +9,7 @@ import {
 } from "react-native";
 
 import { supabase } from "../../lib/supabase";
+import Toast from "../components/Toast";
 
 
 const IncidentModal = ({ visible, onClose, report, getSeverityColor }) => {
@@ -131,9 +132,14 @@ const IncidentScreen = ({ navigation, route }) => {
     const [selectedReport, setSelectedReport] = useState(null);
     const [sortOrder, setSortOrder] = useState("date_newest"); // "date_newest", "date_oldest", "severity_high", "severity_low"
     const [dropdownVisible, setDropdownVisible] = useState(false);
+    const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
 
     const handleAddReport = () => {
-        navigation.navigate("AddReportScreen");
+        navigation.navigate("AddReportScreen", {
+            onReportAdded: (message) => {
+                setToast({ visible: true, message, type: "success" });
+            }
+        });
     };
 
     const handleExport = () => {
@@ -239,7 +245,14 @@ const IncidentScreen = ({ navigation, route }) => {
     }
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.scrollViewContent}>
+        <>
+            <Toast
+                visible={toast.visible}
+                message={toast.message}
+                type={toast.type}
+                onHide={() => setToast({ ...toast, visible: false })}
+            />
+            <ScrollView style={styles.container} contentContainerStyle={styles.scrollViewContent}>
             <Text style={styles.heading}>Incident Reports</Text>
             <Text style={styles.description}>
                 View and submit incidents reported by community members.
@@ -326,6 +339,7 @@ const IncidentScreen = ({ navigation, route }) => {
                 getSeverityColor={getSeverityColor}
             />
         </ScrollView >
+        </>
     );
 };
 

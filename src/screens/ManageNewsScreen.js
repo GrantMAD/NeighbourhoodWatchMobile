@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
+import Toast from '../components/Toast';
 
 const ManageNewsScreen = ({ route, navigation }) => {
     const { groupId } = route.params;
     const [news, setNews] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
 
     const fetchNews = async () => {
         setLoading(true);
@@ -30,7 +32,7 @@ const ManageNewsScreen = ({ route, navigation }) => {
             );
             setNews(sortedNews);
         } else if (error) {
-            console.error("Error fetching news:", error.message);
+            setToast({ visible: true, message: "Error fetching news: " + error.message, type: "error" });
         }
         setLoading(false);
     };
@@ -59,7 +61,7 @@ const ManageNewsScreen = ({ route, navigation }) => {
                             .single();
 
                         if (error) {
-                            Alert.alert("Error", "Failed to fetch news for deletion.");
+                            setToast({ visible: true, message: "Error: Failed to fetch news for deletion.", type: "error" });
                             return;
                         }
 
@@ -71,10 +73,10 @@ const ManageNewsScreen = ({ route, navigation }) => {
                             .eq('id', groupId);
 
                         if (updateError) {
-                            Alert.alert("Error", "Failed to delete news story.");
+                            setToast({ visible: true, message: "Error: Failed to delete news story.", type: "error" });
                         } else {
                             setNews(updatedNews);
-                            Alert.alert("Success", "News story deleted successfully.");
+                            setToast({ visible: true, message: "News story deleted successfully.", type: "success" });
                         }
                     }
                 }
@@ -82,7 +84,6 @@ const ManageNewsScreen = ({ route, navigation }) => {
         );
     };
 
-    // Skeleton card styled like ManageEventsScreen / MembersScreen loading placeholders
     const SkeletonCard = () => (
         <View style={styles.skeletonCard}>
             <View style={styles.skeletonImage} />
@@ -106,9 +107,7 @@ const ManageNewsScreen = ({ route, navigation }) => {
                         <Text style={styles.mainHeading}>Manage News</Text>
                     </View>
                 </View>
-
                 <Text style={styles.description}>Loading news stories...</Text>
-
                 {[...Array(3)].map((_, idx) => (
                     <SkeletonCard key={idx} />
                 ))}
@@ -117,74 +116,93 @@ const ManageNewsScreen = ({ route, navigation }) => {
     }
 
     return (
-        <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
-            <View style={styles.headerRow}>
-                <View style={styles.headingContainer}>
-                    <Text style={styles.headingIcon}>📰</Text>
-                    <Text style={styles.mainHeading}>Manage News</Text>
-                </View>
-            </View>
-
-            <Text style={styles.description}>Here you can edit or delete the news stories for your group.</Text>
-
-            {news.length === 0 ? (
-                <Text style={styles.noNewsText}>No news stories found.</Text>
-            ) : (
-                news.map((story, index) => (
-                    <View key={story.id ?? index.toString()} style={styles.card}>
-                        {story.image && story.image !== '📰' ? (
-                            <Image source={{ uri: story.image }} style={styles.cardImage} />
-                        ) : (
-                            <View style={[styles.cardImage, styles.noImage, styles.emojiContainer]}>
-                                <Text style={styles.emoji}>📰</Text>
-                            </View>
-                        )}
-
-                        <View style={styles.overlay} />
-
-                        <View style={styles.cardContent}>
-                            <Text style={styles.newsTitle} numberOfLines={2}>
-                                {story.title}
-                            </Text>
-
-                            <View style={styles.dateRow}>
-                                <Text style={styles.dateIcon}>📅</Text>
-                                <Text style={styles.dateText}>
-                                    {new Date(story.date).toLocaleDateString(undefined, {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        year: 'numeric',
-                                    })}
-                                </Text>
-                            </View>
-
-                            <View style={styles.buttonsRow}>
-                                <TouchableOpacity
-                                    style={[styles.button, styles.editButton]}
-                                    onPress={() => navigation.navigate('AddNewsScreen', { groupId, storyToEdit: story })}
-                                >
-                                    <Text style={styles.buttonText}>Edit</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.button, styles.deleteButton]}
-                                    onPress={() => handleDelete(story.id)}
-                                >
-                                    <Text style={styles.buttonText}>Delete</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
+        <>
+            <Toast
+                visible={toast.visible}
+                message={toast.message}
+                type={toast.type}
+                onHide={() => setToast({ ...toast, visible: false })}
+            />
+            <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
+                <View style={styles.headerRow}>
+                    <View style={styles.headingContainer}>
+                        <Text style={styles.headingIcon}>📰</Text>
+                        <Text style={styles.mainHeading}>Manage News</Text>
                     </View>
-                ))
-            )}
-        </ScrollView>
+                </View>
+
+                <Text style={styles.description}>Here you can edit or delete the news stories for your group.</Text>
+
+                {news.length === 0 ? (
+                    <Text style={styles.noNewsText}>No news stories found.</Text>
+                ) : (
+                    news.map((story, index) => (
+                        <TouchableOpacity
+                            key={story.id ?? index.toString()}
+                            style={styles.eventCard}
+                            activeOpacity={0.85}
+                        >
+                            <View style={styles.eventCardLeft}>
+                                {story.image && story.image !== '📰' ? (
+                                    <Image source={{ uri: story.image }} style={styles.eventCardImage} />
+                                ) : (
+                                    <View style={styles.eventCardEmojiCircle}>
+                                        <Text style={styles.eventCardEmoji}>📰</Text>
+                                    </View>
+                                )}
+                            </View>
+
+                            <View style={styles.eventCardRight}>
+                                <View style={{ marginBottom: 8 }}>
+                                    <Text style={styles.eventTitle}>{story.title}</Text>
+                                </View>
+                                <View style={styles.eventMetaContainer}>
+                                    <Text style={styles.eventIcon}>📅</Text>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.eventDateText}>
+                                            {new Date(story.date).toLocaleDateString("en-US", {
+                                                weekday: "long",
+                                                month: "long",
+                                                day: "numeric",
+                                                year: "numeric",
+                                            })}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={styles.buttonsRow}>
+                                    <TouchableOpacity
+                                        style={[styles.button, styles.editButton]}
+                                        onPress={() => navigation.navigate('AddNewsScreen', {
+                                            groupId,
+                                            storyToEdit: story,
+                                            onStoryUpdated: (message) => {
+                                                setToast({ visible: true, message, type: "success" });
+                                            }
+                                        })}
+                                    >
+                                        <Text style={styles.buttonText}>Edit</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={[styles.button, styles.deleteButton]}
+                                        onPress={() => handleDelete(story.id)}
+                                    >
+                                        <Text style={styles.buttonText}>Delete</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </TouchableOpacity>
+                    ))
+                )}
+            </ScrollView>
+        </>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#fff', // White background
         paddingTop: 40,
         paddingHorizontal: 20,
     },
@@ -222,69 +240,76 @@ const styles = StyleSheet.create({
         marginTop: 60,
     },
 
-    // Card styles matching ManageEventsScreen
-    card: {
-        backgroundColor: '#1e293b',
+    eventCard: {
+        flexDirection: "row",
+        backgroundColor: "#1f2937", // Dark cards
         borderRadius: 16,
-        marginBottom: 20,
-        overflow: 'hidden',
+        marginBottom: 18,
+        alignItems: "flex-start",
+        height: 140,
+        padding: 12,
         shadowColor: '#000',
-        shadowOpacity: 0.4,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
-        elevation: 10,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 8,
     },
-    cardImage: {
-        width: '100%',
-        height: 160,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
+    eventCardLeft: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        marginRight: 14,
+        overflow: "hidden",
+        backgroundColor: "#374151",
+        justifyContent: "center",
+        alignItems: "center",
+        marginTop: 6,
+        borderWidth: 2,
+        borderColor: "#17609bff",
     },
-    noImage: {
-        backgroundColor: '#475569',
-        justifyContent: 'center',
-        alignItems: 'center',
+    eventCardImage: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        resizeMode: "cover",
     },
-    emojiContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
+    eventCardEmojiCircle: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: "#374151",
+        justifyContent: "center",
+        alignItems: "center",
     },
-    emoji: {
-        fontSize: 64,
-        color: '#94a3b8',
+    eventCardEmoji: {
+        fontSize: 24,
     },
-    overlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.25)',
+    eventCardRight: {
+        flex: 1,
+        justifyContent: "space-between",
     },
-    cardContent: {
-        padding: 16,
-        backgroundColor: 'rgba(31, 41, 55, 0.9)',
+    eventTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: "#fff",
     },
-    newsTitle: {
+    eventMetaContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    eventIcon: {
         fontSize: 22,
-        fontWeight: '700',
-        color: '#e0e7ff',
-        marginBottom: 8,
+        marginRight: 8,
+        color: "#9ca3af",
     },
-    dateRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    dateIcon: {
-        fontSize: 18,
-        color: '#60a5fa',
-        marginRight: 6,
-    },
-    dateText: {
-        fontSize: 15,
-        color: '#cbd5e1',
-        fontWeight: '500',
+    eventDateText: {
+        color: "#d1d5db",
+        fontSize: 12,
     },
     buttonsRow: {
         flexDirection: 'row',
         justifyContent: 'flex-start',
+        marginTop: 8,
     },
     button: {
         paddingVertical: 8,
@@ -312,7 +337,6 @@ const styles = StyleSheet.create({
         color: '#e0e7ff',
     },
 
-    // Skeleton styles matching ManageEventsScreen
     skeletonCard: {
         backgroundColor: '#f0f0f0',
         borderRadius: 8,

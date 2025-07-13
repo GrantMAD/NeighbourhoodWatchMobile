@@ -17,6 +17,7 @@ import { supabase } from "../../lib/supabase";
 import * as FileSystem from "expo-file-system";
 import { Buffer } from "buffer";
 import { Picker } from '@react-native-picker/picker';
+import Toast from "../components/Toast";
 
 function LoadingState() {
     return (
@@ -60,6 +61,8 @@ function ProfileScreen() {
     const [showCreateNewInput, setShowCreateNewInput] = useState(false);
     const [availableNeighbourhoodWatches, setAvailableNeighbourhoodWatches] = useState([]);
     const [hasPendingRequest, setHasPendingRequest] = useState(false);
+    const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
 
     useEffect(() => {
         fetchProfile();
@@ -71,7 +74,7 @@ function ProfileScreen() {
 
         try {
             const url = new URL(avatarUrl);
-            const path = url.pathname; 
+            const path = url.pathname;
             const prefix = "/storage/v1/object/public/group-assets/";
             if (!path.startsWith(prefix)) return; // safety check
             const filePath = path.slice(prefix.length);
@@ -111,7 +114,7 @@ function ProfileScreen() {
             );
             setHasPendingRequest(pendingNWRequest);
         } catch (error) {
-            Alert.alert("Error", error.message);
+            setToast({ visible: true, message: "Error fetching profile: " + error.message, type: "error" });
         } finally {
             setLoading(false);
         }
@@ -141,12 +144,12 @@ function ProfileScreen() {
             setAvailableNeighbourhoodWatches(allWatches);
         } catch (error) {
             console.error("Error fetching neighbourhood watches:", error.message);
-            Alert.alert("Error", "Failed to fetch neighbourhood watches.");
+            setToast({ visible: true, message: "Error fetching neighbourhood watches: " + error.message, type: "error" });
         }
     }
 
     async function updateProfile() {
-        setLoading(true);
+        setIsSavingProfile(true);
         try {
             const { data: { user }, error: userError } = await supabase.auth.getUser();
             if (userError || !user) throw userError || new Error("No user logged in");
@@ -183,17 +186,17 @@ function ProfileScreen() {
             }));
             setAvatarLocalUri(null);
 
-            Alert.alert("Success", "Profile updated");
+            setToast({ visible: true, message: "Profile updated successfully!", type: "success" });
         } catch (error) {
-            Alert.alert("Error", error.message);
+            setToast({ visible: true, message: "Error updating profile: " + error.message, type: "error" });
         } finally {
-            setLoading(false);
+            setIsSavingProfile(false);
         }
     }
 
     async function handleCreateNewNeighbourhoodWatch() {
         if (!newNeighbourhoodWatchName.trim()) {
-            Alert.alert("Error", "Neighbourhood Watch name cannot be empty.");
+            setToast({ visible: true, message: "Error: Neighbourhood Watch name cannot be empty.", type: "error" });
             return;
         }
 
@@ -229,13 +232,13 @@ function ProfileScreen() {
 
             if (error) throw error;
 
-            Alert.alert("Success", "Neighbourhood Watch created!");
+            setToast({ visible: true, message: "Neighbourhood Watch created!", type: "success" });
             setNewNeighbourhoodWatchName("");
             setShowCreateNewInput(false);
             setJoinModalVisible(false); // Close modal after creation
             fetchNeighbourhoodWatches(); // Refresh the list
         } catch (error) {
-            Alert.alert("Error creating Neighbourhood Watch", error.message);
+            setToast({ visible: true, message: "Error creating Neighbourhood Watch: " + error.message, type: "error" });
         } finally {
             setLoading(false);
         }
@@ -298,7 +301,7 @@ function ProfileScreen() {
 
             return publicData.publicUrl;
         } catch (error) {
-            Alert.alert("Error uploading avatar", error.message);
+            setToast({ visible: true, message: "Error uploading avatar: " + error.message, type: "error" });
             console.error("Error uploading avatar:", error);
             return null;
         } finally {
@@ -308,7 +311,7 @@ function ProfileScreen() {
 
     async function handleSendJoinRequest() {
         if (!selectedNeighbourhoodWatch) {
-            Alert.alert("Error", "Please select a Neighbourhood Watch to join.");
+            setToast({ visible: true, message: "Error: Please select a Neighbourhood Watch to join.", type: "error" });
             return;
         }
 
@@ -323,7 +326,7 @@ function ProfileScreen() {
             );
 
             if (!selectedWatch) {
-                Alert.alert("Error", "Selected Neighbourhood Watch not found.");
+                setToast({ visible: true, message: "Error: Selected Neighbourhood Watch not found.", type: "error" });
                 return;
             }
 
@@ -399,12 +402,12 @@ function ProfileScreen() {
 
             if (updateRequesterError) throw updateRequesterError;
 
-            Alert.alert("Success", "Join request sent!");
+            setToast({ visible: true, message: "Join request sent!", type: "success" });
             setJoinModalVisible(false);
             setSelectedNeighbourhoodWatch(null);
             setHasPendingRequest(true); // Set pending status for the requester
         } catch (error) {
-            Alert.alert("Error sending join request", error.message);
+            setToast({ visible: true, message: "Error sending join request: " + error.message, type: "error" });
         } finally {
             setLoading(false);
         }
@@ -460,10 +463,10 @@ function ProfileScreen() {
 
                             if (updateUserProfileError) throw updateUserProfileError;
 
-                            Alert.alert("Success", "You have left the Neighbourhood Watch.");
+                            setToast({ visible: true, message: "You have left the Neighbourhood Watch.", type: "success" });
                             fetchProfile(); // Refresh profile data
                         } catch (error) {
-                            Alert.alert("Error", error.message);
+                            setToast({ visible: true, message: "Error leaving Neighbourhood Watch: " + error.message, type: "error" });
                         } finally {
                             setLoading(false);
                         }
@@ -478,149 +481,166 @@ function ProfileScreen() {
     }
 
     return (
-        <ScrollView style={styles.container}>
-            <Text style={styles.title}>Edit Profile</Text>
+        <>
+            <ScrollView style={styles.container}>
+                <Text style={[styles.title]}>Edit Profile</Text>
+                <Text style={styles.description}>You can edit your profile data here.</Text>
 
-            <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
-                {uploading ? (
-                    <ActivityIndicator size="small" />
-                ) : avatarLocalUri ? (
-                    <Image source={{ uri: avatarLocalUri }} style={styles.avatar} />
-                ) : profile.avatar_url ? (
-                    <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-                ) : (
-                    <View style={styles.avatarPlaceholder}>
-                        <Text>Select Avatar</Text>
-                    </View>
-                )}
-            </TouchableOpacity>
+                <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
+                    {uploading ? (
+                        <ActivityIndicator size="small" />
+                    ) : avatarLocalUri ? (
+                        <Image source={{ uri: avatarLocalUri }} style={styles.avatar} />
+                    ) : profile.avatar_url ? (
+                        <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+                    ) : (
+                        <View style={styles.avatarPlaceholder}>
+                            <Text>Select Avatar</Text>
+                        </View>
+                    )}
+                </TouchableOpacity>
 
-            <Text style={styles.inputHeading}>👤 Name</Text>
-            <TextInput
-                style={styles.input}
-                placeholder="Name"
-                value={profile.name}
-                onChangeText={(text) => setProfile({ ...profile, name: text })}
-            />
-            <Text style={styles.inputHeading}>📞 Number</Text>
-            <TextInput
-                style={styles.input}
-                placeholder="Number"
-                keyboardType="phone-pad"
-                value={profile.number}
-                onChangeText={(text) => setProfile({ ...profile, number: text })}
-            />
-            <Text style={styles.inputHeading}>🆘 Emergency Contact</Text>
-            <TextInput
-                style={styles.input}
-                placeholder="Emergency Contact"
-                value={profile.emergency_contact}
-                onChangeText={(text) => setProfile({ ...profile, emergency_contact: text })}
-            />
-            <Text style={styles.inputHeading}>🏠 Street</Text>
-            <TextInput
-                style={styles.input}
-                placeholder="Street"
-                value={profile.street}
-                onChangeText={(text) => setProfile({ ...profile, street: text })}
-            />
+                <Text style={styles.inputHeading}>👤 Name</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Name"
+                    value={profile.name}
+                    onChangeText={(text) => setProfile({ ...profile, name: text })}
+                />
+                <Text style={styles.inputHeading}>📞 Number</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Number"
+                    keyboardType="phone-pad"
+                    value={profile.number}
+                    onChangeText={(text) => setProfile({ ...profile, number: text })}
+                />
+                <Text style={styles.inputHeading}>🆘 Emergency Contact</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Emergency Contact"
+                    value={profile.emergency_contact}
+                    onChangeText={(text) => setProfile({ ...profile, emergency_contact: text })}
+                />
+                <Text style={styles.inputHeading}>🏠 Street</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Street"
+                    value={profile.street}
+                    onChangeText={(text) => setProfile({ ...profile, street: text })}
+                />
 
-            <Text style={styles.inputHeading}>🏘️ Your Neighbourhood Watch</Text>
-            {profile.neighbourhoodwatch && profile.neighbourhoodwatch.length > 0 ? (
-                <View style={styles.neighbourhoodWatchDisplay}>
-                    <Text style={styles.neighbourhoodWatchText}>
-                        {profile.neighbourhoodwatch[0].name}
-                    </Text>
-                    <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveNeighbourhoodWatch}>
-                        <Text style={styles.leaveButtonText}>Leave</Text>
-                    </TouchableOpacity>
-                </View>
-            ) : (
-                <Text style={styles.noNeighbourhoodWatchText}>
-                    You are currently not in a neighbourhood watch.
-                </Text>
-            )}
-
-            {(!profile.neighbourhoodwatch || profile.neighbourhoodwatch.length === 0) && (
-                hasPendingRequest ? (
-                    <Text style={styles.pendingRequestText}>Request pending...</Text>
-                ) : (
-                    <TouchableOpacity style={styles.actionButton} onPress={() => setJoinModalVisible(true)}>
-                        <Text style={styles.actionButtonText}>Join NeighbourhoodWatch</Text>
-                    </TouchableOpacity>
-                )
-            )}
-
-            <Text style={styles.inputHeading}>🚗 Vehicle Info</Text>
-            <TextInput
-                style={styles.input}
-                placeholder="e.g., Blue Honda Civic, License: NW1234"
-                value={profile.vehicle_info}
-                onChangeText={(text) => setProfile({ ...profile, vehicle_info: text })}
-            />
-
-            <TouchableOpacity style={styles.actionButton} onPress={updateProfile}>
-                <Text style={styles.actionButtonText}>Save Profile</Text>
-            </TouchableOpacity>
-
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={joinModalVisible}
-                onRequestClose={() => setJoinModalVisible(false)}
-            >
-                <View style={styles.centeredView}>
-                    <View style={styles.modalView}>
-                        <TouchableOpacity style={styles.closeButton} onPress={() => setJoinModalVisible(false)}>
-                            <Text style={styles.closeButtonText}>X</Text>
+                <Text style={styles.inputHeading}>🏘️ Your Neighbourhood Watch</Text>
+                {profile.neighbourhoodwatch && profile.neighbourhoodwatch.length > 0 ? (
+                    <View style={styles.neighbourhoodWatchDisplay}>
+                        <Text style={styles.neighbourhoodWatchText}>
+                            You are a member of {profile.neighbourhoodwatch[0].name}.
+                        </Text>
+                        <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveNeighbourhoodWatch}>
+                            <Text style={styles.leaveButtonText}>Leave</Text>
                         </TouchableOpacity>
-                        <Text style={styles.modalTitle}>Neighbourhood Selection</Text>
-                        <Text style={styles.modalText}>You can join or create neighbourhood watches here.</Text>
-
-                        <Picker
-                            selectedValue={selectedNeighbourhoodWatch}
-                            style={styles.picker}
-                            onValueChange={(itemValue, itemIndex) =>
-                                setSelectedNeighbourhoodWatch(itemValue)
-                            }>
-                            <Picker.Item key="select-placeholder" label="Select" value={null} />
-                            {availableNeighbourhoodWatches.length > 0 ? (
-                                availableNeighbourhoodWatches.map((nw) => (
-                                    <Picker.Item key={nw.id} label={nw.name} value={nw.id} />
-                                ))
-                            ) : (
-                                <Picker.Item key="no-watches-placeholder" label="No Neighbourhood Watches available" value={null} />
-                            )}
-                        </Picker>
-
-                        {selectedNeighbourhoodWatch && (
-                            <TouchableOpacity style={[styles.modalButton, styles.joinButton]} onPress={handleSendJoinRequest}>
-                                <Text style={styles.modalButtonText}>Send Join Request</Text>
-                            </TouchableOpacity>
-                        )}
-
-                        {showCreateNewInput ? (
-                            <View style={styles.createNewContainer}>
-                                <TextInput
-                                    style={[styles.input, styles.modalInput]}
-                                    placeholder="New Neighbourhood Watch Name"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={newNeighbourhoodWatchName}
-                                    onChangeText={setNewNeighbourhoodWatchName}
-                                />
-                                <TouchableOpacity style={styles.modalButton} onPress={handleCreateNewNeighbourhoodWatch}>
-                                    <Text style={styles.modalButtonText}>Save New Watch</Text>
-                                </TouchableOpacity>
-                            </View>
-                        ) : (
-                            <TouchableOpacity style={styles.modalButton} onPress={() => setShowCreateNewInput(true)}>
-                                <Text style={styles.modalButtonText}>Create Neighbourhood Watch</Text>
-                            </TouchableOpacity>
-                        )}
                     </View>
-                </View>
-            </Modal>
-        </ScrollView>
+                ) : (
+                    <Text style={styles.noNeighbourhoodWatchText}>
+                        You are currently not in a neighbourhood watch.
+                    </Text>
+                )}
+
+                {(!profile.neighbourhoodwatch || profile.neighbourhoodwatch.length === 0) && (
+                    hasPendingRequest ? (
+                        <Text style={styles.pendingRequestText}>Request pending...</Text>
+                    ) : (
+                        <TouchableOpacity style={styles.actionButton} onPress={() => setJoinModalVisible(true)}>
+                            <Text style={styles.actionButtonText}>Join NeighbourhoodWatch</Text>
+                        </TouchableOpacity>
+                    )
+                )}
+
+                <Text style={styles.inputHeading}>🚗 Vehicle Info</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="e.g., Blue Honda Civic, License: NW1234"
+                    value={profile.vehicle_info}
+                    onChangeText={(text) => setProfile({ ...profile, vehicle_info: text })}
+                />
+
+                <TouchableOpacity
+                    style={[styles.actionButton, isSavingProfile && styles.actionButtonLoading]}
+                    onPress={updateProfile}
+                    disabled={isSavingProfile}
+                >
+                    {isSavingProfile ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                        <Text style={styles.actionButtonText}>Save Profile</Text>
+                    )}
+                </TouchableOpacity>
+
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={joinModalVisible}
+                    onRequestClose={() => setJoinModalVisible(false)}
+                >
+                    <View style={styles.centeredView}>
+                        <View style={styles.modalView}>
+                            <TouchableOpacity style={styles.closeButton} onPress={() => setJoinModalVisible(false)}>
+                                <Text style={styles.closeButtonText}>X</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.modalTitle}>Neighbourhood Selection</Text>
+                            <Text style={styles.modalText}>You can join or create neighbourhood watches here.</Text>
+
+                            <Picker
+                                selectedValue={selectedNeighbourhoodWatch}
+                                style={styles.picker}
+                                onValueChange={(itemValue, itemIndex) =>
+                                    setSelectedNeighbourhoodWatch(itemValue)
+                                }>
+                                <Picker.Item key="select-placeholder" label="Select" value={null} />
+                                {availableNeighbourhoodWatches.length > 0 ? (
+                                    availableNeighbourhoodWatches.map((nw) => (
+                                        <Picker.Item key={nw.id} label={nw.name} value={nw.id} />
+                                    ))
+                                ) : (
+                                    <Picker.Item key="no-watches-placeholder" label="No Neighbourhood Watches available" value={null} />
+                                )}
+                            </Picker>
+
+                            {selectedNeighbourhoodWatch && (
+                                <TouchableOpacity style={[styles.modalButton, styles.joinButton]} onPress={handleSendJoinRequest}>
+                                    <Text style={styles.modalButtonText}>Send Join Request</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {showCreateNewInput ? (
+                                <View style={styles.createNewContainer}>
+                                    <TextInput
+                                        style={[styles.input, styles.modalInput]}
+                                        placeholder="New Neighbourhood Watch Name"
+                                        placeholderTextColor="#9CA3AF"
+                                        value={newNeighbourhoodWatchName}
+                                        onChangeText={setNewNeighbourhoodWatchName}
+                                    />
+                                    <TouchableOpacity style={styles.modalButton} onPress={handleCreateNewNeighbourhoodWatch}>
+                                        <Text style={styles.modalButtonText}>Save New Watch</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <TouchableOpacity style={styles.modalButton} onPress={() => setShowCreateNewInput(true)}>
+                                    <Text style={styles.modalButtonText}>Create Neighbourhood Watch</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+                </Modal>
+            </ScrollView>
+            <Toast
+                visible={toast.visible}
+                message={toast.message}
+                type={toast.type}
+                onHide={() => setToast({ ...toast, visible: false })}
+            />
+        </>
     );
 }
 
@@ -638,8 +658,15 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: "700",
-        marginBottom: 20,
+        marginBottom: 10,
         color: "#4338ca",
+        textAlign: 'center'
+    },
+    description: {
+        fontSize: 14,
+        color: "#6b7280",
+        marginBottom: 20,
+        textAlign: "center",
     },
     input: {
         borderWidth: 1,
@@ -690,17 +717,20 @@ const styles = StyleSheet.create({
         textAlign: "center",
     },
     actionButton: {
-        backgroundColor: "#14b8a6", 
+        backgroundColor: "#1f2937",
         padding: 15,
         borderRadius: 8,
         alignItems: "center",
         marginTop: 10,
-        marginBottom: 60, // Increased margin to push button further above navigation
+        marginBottom: 60,
     },
     actionButtonText: {
         color: "white",
         fontSize: 16,
         fontWeight: "bold",
+    },
+    actionButtonLoading: {
+        backgroundColor: "#a5b4fc", // A lighter shade to indicate loading
     },
     centeredView: {
         flex: 1,

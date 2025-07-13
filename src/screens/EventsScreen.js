@@ -12,6 +12,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../lib/supabase";
 import { Calendar } from "react-native-calendars";
+import Toast from "../components/Toast";
 
 // Helper functions
 const formatFullEventRange = (start, end) => {
@@ -169,6 +170,7 @@ const EventsScreen = ({ route, navigation }) => {
     const [dayEvents, setDayEvents] = useState([]);
     const [isDayEventsModalVisible, setDayEventsModalVisible] = useState(false);
     const [showEvents, setShowEvents] = useState(false);
+    const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
     const eventRefs = useRef({});
 
     const isImageUrl = (str) => typeof str === "string" && str.startsWith("http");
@@ -338,6 +340,12 @@ const EventsScreen = ({ route, navigation }) => {
 
     return (
         <>
+            <Toast
+                visible={toast.visible}
+                message={toast.message}
+                type={toast.type}
+                onHide={() => setToast({ ...toast, visible: false })}
+            />
             <ScrollView
                 style={styles.container}
                 contentContainerStyle={styles.scrollViewContent}
@@ -351,7 +359,12 @@ const EventsScreen = ({ route, navigation }) => {
 
                     <TouchableOpacity
                         style={styles.buttonSecondary}
-                        onPress={() => navigation.navigate("AddEventScreen", { groupId })}
+                        onPress={() => navigation.navigate("AddEventScreen", { 
+                            groupId, 
+                            onEventAdded: (message) => {
+                                setToast({ visible: true, message, type: "success" });
+                            }
+                        })}
                     >
                         <Text style={styles.buttonSecondaryText}>Add Event</Text>
                     </TouchableOpacity>

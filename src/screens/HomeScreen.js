@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../lib/supabase";
+import Toast from "../components/Toast";
 
 const LoadingState = () => (
   <ScrollView style={styles.container} contentContainerStyle={styles.scrollPadding}>
@@ -52,6 +53,7 @@ export default function HomeScreen({ route, navigation }) {
   const [userRole, setUserRole] = useState(null);
   const [userName, setUserName] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
 
   const fetchGroupData = async () => {
     if (!groupId) return;
@@ -108,13 +110,20 @@ export default function HomeScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollPadding}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
+    <>
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast(prevToast => ({ ...prevToast, visible: false }))}
+      />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollPadding}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
       {/* Header Section */}
       {groupData.main_image && (
         <Image source={{ uri: groupData.main_image }} style={styles.headerImage} />
@@ -141,7 +150,12 @@ export default function HomeScreen({ route, navigation }) {
           <Text style={styles.sectionTitle}>🗓️ Upcoming Events</Text>
           {userRole === 'Admin' && (
             <TouchableOpacity
-              onPress={() => navigation.navigate("AddEventScreen", { groupId })}
+              onPress={() => navigation.navigate("AddEventScreen", {
+                groupId,
+                onEventAdded: (message) => {
+                  setToast({ visible: true, message, type: "success", duration: 4000 }); // Show for 4 seconds
+                },
+              })}
             >
               <Text style={styles.link}>+ Add</Text>
             </TouchableOpacity>
@@ -186,7 +200,12 @@ export default function HomeScreen({ route, navigation }) {
           <Text style={styles.sectionTitle}>📰 Community News</Text>
           {userRole === 'Admin' && (
             <TouchableOpacity
-              onPress={() => navigation.navigate("AddNewsScreen", { groupId })}
+              onPress={() => navigation.navigate("AddNewsScreen", {
+                groupId,
+                onStoryAdded: (message) => {
+                  setToast({ visible: true, message, type: "success" });
+                },
+              })}
             >
               <Text style={styles.link}>+ Add</Text>
             </TouchableOpacity>
@@ -215,6 +234,7 @@ export default function HomeScreen({ route, navigation }) {
         ))}
       </View>
     </ScrollView>
+    </>
   );
 }
 

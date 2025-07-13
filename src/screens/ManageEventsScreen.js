@@ -6,15 +6,17 @@ import {
     StyleSheet,
     Image,
     Alert,
-    Pressable,
+    TouchableOpacity,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
+import Toast from "../components/Toast";
 
 const ManageEventsScreen = ({ route, navigation }) => {
     const { groupId } = route.params;
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
 
     const fetchEvents = async () => {
         setLoading(true);
@@ -25,9 +27,18 @@ const ManageEventsScreen = ({ route, navigation }) => {
             .single();
 
         if (data?.events) {
-            setEvents(data.events);
+            const colors = [
+                "#ffadad", "#ffd6a5", "#fdffb6", "#caffbf",
+                "#9bf6ff", "#a0c4ff", "#bdb2ff", "#ffc6ff",
+            ];
+            const eventsWithColors = data.events.map((event, index) => ({
+                ...event,
+                color: colors[index % colors.length],
+            }));
+            setEvents(eventsWithColors);
         } else if (error) {
             console.error('Error fetching events:', error.message);
+            setToast({ visible: true, message: "Error fetching events: " + error.message, type: "error" });
         }
         setLoading(false);
     };
@@ -51,7 +62,7 @@ const ManageEventsScreen = ({ route, navigation }) => {
                         .single();
 
                     if (error) {
-                        Alert.alert('Error', 'Failed to fetch events for deletion.');
+                        setToast({ visible: true, message: "Error: Failed to fetch events for deletion.", type: "error" });
                         return;
                     }
 
@@ -63,10 +74,10 @@ const ManageEventsScreen = ({ route, navigation }) => {
                         .eq('id', groupId);
 
                     if (updateError) {
-                        Alert.alert('Error', 'Failed to delete event.');
+                        setToast({ visible: true, message: "Error: Failed to delete event.", type: "error" });
                     } else {
                         setEvents(updatedEvents);
-                        Alert.alert('Success', 'Event deleted successfully.');
+                        setToast({ visible: true, message: "Event deleted successfully.", type: "success" });
                     }
                 },
             },
@@ -108,7 +119,14 @@ const ManageEventsScreen = ({ route, navigation }) => {
     }
 
     return (
-        <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
+        <>
+            <Toast
+                visible={toast.visible}
+                message={toast.message}
+                type={toast.type}
+                onHide={() => setToast({ ...toast, visible: false })}
+            />
+            <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
             <View style={styles.headerRow}>
                 <View style={styles.headingContainer}>
                     <Text style={styles.headingIcon}>🗓️</Text>
@@ -122,69 +140,90 @@ const ManageEventsScreen = ({ route, navigation }) => {
                 <Text style={styles.noEventsText}>No events found.</Text>
             ) : (
                 events.map((event, index) => (
-                    <View key={event.id ?? index.toString()} style={styles.card}>
-                        {event.image && event.image !== '🗓️' ? (
-                            <Image source={{ uri: event.image }} style={styles.cardImage} />
-                        ) : (
-                            <View style={[styles.cardImage, styles.noImage, styles.emojiContainer]}>
-                                <Text style={styles.emoji}>{event.image === '🗓️' ? '🗓️' : 'No Image'}</Text>
+                    <TouchableOpacity
+                        key={event.id ?? index.toString()}
+                        style={[styles.eventCard, { borderLeftColor: event.color || "#4b5563", borderLeftWidth: 4 }]} // Assuming event.color is set like in EventsScreen
+                        activeOpacity={0.85}
+                    >
+                        <View style={styles.eventCardLeft}>
+                            {event.image && event.image !== '🗓️' ? (
+                                <Image source={{ uri: event.image }} style={styles.eventCardImage} />
+                            ) : (
+                                <View style={styles.eventCardEmojiCircle}>
+                                    <Text style={styles.eventCardEmoji}>{event.image || "📅"}</Text>
+                                </View>
+                            )}
+                        </View>
+
+                        <View style={styles.eventCardRight}>
+                            <View style={{ marginBottom: 8 }}>
+                                <Text style={styles.eventTitle}>{event.title}</Text>
+                                {event.location ? (
+                                    <Text style={styles.eventLocation}>📍 {event.location}</Text>
+                                ) : null}
                             </View>
-                        )}
-
-                        <View style={styles.overlay} />
-
-                        <View style={styles.cardContent}>
-                            <Text style={styles.eventTitle} numberOfLines={2}>
-                                {event.title}
-                            </Text>
-
-                            <View style={styles.dateRow}>
-                                <Text style={styles.dateIcon}>📅</Text>
-                                <Text style={styles.dateText}>
-                                    {new Date(event.startDate).toLocaleDateString(undefined, {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        year: 'numeric',
-                                    })}
-                                    {' — '}
-                                    {new Date(event.endDate).toLocaleDateString(undefined, {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        year: 'numeric',
-                                    })}
-                                </Text>
+                            <View style={styles.eventMetaContainer}>
+                                <Text style={styles.eventIcon}>🕒</Text>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.eventDateText}>
+                                        Start:{" "}
+                                        {new Date(event.startDate).toLocaleDateString("en-US", {
+                                            weekday: "long",
+                                            month: "long",
+                                            day: "numeric",
+                                            year: "numeric",
+                                        })}
+                                        ,{", "}
+                                        {new Date(event.startDate).toLocaleTimeString("en-US", {
+                                            hour: "numeric",
+                                            minute: "2-digit",
+                                            hour12: true,
+                                        })}
+                                    </Text>
+                                    <Text style={styles.eventDateText}>
+                                        End:{" "}
+                                        {new Date(event.endDate).toLocaleDateString("en-US", {
+                                            weekday: "long",
+                                            month: "long",
+                                            day: "numeric",
+                                            year: "numeric",
+                                        })}
+                                        ,{", "}
+                                        {new Date(event.endDate).toLocaleTimeString("en-US", {
+                                            hour: "numeric",
+                                            minute: "2-digit",
+                                            hour12: true,
+                                        })}
+                                    </Text>
+                                </View>
                             </View>
-
                             <View style={styles.buttonsRow}>
-                                <Pressable
-                                    android_ripple={{ color: '#4f46e5' }}
-                                    style={({ pressed }) => [
-                                        styles.button,
-                                        styles.editButton,
-                                        pressed && styles.buttonPressed,
-                                    ]}
-                                    onPress={() => navigation.navigate('AddEventScreen', { groupId, eventToEdit: event })}
+                                <TouchableOpacity
+                                    style={[styles.button, styles.editButton]}
+                                    onPress={() => navigation.navigate('AddEventScreen', { 
+                                        groupId, 
+                                        eventToEdit: event, 
+                                        onEventUpdated: (message) => {
+                                            setToast({ visible: true, message, type: "success" });
+                                        }
+                                    })}
                                 >
                                     <Text style={styles.buttonText}>Edit</Text>
-                                </Pressable>
+                                </TouchableOpacity>
 
-                                <Pressable
-                                    android_ripple={{ color: '#dc2626' }}
-                                    style={({ pressed }) => [
-                                        styles.button,
-                                        styles.deleteButton,
-                                        pressed && styles.buttonPressed,
-                                    ]}
+                                <TouchableOpacity
+                                    style={[styles.button, styles.deleteButton]}
                                     onPress={() => handleDelete(event.id)}
                                 >
                                     <Text style={styles.buttonText}>Delete</Text>
-                                </Pressable>
+                                </TouchableOpacity>
                             </View>
                         </View>
-                    </View>
+                    </TouchableOpacity>
                 ))
             )}
         </ScrollView>
+        </>
     );
 };
 
@@ -230,6 +269,72 @@ const styles = StyleSheet.create({
     },
 
     // Card styles
+    eventCard: {
+        flexDirection: "row",
+        backgroundColor: "#1f2937",
+        borderRadius: 12,
+        marginBottom: 14,
+        alignItems: "flex-start",
+        height: 160,
+        padding: 12,
+    },
+    eventCardLeft: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        marginRight: 14,
+        overflow: "hidden",
+        backgroundColor: "#374151",
+        justifyContent: "center",
+        alignItems: "center",
+        marginTop: 6,
+        borderWidth: 2,
+        borderColor: "#4b5563",
+    },
+    eventCardImage: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        resizeMode: "cover",
+    },
+    eventCardEmojiCircle: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: "#374151",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    eventCardEmoji: {
+        fontSize: 30,
+    },
+    eventCardRight: {
+        flex: 1,
+        justifyContent: "space-between",
+    },
+    eventTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: "#fff",
+    },
+    eventLocation: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#9ca3af",
+    },
+    eventMetaContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    eventIcon: {
+        fontSize: 22,
+        marginRight: 8,
+        color: "#9ca3af",
+    },
+    eventDateText: {
+        color: "#d1d5db",
+        fontSize: 12,
+    },
     card: {
         backgroundColor: '#1e293b',
         borderRadius: 16,
@@ -265,12 +370,6 @@ const styles = StyleSheet.create({
         padding: 16,
         backgroundColor: 'rgba(31, 41, 55, 0.9)',
     },
-    eventTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: '#e0e7ff',
-        marginBottom: 8,
-    },
     dateRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -289,6 +388,7 @@ const styles = StyleSheet.create({
     buttonsRow: {
         flexDirection: 'row',
         justifyContent: 'flex-start',
+        marginTop: 12,
     },
     button: {
         paddingVertical: 8,
