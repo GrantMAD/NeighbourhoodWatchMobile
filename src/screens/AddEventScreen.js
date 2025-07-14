@@ -297,6 +297,10 @@ const AddEventScreen = ({ route, navigation }) => {
     <View style={{ flex: 1 }}>
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.container}>
+        <Text style={styles.heading}>{isEditMode ? "Edit Event" : "Add a New Event"}</Text>
+        <Text style={styles.description}>
+          {isEditMode ? "Edit the details of the event below." : "Create and share new events with your group members."}
+        </Text>
         <Text style={styles.label}>Title *</Text>
         <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Enter event title" />
 
@@ -327,7 +331,7 @@ const AddEventScreen = ({ route, navigation }) => {
         </TouchableOpacity>
 
         <Text style={styles.label}>Select Event Date Range *</Text>
-        <View style={{ backgroundColor: "#ffffff", borderRadius: 12, marginBottom: 20 }}>
+        <View style={{ backgroundColor: "#ffffff", borderRadius: 12, marginBottom: 20, marginTop: 10 }}>
           <Calendar
             markingType="period"
             markedDates={getMarkedDates()}
@@ -462,6 +466,19 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#ffffff',
     fontWeight: 'bold',
+  },
+  heading: {
+    fontSize: 24,
+    fontWeight: "700",
+    marginBottom: 8,
+    color: "#1f2937",
+    textAlign: "center",
+  },
+  description: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 16,
+    textAlign: "center",
   },
 });
 

@@ -255,16 +255,11 @@ const MembersScreen = ({ route }) => {
                   onPress={() => toggleGroupExpansion(groupName)}
                   style={styles.groupHeader}
                 >
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Text style={styles.groupTitle}>🏘️ {groupName}</Text>
-                    <View style={styles.hr} />
                     <View style={styles.memberCountContainer}>
-                      <Text style={styles.memberCountText}>
-                        👥 {membersInGroup.length} Members
-                      </Text>
-                      <Text style={styles.memberCountText}>
-                        ✅ {membersInGroup.filter(m => m.checked_in).length} Checked In
-                      </Text>
+                      <Text style={styles.memberCountText}>👥 {membersInGroup.length}</Text>
+                      <Text style={styles.memberCountText}>✅ {membersInGroup.filter(m => m.checked_in).length}</Text>
                     </View>
                   </View>
                   <Text style={styles.groupToggleIcon}>
@@ -480,19 +475,13 @@ const styles = StyleSheet.create({
   },
   memberCountContainer: {
     flexDirection: 'row',
-    marginTop: 8,
+    alignItems: 'center',
+    marginLeft: 10, // Add some space between group name and counts
   },
   memberCountText: {
     fontSize: 14,
     color: '#bdc3c7', // Softer grey for secondary info
     marginRight: 16,
-  },
-  hr: {
-    height: 1,
-    backgroundColor: '#34495e',
-    marginTop: 8,
-    marginBottom: 8,
-    width: '50%',
   },
   groupContent: {
     paddingHorizontal: 10,

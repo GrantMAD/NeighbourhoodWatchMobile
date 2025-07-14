@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
     View,
     Text,
@@ -8,6 +8,7 @@ import {
     TouchableOpacity,
     RefreshControl,
     Modal,
+    ActivityIndicator,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../lib/supabase";
@@ -22,13 +23,10 @@ const formatFullEventRange = (start, end) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
 
-    return `${startDate.toLocaleDateString("en-US", optionsDate)}, ${startDate.toLocaleTimeString(
-        "en-US",
-        optionsTime
-    )} - ${endDate.toLocaleDateString("en-US", optionsDate)}, ${endDate.toLocaleTimeString(
-        "en-US",
-        optionsTime
-    )}`;
+    return (
+        `Start: ${startDate.toLocaleDateString("en-US", optionsDate)}, ${startDate.toLocaleTimeString("en-US", optionsTime)}\n` +
+        `End: ${endDate.toLocaleDateString("en-US", optionsDate)}, ${endDate.toLocaleTimeString("en-US", optionsTime)}`
+    );
 };
 
 // Modal for event details
@@ -70,27 +68,8 @@ const EventModal = ({ visible, onClose, event }) => {
                             <View style={[styles.modalRow, { alignItems: "flex-start", marginBottom: 12 }]}>
                                 <Text style={[styles.modalIcon, { marginTop: 4 }]}>🕒</Text>
                                 <View style={{ flexDirection: "column" }}>
-                                    <Text style={[styles.modalDetailText, { marginBottom: 2 }]}>
-                                        Start: {new Date(event.startDate).toLocaleString("en-US", {
-                                            weekday: "long",
-                                            month: "long",
-                                            day: "numeric",
-                                            year: "numeric",
-                                            hour: "numeric",
-                                            minute: "2-digit",
-                                            hour12: true,
-                                        })}
-                                    </Text>
-                                    <Text style={styles.modalDetailText}>
-                                        End: {new Date(event.endDate).toLocaleString("en-US", {
-                                            weekday: "long",
-                                            month: "long",
-                                            day: "numeric",
-                                            year: "numeric",
-                                            hour: "numeric",
-                                            minute: "2-digit",
-                                            hour12: true,
-                                        })}
+                                    <Text style={[styles.modalDetailText, { marginBottom: 2, whiteSpace: 'pre-line' }]}>
+                                        {formatFullEventRange(event.startDate, event.endDate)}
                                     </Text>
                                 </View>
                             </View>
@@ -107,7 +86,7 @@ const EventModal = ({ visible, onClose, event }) => {
     );
 };
 
-const DayEventsModal = ({ visible, onClose, events, onEventPress }) => {
+const DayEventsModal = ({ visible, onClose, events, onEventPress, loadingDayEventId }) => {
     if (!events || events.length === 0) return null;
 
     const isImageUrl = (str) => typeof str === "string" && str.startsWith("http");
@@ -131,17 +110,32 @@ const DayEventsModal = ({ visible, onClose, events, onEventPress }) => {
                                         borderLeftWidth: 4,
                                         borderLeftColor: event.color || "#4b5563",
                                         paddingLeft: 12,
+                                        justifyContent: "space-between", // distribute title and icon horizontally
                                     },
+                                    loadingDayEventId === event.id && styles.dayEventContainerLoading,
                                 ]}
+                                disabled={loadingDayEventId === event.id}
                             >
-                                {isImageUrl(event.image) ? (
-                                    <Image source={{ uri: event.image }} style={styles.dayEventImage} />
-                                ) : (
-                                    <View style={styles.dayEventEmojiCircle}>
-                                        <Text style={styles.dayEventEmoji}>{event.image || "📅"}</Text>
+                                <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                                    {isImageUrl(event.image) ? (
+                                        <Image source={{ uri: event.image }} style={styles.dayEventImage} />
+                                    ) : (
+                                        <View style={styles.dayEventEmojiCircle}>
+                                            <Text style={styles.dayEventEmoji}>{event.image || "📅"}</Text>
+                                        </View>
+                                    )}
+                                    <Text style={[styles.dayEventText, { marginLeft: 8, flexShrink: 1 }]}>
+                                        {event.title}
+                                    </Text>
+                                </View>
+
+                                {/* Eye icon on the right */}
+                                <Text style={{ fontSize: 18, color: "#9ca3af", marginLeft: 10, marginRight: 12 }}>👁️</Text>
+                                {loadingDayEventId === event.id && (
+                                    <View style={styles.dayEventLoadingOverlay}>
+                                        <ActivityIndicator size="large" color="#22d3ee" />
                                     </View>
                                 )}
-                                <Text style={styles.dayEventText}>{event.title}</Text>
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
@@ -171,7 +165,25 @@ const EventsScreen = ({ route, navigation }) => {
     const [isDayEventsModalVisible, setDayEventsModalVisible] = useState(false);
     const [showEvents, setShowEvents] = useState(false);
     const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+    const [loadingEventId, setLoadingEventId] = useState(null);
+    const [loadingDayEventId, setLoadingDayEventId] = useState(null);
     const eventRefs = useRef({});
+
+    useEffect(() => {
+        if (route.params?.selectedEvent) {
+            const openEventFromParams = async () => {
+                const event = route.params.selectedEvent;
+                const updatedViews = await incrementEventViews(event.id);
+                if (updatedViews !== null) {
+                    setSelectedEvent({ ...event, views: updatedViews });
+                } else {
+                    setSelectedEvent(event);
+                }
+                setModalVisible(true);
+            };
+            openEventFromParams();
+        }
+    }, [route.params?.selectedEvent]);
 
     const isImageUrl = (str) => typeof str === "string" && str.startsWith("http");
 
@@ -229,6 +241,48 @@ const EventsScreen = ({ route, navigation }) => {
         setLoading(false);
     };
 
+    const incrementEventViews = async (eventId) => {
+        try {
+            // Get current events from Supabase
+            const { data, error } = await supabase
+                .from("groups")
+                .select("events")
+                .eq("id", groupId)
+                .single();
+
+            if (error) {
+                console.error("Error fetching events before updating views:", error.message);
+                return null;
+            }
+            if (!data?.events) return null;
+
+            // Clone events and find the target event
+            const eventsCopy = [...data.events];
+            const eventIndex = eventsCopy.findIndex((e) => e.id === eventId);
+            if (eventIndex === -1) return null;
+
+            // Increment views safely
+            eventsCopy[eventIndex].views = (eventsCopy[eventIndex].views || 0) + 1;
+
+            // Update in Supabase
+            const { error: updateError } = await supabase
+                .from("groups")
+                .update({ events: eventsCopy })
+                .eq("id", groupId);
+
+            if (updateError) {
+                console.error("Error updating event views:", updateError.message);
+                return null;
+            }
+
+            // Return new views count
+            return eventsCopy[eventIndex].views;
+        } catch (err) {
+            console.error("Unexpected error updating event views:", err);
+            return null;
+        }
+    };
+
     useFocusEffect(
         useCallback(() => {
             fetchEvents();
@@ -254,9 +308,18 @@ const EventsScreen = ({ route, navigation }) => {
         }
     };
 
-    const onEventPress = (event) => {
+    const onEventPress = async (event) => {
+        setLoadingDayEventId(event.id);
+
+        const updatedViews = await incrementEventViews(event.id);
+
         setDayEventsModalVisible(false);
-        setSelectedEvent(event);
+        if (updatedViews !== null) {
+            setSelectedEvent({ ...event, views: updatedViews });
+        } else {
+            setSelectedEvent(event);
+        }
+        setLoadingDayEventId(null);
     };
 
     // Categorize events
@@ -277,10 +340,25 @@ const EventsScreen = ({ route, navigation }) => {
         return (
             <TouchableOpacity
                 key={event.id || index}
-                style={[styles.eventCard, { borderLeftColor: color, borderLeftWidth: 4 }]}
+                style={[styles.eventCard, { borderLeftColor: color, borderLeftWidth: 4 }, loadingEventId === event.id && styles.eventCardLoading]}
                 activeOpacity={0.85}
-                onPress={() => setSelectedEvent(event)}
+                disabled={loadingEventId === event.id}
+                onPress={async () => {
+                    setLoadingEventId(event.id);
+                    const updatedViews = await incrementEventViews(event.id);
+                    if (updatedViews !== null) {
+                        setSelectedEvent({ ...event, views: updatedViews });
+                    } else {
+                        setSelectedEvent(event);
+                    }
+                    setLoadingEventId(null);
+                }}
             >
+                {loadingEventId === event.id && (
+                    <View style={styles.eventCardLoadingOverlay}>
+                        <ActivityIndicator size="large" color="#22d3ee" />
+                    </View>
+                )}
                 <View style={styles.eventCardLeft}>
                     {isImageUrl(event.image) ? (
                         <Image source={{ uri: event.image }} style={styles.eventCardImage} />
@@ -302,34 +380,7 @@ const EventsScreen = ({ route, navigation }) => {
                         <Text style={styles.eventIcon}>🕒</Text>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.eventDateText}>
-                                Start:{" "}
-                                {new Date(event.startDate).toLocaleDateString("en-US", {
-                                    weekday: "long",
-                                    month: "long",
-                                    day: "numeric",
-                                    year: "numeric",
-                                })}
-                                ,{" "}
-                                {new Date(event.startDate).toLocaleTimeString("en-US", {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                    hour12: true,
-                                })}
-                            </Text>
-                            <Text style={styles.eventDateText}>
-                                End:{" "}
-                                {new Date(event.endDate).toLocaleDateString("en-US", {
-                                    weekday: "long",
-                                    month: "long",
-                                    day: "numeric",
-                                    year: "numeric",
-                                })}
-                                ,{" "}
-                                {new Date(event.endDate).toLocaleTimeString("en-US", {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                    hour12: true,
-                                })}
+                                {formatFullEventRange(event.startDate, event.endDate)}
                             </Text>
                         </View>
                     </View>
@@ -358,15 +409,14 @@ const EventsScreen = ({ route, navigation }) => {
                     </View>
 
                     <TouchableOpacity
-                        style={styles.buttonSecondary}
-                        onPress={() => navigation.navigate("AddEventScreen", { 
-                            groupId, 
+                        onPress={() => navigation.navigate("AddEventScreen", {
+                            groupId,
                             onEventAdded: (message) => {
                                 setToast({ visible: true, message, type: "success" });
                             }
                         })}
                     >
-                        <Text style={styles.buttonSecondaryText}>Add Event</Text>
+                        <Text style={styles.link}>+ Add Event</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -477,6 +527,7 @@ const EventsScreen = ({ route, navigation }) => {
                 onClose={() => setDayEventsModalVisible(false)}
                 events={dayEvents}
                 onEventPress={onEventPress}
+                loadingDayEventId={loadingDayEventId}
             />
         </>
     );
@@ -510,6 +561,11 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: "700",
         color: "#111827",
+    },
+    link: {
+        color: '#3b82f6',
+        fontSize: 16,
+        fontWeight: '600',
     },
     buttonSecondary: {
         backgroundColor: "#1f2937",
@@ -691,9 +747,9 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         borderBottomColor: "#374151",
         borderBottomWidth: 1,
-        backgroundColor: "#111827", 
-        borderRadius: 8, 
-        marginBottom: 8, 
+        backgroundColor: "#111827",
+        borderRadius: 8,
+        marginBottom: 8,
     },
     dayEventImage: {
         width: 40,
@@ -738,6 +794,34 @@ const styles = StyleSheet.create({
         fontWeight: "400",
         textAlign: "center",
         marginBottom: 12,
+    },
+    eventCardLoading: {
+        opacity: 0.7,
+    },
+    eventCardLoadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1,
+    },
+    dayEventContainerLoading: {
+        opacity: 0.5,
+    },
+    dayEventLoadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1,
     },
 });
 

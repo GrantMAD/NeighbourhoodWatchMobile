@@ -112,11 +112,11 @@ const LoadingState = () => (
             View and submit incidents reported by community members.
         </Text>
         <View style={styles.actions}>
-            <TouchableOpacity style={styles.button} onPress={() => {}} disabled={true}>
-                <Text style={styles.buttonText}>Submit Report</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => {}} disabled={true}>
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => { }} disabled={true}>
                 <Text style={styles.secondaryButtonText}>Sort: Date (Newest)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => { }} disabled={true}>
+                <Text style={styles.link}>+ Add Report</Text>
             </TouchableOpacity>
         </View>
         {[...Array(3)].map((_, i) => (
@@ -132,6 +132,7 @@ const IncidentScreen = ({ navigation, route }) => {
     const [selectedReport, setSelectedReport] = useState(null);
     const [sortOrder, setSortOrder] = useState("date_newest"); // "date_newest", "date_oldest", "severity_high", "severity_low"
     const [dropdownVisible, setDropdownVisible] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
 
     const handleAddReport = () => {
@@ -253,92 +254,92 @@ const IncidentScreen = ({ navigation, route }) => {
                 onHide={() => setToast({ ...toast, visible: false })}
             />
             <ScrollView style={styles.container} contentContainerStyle={styles.scrollViewContent}>
-            <Text style={styles.heading}>Incident Reports</Text>
-            <Text style={styles.description}>
-                View and submit incidents reported by community members.
-            </Text>
+                <Text style={styles.heading}>Incident Reports</Text>
+                <Text style={styles.description}>
+                    View and submit incidents reported by community members.
+                </Text>
 
-            <View style={styles.actions}>
-                <TouchableOpacity style={styles.button} onPress={handleAddReport}>
-                    <Text style={styles.buttonText}>Submit Report</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => setDropdownVisible(!dropdownVisible)}>
-                    <Text style={styles.secondaryButtonText}>
-                        Sort: {
-                            sortOrder === "date_newest" ? "Date (Newest)" :
-                            sortOrder === "date_oldest" ? "Date (Oldest)" :
-                            sortOrder === "severity_high" ? "Severity (High)" :
-                            "Severity (Low)"
-                        }
-                    </Text>
-                </TouchableOpacity>
-                {dropdownVisible && (
-                    <View style={styles.dropdownContainer}>
-                        <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("date_newest")}>
-                            <Text style={styles.dropdownItemText}>Date (Newest)</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("date_oldest")}>
-                            <Text style={styles.dropdownItemText}>Date (Oldest)</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("severity_high")}>
-                            <Text style={styles.dropdownItemText}>Severity (High)</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("severity_medium")}>
-                            <Text style={styles.dropdownItemText}>Severity (Medium)</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("severity_low")}>
-                            <Text style={styles.dropdownItemText}>Severity (Low)</Text>
-                        </TouchableOpacity>
-                    </View>
+                <View style={styles.actions}>
+                    <TouchableOpacity style={styles.secondaryButton} onPress={() => setDropdownVisible(!dropdownVisible)}>
+                        <Text style={styles.secondaryButtonText}>
+                            Sort: {
+                                sortOrder === "date_newest" ? "Date (Newest)" :
+                                    sortOrder === "date_oldest" ? "Date (Oldest)" :
+                                        sortOrder === "severity_high" ? "Severity (High)" :
+                                            "Severity (Low)"
+                            }
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleAddReport}>
+                        <Text style={styles.link}>+ Add Report</Text>
+                    </TouchableOpacity>
+                    {dropdownVisible && (
+                        <View style={styles.dropdownContainer}>
+                            <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("date_newest")}>
+                                <Text style={styles.dropdownItemText}>Date (Newest)</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("date_oldest")}>
+                                <Text style={styles.dropdownItemText}>Date (Oldest)</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("severity_high")}>
+                                <Text style={styles.dropdownItemText}>Severity (High)</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("severity_medium")}>
+                                <Text style={styles.dropdownItemText}>Severity (Medium)</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.dropdownItem} onPress={() => handleSortSelect("severity_low")}>
+                                <Text style={styles.dropdownItemText}>Severity (Low)</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+
+                {!loading && reports.length === 0 && (
+                    <Text style={styles.emptyText}>No reports found.</Text>
                 )}
-            </View>
 
-            {!loading && reports.length === 0 && (
-                <Text style={styles.emptyText}>No reports found.</Text>
-            )}
-
-            {!loading &&
-                reports.map((report, index) => {
-                    const id = report.id ?? index;
-                    const severityColor = getSeverityColor(report.severity_tag);
-                    return (
-                        <TouchableOpacity
-                            key={id}
-                            style={styles.reportCard}
-                            onPress={() => setSelectedReport(report)}
-                        >
-                            <View style={styles.cardHeader}>
-                                <View style={styles.leftHeaderGroup}>
-                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                                        <Text style={{ fontSize: 24 }}>⚠️</Text>
-                                        <Text style={styles.cardTitle}>{report.title || "Untitled"}</Text>
+                {!loading &&
+                    reports.map((report, index) => {
+                        const id = report.id ?? index;
+                        const severityColor = getSeverityColor(report.severity_tag);
+                        return (
+                            <TouchableOpacity
+                                key={id}
+                                style={styles.reportCard}
+                                onPress={() => setSelectedReport(report)}
+                            >
+                                <View style={styles.cardHeader}>
+                                    <View style={styles.leftHeaderGroup}>
+                                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                            <Text style={{ fontSize: 24 }}>⚠️</Text>
+                                            <Text style={styles.cardTitle}>{report.title || "Untitled"}</Text>
+                                        </View>
+                                        <Text style={styles.cardSubtitle}>
+                                            🗓️ Reported on: {report.date_of_incident
+                                                ? new Date(report.date_of_incident).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
+                                                : "No Date"}
+                                        </Text>
+                                        <Text style={styles.cardPatrollerName}>
+                                            👮 Added by: {report.reporterName}
+                                        </Text>
                                     </View>
-                                    <Text style={styles.cardSubtitle}>
-                                        🗓️ Reported on: {report.date_of_incident
-                                            ? new Date(report.date_of_incident).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
-                                            : "No Date"}
-                                    </Text>
-                                    <Text style={styles.cardPatrollerName}>
-                                        👮 Added by: {report.reporterName}
-                                    </Text>
-                                </View>
 
-                                <View style={[styles.severityTag, { backgroundColor: severityColor }]}>
-                                    <Text style={styles.severityText}>
-                                        {report.severity_tag?.toUpperCase() || "N/A"}
-                                    </Text>
+                                    <View style={[styles.severityTag, { backgroundColor: severityColor }]}>
+                                        <Text style={styles.severityText}>
+                                            {report.severity_tag?.toUpperCase() || "N/A"}
+                                        </Text>
+                                    </View>
                                 </View>
-                            </View>
-                        </TouchableOpacity>
-                    );
-                })}
-            <IncidentModal
-                visible={!!selectedReport}
-                onClose={() => setSelectedReport(null)}
-                report={selectedReport}
-                getSeverityColor={getSeverityColor}
-            />
-        </ScrollView >
+                            </TouchableOpacity>
+                        );
+                    })}
+                <IncidentModal
+                    visible={!!selectedReport}
+                    onClose={() => setSelectedReport(null)}
+                    report={selectedReport}
+                    getSeverityColor={getSeverityColor}
+                />
+            </ScrollView >
         </>
     );
 };
@@ -349,7 +350,7 @@ const styles = StyleSheet.create({
         padding: 20,
         backgroundColor: "#fff",
     },
-    
+
     heading: {
         fontSize: 24,
         fontWeight: "700",
@@ -357,16 +358,22 @@ const styles = StyleSheet.create({
         color: "#1f2937",
         textAlign: "center",
     },
-    
+
     description: {
         fontSize: 16,
         color: "#4b5563",
         marginBottom: 20,
         textAlign: "center",
     },
+    link: {
+        color: '#3b82f6',
+        fontSize: 16,
+        fontWeight: '600',
+    },
     actions: {
         flexDirection: "row",
         justifyContent: "space-between",
+        alignItems: "center", // Added to vertically center items
         flexWrap: "wrap",
         gap: 10,
         marginBottom: 20,
@@ -448,28 +455,28 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         gap: 8,
-        backgroundColor: "#1f2937",  
+        backgroundColor: "#1f2937",
         paddingVertical: 12,
         paddingHorizontal: 16,
         borderTopLeftRadius: 12,
         borderTopRightRadius: 12,
-        borderBottomLeftRadius: 12,   
+        borderBottomLeftRadius: 12,
         borderBottomRightRadius: 12,
     },
 
     cardHeaderExpanded: {
-        borderBottomLeftRadius: 0,   
+        borderBottomLeftRadius: 0,
         borderBottomRightRadius: 0,
     },
     cardArrow: {
         fontSize: 16,
-        color: "#d1d5db", 
+        color: "#d1d5db",
         fontWeight: "bold",
     },
     cardTitle: {
         fontSize: 16,
         fontWeight: "700",
-        color: "#f9fafb", 
+        color: "#f9fafb",
     },
     cardSubtitle: {
         fontSize: 12,
@@ -545,7 +552,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 10,
         color: '#f9fafb',
-        paddingTop: 10, 
+        paddingTop: 10,
     },
     modalHr: {
         height: 1,

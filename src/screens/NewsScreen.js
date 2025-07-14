@@ -199,7 +199,6 @@ const NewsScreen = ({ route, navigation }) => {
         </View>
 
         <TouchableOpacity
-          style={styles.buttonSecondary}
           onPress={() => navigation.navigate("AddNewsScreen", { 
               groupId, 
               onStoryAdded: (message) => {
@@ -207,7 +206,7 @@ const NewsScreen = ({ route, navigation }) => {
               }
             })}
         >
-          <Text style={styles.buttonSecondaryText}>Add Story</Text>
+          <Text style={styles.link}>+ Add Story</Text>
         </TouchableOpacity>
       </View>
 
@@ -299,6 +298,11 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     color: "#111827",
+  },
+  link: {
+    color: '#3b82f6',
+    fontSize: 16,
+    fontWeight: '600',
   },
   buttonSecondary: {
     backgroundColor: "#1f2937",
