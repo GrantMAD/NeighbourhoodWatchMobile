@@ -32,6 +32,7 @@ const NotificationScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [attendedEvents, setAttendedEvents] = useState([]);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
@@ -54,7 +55,7 @@ const NotificationScreen = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('notifications')
+        .select('notifications, attended_events')
         .eq('id', userId)
         .single();
 
@@ -73,6 +74,7 @@ const NotificationScreen = () => {
         (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
       );
       setNotifications(sorted);
+      setAttendedEvents(data?.attended_events || []);
     } catch (e) {
       console.error('Unexpected error in fetchNotifications:', e);
     } finally {
@@ -629,6 +631,79 @@ const NotificationScreen = () => {
     }
   };
 
+  const handleAttendEvent = async (notification) => {
+    const { eventId, groupId } = notification;
+    if (!eventId || !groupId) {
+      Alert.alert('Error', 'Event or group ID is missing.');
+      return;
+    }
+
+    setProcessing(notification.id, 'attend', true);
+
+    try {
+      const { data: group, error: fetchError } = await supabase
+        .from('groups')
+        .select('events')
+        .eq('id', groupId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const event = group.events.find(e => e.id === eventId);
+      if (!event) {
+        Alert.alert('Error', 'Event not found.');
+        return;
+      }
+
+      const userId = currentUserId;
+      if (event.attendees && event.attendees.includes(userId)) {
+        showToast('You are already attending this event.', 'info');
+        return;
+      }
+
+      const updatedEvent = {
+        ...event,
+        attendees: [...(event.attendees || []), userId],
+        attending_count: (event.attending_count || 0) + 1,
+      };
+
+      const updatedEvents = group.events.map(e => e.id === eventId ? updatedEvent : e);
+
+      const { error: updateError } = await supabase
+        .from('groups')
+        .update({ events: updatedEvents })
+        .eq('id', groupId);
+
+      if (updateError) throw updateError;
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('attended_events')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const updatedAttendedEvents = [...(profile.attended_events || []), eventId];
+
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({ attended_events: updatedAttendedEvents })
+        .eq('id', userId);
+
+      if (profileUpdateError) throw profileUpdateError;
+
+      setAttendedEvents(updatedAttendedEvents);
+      showToast('You are now attending the event!', 'success');
+
+    } catch (error) {
+      console.error('Error attending event:', error.message);
+      Alert.alert('Error', `Failed to attend event: ${error.message}`);
+    } finally {
+      setProcessing(notification.id, 'attend', false);
+    }
+  };
+
   const confirmDeclineRequest = (notification, actingUserId) => {
     Alert.alert(
       'Decline Request',
@@ -648,10 +723,13 @@ const NotificationScreen = () => {
   const renderNotification = ({ item }) => {
     const isJoinRequest = item.type === 'join_request';
     const isNeighbourhoodWatchRequest = item.type === 'neighbourhood_watch_request';
-    const isActionable = isJoinRequest || isNeighbourhoodWatchRequest;
+    const isNewEvent = item.type === 'new_event';
+    const isActionable = isJoinRequest || isNeighbourhoodWatchRequest || isNewEvent;
 
     const isAcceptProcessing = processingStatus[item.id]?.accept;
     const isDeclineProcessing = processingStatus[item.id]?.decline;
+    const isAttendProcessing = processingStatus[item.id]?.attend;
+    const isAttending = isNewEvent && attendedEvents.includes(item.eventId);
 
     let headingText = 'Notification';
     if (isJoinRequest) {
@@ -664,6 +742,8 @@ const NotificationScreen = () => {
       headingText = 'Request Declined';
     } else if (item.type === 'check_status') {
       headingText = 'Status Update';
+    } else if (isNewEvent) {
+      headingText = 'New Event';
     }
 
     const getBorderColor = (type) => {
@@ -673,6 +753,7 @@ const NotificationScreen = () => {
         case 'accepted_request': return '#4ade80';     // green
         case 'declined_request': return '#f87171';     // red
         case 'check_status': return '#a78bfa';         // purple
+        case 'new_event': return '#f97316';          // orange
         default: return '#22d3ee';                     // default cyan
       }
     };
@@ -721,45 +802,69 @@ const NotificationScreen = () => {
 
         {isActionable && (
           <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[
-                styles.button,
-                styles.acceptButton,
-                isAcceptProcessing && styles.disabledButton,
-              ]}
-              onPress={() =>
-                isJoinRequest
-                  ? handleAcceptRequest(item, currentUserId)
-                  : handleAcceptNeighbourhoodWatchRequest(item, currentUserId)
-              }
-              disabled={isAcceptProcessing}
-            >
-              {isAcceptProcessing ? (
-                <ActivityIndicator color="white" />
+            {isNewEvent ? (
+              isAttending ? (
+                <Text style={styles.attendingText}>Attending Event</Text>
               ) : (
-                <Text style={styles.buttonText}>Accept</Text>
-              )}
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    styles.attendButton,
+                    isAttendProcessing && styles.disabledButton,
+                  ]}
+                  onPress={() => handleAttendEvent(item)}
+                  disabled={isAttendProcessing}
+                >
+                  {isAttendProcessing ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.buttonText}>Attend</Text>
+                  )}
+                </TouchableOpacity>
+              )
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    styles.acceptButton,
+                    isAcceptProcessing && styles.disabledButton,
+                  ]}
+                  onPress={() =>
+                    isJoinRequest
+                      ? handleAcceptRequest(item, currentUserId)
+                      : handleAcceptNeighbourhoodWatchRequest(item, currentUserId)
+                  }
+                  disabled={isAcceptProcessing}
+                >
+                  {isAcceptProcessing ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.buttonText}>Accept</Text>
+                  )}
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.button,
-                styles.declineButton,
-                isDeclineProcessing && styles.disabledButton,
-              ]}
-              onPress={() =>
-                isJoinRequest
-                  ? confirmDeclineRequest(item , currentUserId)
-                  : handleDeclineNeighbourhoodWatchRequest(item, currentUserId)
-              }
-              disabled={isDeclineProcessing}
-            >
-              {isDeclineProcessing ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Decline</Text>
-              )}
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    styles.declineButton,
+                    isDeclineProcessing && styles.disabledButton,
+                  ]}
+                  onPress={() =>
+                    isJoinRequest
+                      ? confirmDeclineRequest(item, currentUserId)
+                      : handleDeclineNeighbourhoodWatchRequest(item, currentUserId)
+                  }
+                  disabled={isDeclineProcessing}
+                >
+                  {isDeclineProcessing ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.buttonText}>Decline</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         )}
       </View>
@@ -1012,8 +1117,10 @@ const styles = StyleSheet.create({
   },
   acceptButton: { backgroundColor: '#4CAF50' },
   declineButton: { backgroundColor: '#F44336' },
+  attendButton: { backgroundColor: '#2196F3' },
   disabledButton: { opacity: 0.6 },
   buttonText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
+  attendingText: { color: '#4CAF50', fontWeight: 'bold', fontSize: 14, alignSelf: 'center' },
   flatListEmpty: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   centeredView: {
     flex: 1,

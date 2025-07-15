@@ -123,7 +123,7 @@ function CustomDrawerContent(props) {
   );
 }
 
-const NotificationDropdown = ({ notifications, onClose, onNavigate, visible }) => {
+const NotificationDropdown = ({ notifications, onClose, onNavigate, visible, onAttend, processingStatus, attendedEvents }) => {
   const renderNotificationItem = ({ item }) => {
     let headingText = 'Notification';
     if (item.type === 'join_request') {
@@ -158,8 +158,11 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate, visible }) =
       }
     };
 
+    const isProcessing = processingStatus[item.id];
+    const isAttending = item.type === 'new_event' && attendedEvents.includes(item.eventId);
+
     return (
-      <TouchableOpacity onPress={() => { onClose(); onNavigate(); }}>
+      <TouchableOpacity onPress={() => { onClose(); onNavigate(); } }>
         <View style={[
           styles.notificationCard,
           !item.read ? styles.unread : styles.read,
@@ -190,6 +193,25 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate, visible }) =
                   hour12: true
                 })}
               </Text>
+            </View>
+          )}
+          {item.type === 'new_event' && (
+            <View style={styles.actionRow}>
+              {isAttending ? (
+                <Text style={styles.attendingText}>Attending Event</Text>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.button, styles.attendButton, isProcessing && styles.disabledButton]}
+                  onPress={() => onAttend(item)}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.buttonText}>Attend</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
@@ -356,6 +378,8 @@ const MainAppScreen = ({ route, navigation }) => {
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [processingStatus, setProcessingStatus] = useState({});
+  const [attendedEvents, setAttendedEvents] = useState([]);
 
   const fetchCheckedInCount = useCallback(async () => {
     const { count, error } = await supabase
@@ -369,6 +393,27 @@ const MainAppScreen = ({ route, navigation }) => {
       console.error("Error fetching checked-in count:", error);
     }
   }, []);
+
+  const refreshNotifications = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("notifications, attended_events")
+      .eq("id", user.id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching notifications:", error);
+      return;
+    }
+
+    const notifs = data.notifications ?? [];
+    setNotifications(notifs);
+    setHasNotifications(notifs.some((n) => !n.read));
+    setAttendedEvents(data.attended_events ?? []);
+  };
 
   useEffect(() => {
     if (hasNotifications) {
@@ -389,6 +434,81 @@ const MainAppScreen = ({ route, navigation }) => {
     }
   }, [hasNotifications]);
 
+  const handleAttendEvent = async (notification) => {
+    const { eventId, groupId } = notification;
+    if (!eventId || !groupId) {
+      Alert.alert('Error', 'Event or group ID is missing.');
+      return;
+    }
+
+    setProcessingStatus(prev => ({ ...prev, [notification.id]: true }));
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found");
+
+      const { data: group, error: fetchError } = await supabase
+        .from('groups')
+        .select('events')
+        .eq('id', groupId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const event = group.events.find(e => e.id === eventId);
+      if (!event) {
+        Alert.alert('Error', 'Event not found.');
+        return;
+      }
+
+      if (event.attendees && event.attendees.includes(user.id)) {
+        setToast({ visible: true, message: 'You are already attending this event.', type: 'info' });
+        return;
+      }
+
+      const updatedEvent = {
+        ...event,
+        attendees: [...(event.attendees || []), user.id],
+        attending_count: (event.attending_count || 0) + 1,
+      };
+
+      const updatedEvents = group.events.map(e => e.id === eventId ? updatedEvent : e);
+
+      const { error: updateError } = await supabase
+        .from('groups')
+        .update({ events: updatedEvents })
+        .eq('id', groupId);
+
+      if (updateError) throw updateError;
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('attended_events')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const updatedAttendedEvents = [...(profile.attended_events || []), eventId];
+
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({ attended_events: updatedAttendedEvents })
+        .eq('id', user.id);
+
+      if (profileUpdateError) throw profileUpdateError;
+
+      setAttendedEvents(updatedAttendedEvents);
+      setToast({ visible: true, message: 'You are now attending the event!', type: 'success' });
+
+    } catch (error) {
+      console.error('Error attending event:', error.message);
+      Alert.alert('Error', `Failed to attend event: ${error.message}`);
+    } finally {
+      setProcessingStatus(prev => ({ ...prev, [notification.id]: false }));
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       let subscription = null;
@@ -406,7 +526,7 @@ const MainAppScreen = ({ route, navigation }) => {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("notifications, checked_in")
+          .select("notifications, checked_in, attended_events")
           .eq("id", userId)
           .single();
 
@@ -419,6 +539,7 @@ const MainAppScreen = ({ route, navigation }) => {
         setNotifications(notifs);
         setHasNotifications(notifs.some((n) => !n.read));
         setCheckedIn(data.checked_in ?? false);
+        setAttendedEvents(data.attended_events ?? []);
 
         subscription = supabase
           .channel("notifications-channel")
@@ -435,6 +556,7 @@ const MainAppScreen = ({ route, navigation }) => {
               setNotifications(updatedNotifs);
               setHasNotifications(updatedNotifs.some((n) => !n.read));
               setCheckedIn(payload.new.checked_in ?? false);
+              setAttendedEvents(payload.new.attended_events ?? []);
             }
           )
           .subscribe();
@@ -560,7 +682,10 @@ const MainAppScreen = ({ route, navigation }) => {
         </TouchableOpacity>
 
         {/* Notification Bell */}
-        <TouchableOpacity onPress={() => setDropdownVisible(!dropdownVisible)}>
+        <TouchableOpacity onPress={async () => {
+          await refreshNotifications();
+          setDropdownVisible(!dropdownVisible);
+        }}>
           <View>
             <FontAwesome5 name="bell" size={20} color="#f9fafb" />
             {hasNotifications && (
@@ -593,6 +718,9 @@ const MainAppScreen = ({ route, navigation }) => {
               setDropdownVisible(false);
               navigation.navigate("Notifications", { notification: item });
             }}
+            onAttend={handleAttendEvent}
+            processingStatus={processingStatus}
+            attendedEvents={attendedEvents}
           />
         )}
       </View>
@@ -984,6 +1112,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#374151',
     borderRadius: 10,
   },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+    borderTopColor: '#4a4a4a',
+    borderTopWidth: 1,
+    paddingTop: 12,
+  },
+  button: {
+    paddingVertical: 10,
+    paddingHorizontal: 22,
+    borderRadius: 8,
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 90,
+  },
+  attendButton: { backgroundColor: '#2196F3' },
+  disabledButton: { opacity: 0.6 },
+  buttonText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
+  attendingText: { color: '#4CAF50', fontWeight: 'bold', fontSize: 14, alignSelf: 'center' },
 });
 
 export default MainAppScreen;

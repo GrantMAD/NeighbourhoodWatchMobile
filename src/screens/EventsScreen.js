@@ -30,7 +30,7 @@ const formatFullEventRange = (start, end) => {
 };
 
 // Modal for event details
-const EventModal = ({ visible, onClose, event }) => {
+const EventModal = ({ visible, onClose, event, onAttend, onNoLongerAttending, isAttending, isProcessing }) => {
     if (!event) return null;
 
     const isImageUrl = (str) => typeof str === "string" && str.startsWith("http");
@@ -78,6 +78,43 @@ const EventModal = ({ visible, onClose, event }) => {
                         <View style={styles.modalRow}>
                             <Text style={styles.modalIcon}>👁️</Text>
                             <Text style={styles.modalDetailText}>Views: {event.views || 0}</Text>
+                        </View>
+
+                        <View style={styles.modalRow}>
+                            <Text style={styles.modalIcon}>👥</Text>
+                            <Text style={styles.modalDetailText}>Attending: {event.attending_count || 0}</Text>
+                        </View>
+
+                        {isAttending && (
+                            <Text style={styles.attendingText}>You are Attending this event.</Text>
+                        )}
+
+                        <View style={styles.actionRow}>
+                            {isAttending ? (
+                                <TouchableOpacity
+                                    style={[styles.button, styles.noLongerAttendingButton, isProcessing && styles.disabledButton]}
+                                    onPress={() => onNoLongerAttending(event)}
+                                    disabled={isProcessing}
+                                >
+                                    {isProcessing ? (
+                                        <ActivityIndicator color="white" />
+                                    ) : (
+                                        <Text style={styles.buttonText}>No Longer Attending</Text>
+                                    )}
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity
+                                    style={[styles.button, styles.attendButton, isProcessing && styles.disabledButton]}
+                                    onPress={() => onAttend(event)}
+                                    disabled={isProcessing}
+                                >
+                                    {isProcessing ? (
+                                        <ActivityIndicator color="white" />
+                                    ) : (
+                                        <Text style={styles.buttonText}>Attend</Text>
+                                    )}
+                                </TouchableOpacity>
+                            )}
                         </View>
                     </ScrollView>
                 </View>
@@ -167,6 +204,7 @@ const EventsScreen = ({ route, navigation }) => {
     const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
     const [loadingEventId, setLoadingEventId] = useState(null);
     const [loadingDayEventId, setLoadingDayEventId] = useState(null);
+    const [attendedEvents, setAttendedEvents] = useState([]);
     const eventRefs = useRef({});
 
     useEffect(() => {
@@ -179,11 +217,42 @@ const EventsScreen = ({ route, navigation }) => {
                 } else {
                     setSelectedEvent(event);
                 }
-                setModalVisible(true);
+                // Ensure the modal is visible
+                // This is crucial because the modal's visibility is controlled by selectedEvent
+                // which is set above. So, no explicit setModalVisible(true) is needed here.
             };
             openEventFromParams();
         }
     }, [route.params?.selectedEvent]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchEvents();
+            fetchUserAttendedEvents(); // 👈 Added this
+        }, [groupId])
+    );
+
+    const fetchUserAttendedEvents = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('attended_events')
+                .eq('id', user.id)
+                .single();
+
+            if (error) {
+                console.error('Error fetching attended_events:', error.message);
+                return;
+            }
+
+            setAttendedEvents(profile?.attended_events || []);
+        } catch (error) {
+            console.error('Unexpected error fetching attended_events:', error);
+        }
+    };
 
     const isImageUrl = (str) => typeof str === "string" && str.startsWith("http");
 
@@ -239,6 +308,151 @@ const EventsScreen = ({ route, navigation }) => {
         }
 
         setLoading(false);
+    };
+
+    const handleAttendEvent = async (event) => {
+        const { id: eventId } = event;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            setToast({ visible: true, message: "You must be logged in to attend an event.", type: "error" });
+            return;
+        }
+
+        setLoadingEventId(eventId);
+
+        try {
+            const { data: group, error: fetchError } = await supabase
+                .from('groups')
+                .select('events')
+                .eq('id', groupId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            const eventToUpdate = group.events.find(e => e.id === eventId);
+            if (!eventToUpdate) {
+                Alert.alert('Error', 'Event not found.');
+                return;
+            }
+
+            if (eventToUpdate.attendees && eventToUpdate.attendees.includes(user.id)) {
+                setToast({ visible: true, message: 'You are already attending this event.', type: 'info' });
+                return;
+            }
+
+            const updatedEvent = {
+                ...eventToUpdate,
+                attendees: [...(eventToUpdate.attendees || []), user.id],
+                attending_count: (eventToUpdate.attending_count || 0) + 1,
+            };
+
+            const updatedEvents = group.events.map(e => e.id === eventId ? updatedEvent : e);
+
+            const { error: updateError } = await supabase
+                .from('groups')
+                .update({ events: updatedEvents })
+                .eq('id', groupId);
+
+            if (updateError) throw updateError;
+
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('attended_events')
+                .eq('id', user.id)
+                .single();
+
+            if (profileError) throw profileError;
+
+            const updatedAttendedEvents = [...(profile.attended_events || []), eventId];
+
+            const { error: profileUpdateError } = await supabase
+                .from('profiles')
+                .update({ attended_events: updatedAttendedEvents })
+                .eq('id', user.id);
+
+            if (profileUpdateError) throw profileUpdateError;
+
+            setAttendedEvents(updatedAttendedEvents);
+            setSelectedEvent(updatedEvent);
+            setToast({ visible: true, message: "You are now attending the event!", type: "success" });
+
+        } catch (error) {
+            console.error('Error attending event:', error.message);
+            Alert.alert('Error', `Failed to attend event: ${error.message}`);
+        } finally {
+            setLoadingEventId(null);
+        }
+    };
+
+    const handleNoLongerAttending = async (event) => {
+        const { id: eventId } = event;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            setToast({ visible: true, message: "You must be logged in to modify your attendance.", type: "error" });
+            return;
+        }
+
+        setLoadingEventId(eventId);
+
+        try {
+            const { data: group, error: fetchError } = await supabase
+                .from('groups')
+                .select('events')
+                .eq('id', groupId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            const eventToUpdate = group.events.find(e => e.id === eventId);
+            if (!eventToUpdate) {
+                Alert.alert('Error', 'Event not found.');
+                return;
+            }
+
+            const updatedEvent = {
+                ...eventToUpdate,
+                attendees: (eventToUpdate.attendees || []).filter(id => id !== user.id),
+                attending_count: Math.max(0, (eventToUpdate.attending_count || 0) - 1),
+            };
+
+            const updatedEvents = group.events.map(e => e.id === eventId ? updatedEvent : e);
+
+            const { error: updateError } = await supabase
+                .from('groups')
+                .update({ events: updatedEvents })
+                .eq('id', groupId);
+
+            if (updateError) throw updateError;
+
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('attended_events')
+                .eq('id', user.id)
+                .single();
+
+            if (profileError) throw profileError;
+
+            const updatedAttendedEvents = (profile.attended_events || []).filter(id => id !== eventId);
+
+            const { error: profileUpdateError } = await supabase
+                .from('profiles')
+                .update({ attended_events: updatedAttendedEvents })
+                .eq('id', user.id);
+
+            if (profileUpdateError) throw profileUpdateError;
+
+            setAttendedEvents(updatedAttendedEvents);
+            setSelectedEvent(updatedEvent);
+            setToast({ visible: true, message: "You are no longer attending the event.", type: "success" });
+
+        } catch (error) {
+            console.error('Error updating attendance:', error.message);
+            Alert.alert('Error', `Failed to update attendance: ${error.message}`);
+        } finally {
+            setLoadingEventId(null);
+        }
     };
 
     const incrementEventViews = async (eventId) => {
@@ -520,7 +734,15 @@ const EventsScreen = ({ route, navigation }) => {
                 </View>
             </ScrollView>
 
-            <EventModal visible={!!selectedEvent} event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+            <EventModal
+                visible={!!selectedEvent}
+                event={selectedEvent}
+                onClose={() => setSelectedEvent(null)}
+                onAttend={handleAttendEvent}
+                onNoLongerAttending={handleNoLongerAttending}
+                isAttending={selectedEvent && attendedEvents.includes(selectedEvent.id)}
+                isProcessing={loadingEventId === selectedEvent?.id}
+            />
 
             <DayEventsModal
                 visible={isDayEventsModalVisible}
@@ -823,6 +1045,28 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         zIndex: 1,
     },
+    actionRow: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        marginTop: 12,
+        borderTopColor: '#3a3a3a',
+        borderTopWidth: 1,
+        paddingTop: 12,
+    },
+    button: {
+        paddingVertical: 10,
+        paddingHorizontal: 22,
+        borderRadius: 8,
+        marginLeft: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        minWidth: 90,
+    },
+    attendButton: { backgroundColor: '#2196F3' },
+    noLongerAttendingButton: { backgroundColor: '#d9534f' },
+    disabledButton: { opacity: 0.6 },
+    buttonText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
+    attendingText: { color: '#4CAF50', fontWeight: 'bold', fontSize: 14, alignSelf: 'center' },
 });
 
 export default EventsScreen;

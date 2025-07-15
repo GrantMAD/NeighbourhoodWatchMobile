@@ -163,6 +163,8 @@ const AddEventScreen = ({ route, navigation }) => {
       endDate: new Date(selectedRange.endDate).toISOString(),
       location,
       views: isEditMode ? eventToEdit.views : 0,
+      attendees: isEditMode ? eventToEdit.attendees || [] : [],
+      attending_count: isEditMode ? eventToEdit.attending_count || 0 : 0,
     };
 
     try {
@@ -195,7 +197,7 @@ const AddEventScreen = ({ route, navigation }) => {
       }
 
       if (!isEditMode) {
-        await notifyGroupUsersAboutNewEvent(groupId, eventData.title);
+        await notifyGroupUsersAboutNewEvent(groupId, eventData.id, eventData.title);
       }
 
       if (isEditMode) {
@@ -220,7 +222,7 @@ const AddEventScreen = ({ route, navigation }) => {
     return Math.random().toString(36).substr(2, 9);
   }
 
-  async function notifyGroupUsersAboutNewEvent(groupId, eventTitle) {
+  async function notifyGroupUsersAboutNewEvent(groupId, eventId, eventTitle) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not found");
@@ -265,6 +267,8 @@ const AddEventScreen = ({ route, navigation }) => {
         timestamp,
         read: false,
         avatar_url: senderAvatarUrl,
+        eventId: eventId,
+        groupId: groupId,
       };
 
       const updates = profiles
