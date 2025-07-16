@@ -200,16 +200,29 @@ const AddEventScreen = ({ route, navigation }) => {
         await notifyGroupUsersAboutNewEvent(groupId, eventData.id, eventData.title);
       }
 
-      if (isEditMode) {
-        if (route.params?.onEventUpdated) {
-          route.params.onEventUpdated(`Event updated successfully!`);
+      const message = isEditMode ? 'Event updated successfully!' : 'Event added successfully!';
+      const { returnTo } = route.params;
+
+      if (returnTo) {
+        if (returnTo.tab) {
+          navigation.navigate('MainApp', {
+            groupId: groupId,
+            screen: 'MainTabs',
+            params: {
+              groupId: groupId,
+              screen: returnTo.tab,
+              params: {
+                toastMessage: message,
+                ts: Date.now(),
+              },
+            },
+          });
+        } else if (returnTo.screen) {
+          navigation.navigate(returnTo.screen, { toastMessage: message, ts: Date.now(), groupId: groupId });
         }
       } else {
-        if (route.params?.onEventAdded) {
-          route.params.onEventAdded(`Event added successfully!`);
-        }
+        navigation.goBack();
       }
-      navigation.goBack();
     } catch (err) {
       console.error('Error saving event:', err.message);
       Alert.alert('Error', `Failed to save event: ${err.message}`);

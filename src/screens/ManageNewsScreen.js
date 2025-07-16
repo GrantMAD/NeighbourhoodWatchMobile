@@ -173,12 +173,10 @@ const ManageNewsScreen = ({ route, navigation }) => {
                                     <TouchableOpacity
                                         style={[styles.button, styles.editButton]}
                                         onPress={() => navigation.navigate('AddNewsScreen', {
-                                            groupId,
-                                            storyToEdit: story,
-                                            onStoryUpdated: (message) => {
-                                                setToast({ visible: true, message, type: "success" });
-                                            }
-                                        })}
+                                        groupId,
+                                        storyToEdit: story,
+                                        returnTo: { screen: 'ManageNewsScreen' }
+                                    })}
                                     >
                                         <Text style={styles.buttonText}>Edit</Text>
                                     </TouchableOpacity>

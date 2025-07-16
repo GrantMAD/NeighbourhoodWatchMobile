@@ -92,9 +92,14 @@ export default function HomeScreen({ route, navigation }) {
 
   useFocusEffect(
     useCallback(() => {
+      if (route.params?.toastMessage) {
+        setToast({ visible: true, message: route.params.toastMessage, type: "success" });
+        // Clear the param after showing the toast
+        navigation.setParams({ toastMessage: null }); 
+      }
       setIsLoading(true);
       fetchGroupData().finally(() => setIsLoading(false));
-    }, [groupId])
+    }, [groupId, route.params?.toastMessage])
   );
 
   if (isLoading) {
@@ -133,7 +138,7 @@ export default function HomeScreen({ route, navigation }) {
       <View style={styles.welcomeCard}>
         <Text style={styles.welcomeTitle}>👋 Welcome, {userName}</Text>
         <View style={styles.groupNameHighlight}>
-          <Text style={styles.groupNameText}>{groupData.name}</Text>
+          <Text style={styles.groupNameText}>🏡 {groupData.name}</Text>
         </View>
         <Text style={styles.welcomeText}>{groupData.welcome_text || "Update your welcome text in settings."}</Text>
         <TouchableOpacity
@@ -152,9 +157,7 @@ export default function HomeScreen({ route, navigation }) {
             <TouchableOpacity
               onPress={() => navigation.navigate("AddEventScreen", {
                 groupId,
-                onEventAdded: (message) => {
-                  setToast({ visible: true, message, type: "success", duration: 4000 }); // Show for 4 seconds
-                },
+                returnTo: { tab: 'Home' }
               })}
             >
               <Text style={styles.link}>+ Add</Text>
@@ -202,9 +205,7 @@ export default function HomeScreen({ route, navigation }) {
             <TouchableOpacity
               onPress={() => navigation.navigate("AddNewsScreen", {
                 groupId,
-                onStoryAdded: (message) => {
-                  setToast({ visible: true, message, type: "success" });
-                },
+                returnTo: { tab: 'News' }
               })}
             >
               <Text style={styles.link}>+ Add</Text>

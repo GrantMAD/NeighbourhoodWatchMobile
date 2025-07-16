@@ -205,9 +205,15 @@ const EventsScreen = ({ route, navigation }) => {
     const [loadingEventId, setLoadingEventId] = useState(null);
     const [loadingDayEventId, setLoadingDayEventId] = useState(null);
     const [attendedEvents, setAttendedEvents] = useState([]);
+    const [userRole, setUserRole] = useState(null);
     const eventRefs = useRef({});
 
     useEffect(() => {
+        if (route.params?.toastMessage) {
+            setToast({ visible: true, message: route.params.toastMessage, type: "success" });
+            navigation.setParams({ toastMessage: null });
+        }
+
         if (route.params?.selectedEvent) {
             const openEventFromParams = async () => {
                 const event = route.params.selectedEvent;
@@ -217,18 +223,17 @@ const EventsScreen = ({ route, navigation }) => {
                 } else {
                     setSelectedEvent(event);
                 }
-                // Ensure the modal is visible
-                // This is crucial because the modal's visibility is controlled by selectedEvent
-                // which is set above. So, no explicit setModalVisible(true) is needed here.
             };
             openEventFromParams();
+            navigation.setParams({ selectedEvent: null });
         }
-    }, [route.params?.selectedEvent]);
+    }, [route.params?.toastMessage, route.params?.selectedEvent]);
 
     useFocusEffect(
         useCallback(() => {
             fetchEvents();
-            fetchUserAttendedEvents(); // 👈 Added this
+            fetchUserAttendedEvents();
+            fetchUserRole();
         }, [groupId])
     );
 
@@ -251,6 +256,22 @@ const EventsScreen = ({ route, navigation }) => {
             setAttendedEvents(profile?.attended_events || []);
         } catch (error) {
             console.error('Unexpected error fetching attended_events:', error);
+        }
+    };
+
+    const fetchUserRole = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+            if (error) {
+                console.error('Error fetching user role:', error.message);
+            } else if (profile) {
+                setUserRole(profile.role);
+            }
         }
     };
 
@@ -622,16 +643,16 @@ const EventsScreen = ({ route, navigation }) => {
                         <Text style={styles.mainHeading}>Events</Text>
                     </View>
 
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate("AddEventScreen", {
-                            groupId,
-                            onEventAdded: (message) => {
-                                setToast({ visible: true, message, type: "success" });
-                            }
-                        })}
-                    >
-                        <Text style={styles.link}>+ Add Event</Text>
-                    </TouchableOpacity>
+                    {userRole === 'Admin' && (
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate("AddEventScreen", {
+                                groupId,
+                                returnTo: { tab: 'Events' }
+                            })}
+                        >
+                            <Text style={styles.link}>+ Add Event</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 <Text style={styles.description}>View upcoming events for your group.</Text>

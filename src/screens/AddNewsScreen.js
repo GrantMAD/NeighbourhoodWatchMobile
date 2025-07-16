@@ -149,15 +149,32 @@ export default function AddNewsScreen({ navigation, route }) {
       if (updateError) throw updateError;
 
       if (!isEditMode) {
-        await notifyGroupUsersAboutNewNews(groupId, storyData.title);
+        await notifyGroupUsersAboutNewNews(groupId, storyData);
       }
 
-      if (route.params?.onStoryUpdated) {
-        route.params.onStoryUpdated(`News story updated successfully!`);
-      } else if (route.params?.onStoryAdded) {
-        route.params.onStoryAdded(`News story added successfully!`);
+      const message = isEditMode ? 'News story updated successfully!' : 'News story added successfully!';
+      const { returnTo } = route.params;
+
+      if (returnTo) {
+        if (returnTo.tab) {
+          navigation.navigate('MainApp', {
+            groupId: groupId,
+            screen: 'MainTabs',
+            params: {
+              groupId: groupId,
+              screen: returnTo.tab,
+              params: {
+                toastMessage: message,
+                ts: Date.now(),
+              },
+            },
+          });
+        } else if (returnTo.screen) {
+          navigation.navigate(returnTo.screen, { toastMessage: message, ts: Date.now(), groupId: groupId });
+        }
+      } else {
+        navigation.goBack();
       }
-      navigation.goBack();
     } catch (error) {
       console.error("Error saving news:", error.message);
       Alert.alert("Error saving news", error.message);
@@ -170,7 +187,7 @@ export default function AddNewsScreen({ navigation, route }) {
     return Math.random().toString(36).substr(2, 9);
   }
 
-  async function notifyGroupUsersAboutNewNews(groupId, newsTitle) {
+  async function notifyGroupUsersAboutNewNews(groupId, storyData) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not found");
@@ -211,10 +228,12 @@ export default function AddNewsScreen({ navigation, route }) {
       const notification = {
         id: generateUniqueId(),
         type: "new_news",
-        message: `${senderName} added a new news story: ${newsTitle}`,
+        message: `${senderName} added a new news story: ${storyData.title}`,
         timestamp,
         read: false,
         avatar_url: senderAvatarUrl,
+        groupId: groupId,
+        storyId: storyData.id,
       };
 
       const updates = profiles

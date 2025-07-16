@@ -73,11 +73,11 @@ const LoadingState = () => (
         <Text style={styles.mainHeading}>News</Text>
       </View>
       <TouchableOpacity
-        style={styles.buttonSecondary}
+        style={styles.link}
         onPress={() => {}}
         disabled={true}
       >
-        <Text style={styles.buttonSecondaryText}>Add Story</Text>
+        <Text style={styles.link}>+ Add Story</Text>
       </TouchableOpacity>
     </View>
     <Text style={styles.description}>
@@ -90,7 +90,7 @@ const LoadingState = () => (
 );
 
 const NewsScreen = ({ route, navigation }) => {
-  const { groupId, selectedStory: initialSelectedStory } = route.params;
+  const { groupId, selectedStoryId: initialSelectedStoryId } = route.params;
   const [news, setNews] = useState([]);
   const [selectedStory, setSelectedStory] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -99,10 +99,13 @@ const NewsScreen = ({ route, navigation }) => {
   const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
 
   useEffect(() => {
-    if (initialSelectedStory) {
-      setSelectedStory(initialSelectedStory);
+    if (initialSelectedStoryId && news.length > 0) {
+      const story = news.find(s => s.id === initialSelectedStoryId);
+      if (story) {
+        setSelectedStory(story);
+      }
     }
-  }, [initialSelectedStory]);
+  }, [initialSelectedStoryId, news]);
 
   const fetchNews = async () => {
     setLoading(true);
@@ -117,6 +120,15 @@ const NewsScreen = ({ route, navigation }) => {
         (a, b) => new Date(b.date) - new Date(a.date)
       );
       setNews(sortedNews);
+
+      // If there's an initialSelectedStoryId, try to open the modal
+      if (initialSelectedStoryId) {
+        const storyToOpen = sortedNews.find(s => s.id === initialSelectedStoryId);
+        if (storyToOpen) {
+          setSelectedStory(storyToOpen);
+        }
+      }
+
     } else if (error) {
       console.error("Error fetching news:", error.message);
     }
@@ -131,8 +143,12 @@ const NewsScreen = ({ route, navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
+      if (route.params?.toastMessage) {
+        setToast({ visible: true, message: route.params.toastMessage, type: "success" });
+        navigation.setParams({ toastMessage: null });
+      }
       fetchNews();
-    }, [groupId])
+    }, [groupId, route.params?.toastMessage])
   );
 
   const incrementStoryViews = async (storyId) => {
@@ -201,9 +217,7 @@ const NewsScreen = ({ route, navigation }) => {
         <TouchableOpacity
           onPress={() => navigation.navigate("AddNewsScreen", { 
               groupId, 
-              onStoryAdded: (message) => {
-                  setToast({ visible: true, message, type: "success" });
-              }
+              returnTo: { tab: 'News' }
             })}
         >
           <Text style={styles.link}>+ Add Story</Text>

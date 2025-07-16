@@ -45,8 +45,12 @@ const ManageEventsScreen = ({ route, navigation }) => {
 
     useFocusEffect(
         useCallback(() => {
+            if (route.params?.toastMessage) {
+                setToast({ visible: true, message: route.params.toastMessage, type: "success" });
+                navigation.setParams({ toastMessage: null });
+            }
             fetchEvents();
-        }, [groupId])
+        }, [groupId, route.params?.toastMessage])
     );
 
     const handleDelete = async (eventId) => {
@@ -203,9 +207,7 @@ const ManageEventsScreen = ({ route, navigation }) => {
                                     onPress={() => navigation.navigate('AddEventScreen', { 
                                         groupId, 
                                         eventToEdit: event, 
-                                        onEventUpdated: (message) => {
-                                            setToast({ visible: true, message, type: "success" });
-                                        }
+                                        returnTo: { screen: 'ManageEventsScreen' }
                                     })}
                                 >
                                     <Text style={styles.buttonText}>Edit</Text>

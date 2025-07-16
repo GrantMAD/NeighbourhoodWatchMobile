@@ -162,7 +162,7 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate, visible, onA
     const isAttending = item.type === 'new_event' && attendedEvents.includes(item.eventId);
 
     return (
-      <TouchableOpacity onPress={() => { onClose(); onNavigate(); } }>
+      <TouchableOpacity onPress={() => { onClose(); onNavigate(item); } }>
         <View style={[
           styles.notificationCard,
           !item.read ? styles.unread : styles.read,
@@ -714,9 +714,40 @@ const MainAppScreen = ({ route, navigation }) => {
             visible={dropdownVisible}
             notifications={notifications}
             onClose={() => setDropdownVisible(false)}
-            onNavigate={(item) => {
+            onNavigate={async (item) => {
               setDropdownVisible(false);
-              navigation.navigate("Notifications", { notification: item });
+
+              // Remove notification
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                const newNotifications = notifications.filter(n => n.id !== item.id);
+                await supabase
+                  .from('profiles')
+                  .update({ notifications: newNotifications })
+                  .eq('id', user.id);
+                setNotifications(newNotifications);
+                setHasNotifications(newNotifications.some(n => !n.read));
+              }
+
+              if (item.type === 'new_event') {
+                navigation.navigate('MainTabs', {
+                  screen: 'Events',
+                  params: {
+                    groupId: item.groupId,
+                    selectedEvent: { id: item.eventId, ...item },
+                  },
+                });
+              } else if (item.type === 'new_news') {
+                navigation.navigate('MainTabs', {
+                  screen: 'News',
+                  params: {
+                    groupId: item.groupId,
+                    selectedStoryId: item.storyId,
+                  },
+                });
+              } else {
+                navigation.navigate("Notifications", { notification: item });
+              }
             }}
             onAttend={handleAttendEvent}
             processingStatus={processingStatus}
