@@ -5,6 +5,9 @@ export default function GroupAccessScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome! Choose an option:</Text>
+      <Text style={styles.description}>
+        You can either join a group that has already been created or create a new one for your community.
+      </Text>
 
       <TouchableOpacity
         style={styles.button}
@@ -32,10 +35,16 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    marginBottom: 30,
+    marginBottom: 10,
     textAlign: 'center',
     fontWeight: 'bold',
     color: 'white',
+  },
+  description: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: 'white',
+    marginBottom: 30,
   },
   button: {
     backgroundColor: '#14b8a6',

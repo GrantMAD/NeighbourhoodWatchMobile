@@ -89,7 +89,7 @@ const MembersScreen = ({ route }) => {
           acc[groupName].push(user);
         });
       } else {
-        const noWatchGroupName = "No assigned neighbourhoodwatch";
+        const noWatchGroupName = "Unassigned users";
         if (!acc[noWatchGroupName]) {
           acc[noWatchGroupName] = [];
         }

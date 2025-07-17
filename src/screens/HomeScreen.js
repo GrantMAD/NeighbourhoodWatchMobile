@@ -194,6 +194,9 @@ export default function HomeScreen({ route, navigation }) {
               </View>
             </TouchableOpacity>
           )}
+          ListEmptyComponent={() => (
+            <Text style={styles.noDataText}>No upcoming events.</Text>
+          )}
         />
       </View>
 
@@ -212,29 +215,33 @@ export default function HomeScreen({ route, navigation }) {
             </TouchableOpacity>
           )}
         </View>
-        {news.map((story, index) => (
-          <TouchableOpacity
-            key={story.id || index}
-            style={styles.newsCard}
-            onPress={() => navigation.navigate("NewsScreen", { groupId, selectedStory: story })}
-          >
-            {story.image ? (
-              <Image source={{ uri: story.image }} style={styles.newsImage} />
-            ) : (
-              <View style={styles.newsEmojiContainer}><Text style={styles.newsEmoji}>📰</Text></View>
-            )}
-            <View style={styles.newsContent}>
-              <Text style={styles.newsTitle}>{story.title}</Text>
-              <Text style={styles.newsDescription} numberOfLines={3}>{story.content}</Text>
-              <View style={styles.newsFooter}>
-                <Text style={styles.newsMeta}>👁️ {story.views || 0} views</Text>
-                <Text style={styles.newsMeta}>🗓️ {new Date(story.date).toLocaleDateString('en-US')}</Text>
+        {news.length > 0 ? (
+          news.map((story, index) => (
+            <TouchableOpacity
+              key={story.id || index}
+              style={styles.newsCard}
+              onPress={() => navigation.navigate("NewsScreen", { groupId, selectedStory: story })}
+            >
+              {story.image ? (
+                <Image source={{ uri: story.image }} style={styles.newsImage} />
+              ) : (
+                <View style={styles.newsEmojiContainer}><Text style={styles.newsEmoji}>📰</Text></View>
+              )}
+              <View style={styles.newsContent}>
+                <Text style={styles.newsTitle}>{story.title}</Text>
+                <Text style={styles.newsDescription} numberOfLines={3}>{story.content}</Text>
+                <View style={styles.newsFooter}>
+                  <Text style={styles.newsMeta}>👁️ {story.views || 0} views</Text>
+                  <Text style={styles.newsMeta}>🗓️ {new Date(story.date).toLocaleDateString('en-US')}</Text>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </ScrollView>
+            </TouchableOpacity>
+          ))
+        ) : (
+          <Text style={styles.noDataText}>No news stories.</Text>
+        )}
+      </View>     
+      </ScrollView>
     </>
   );
 }
@@ -429,6 +436,12 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     fontSize: 14,
     color: '#d1d5db',
+  },
+  noDataText: {
+    textAlign: 'left',
+    color: '#6b7280',
+    marginTop: 20,
+    fontSize: 16,
   },
   // Skeleton loader styles
   loadingHeaderImage: {

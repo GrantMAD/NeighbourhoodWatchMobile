@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Buffer } from 'buffer';
 import { supabase } from '../../lib/supabase';
+import Toast from '../components/Toast';
 
 const CreateGroupScreen = ({ navigation }) => {
   const [groupName, setGroupName] = useState('');
@@ -22,8 +23,16 @@ const CreateGroupScreen = ({ navigation }) => {
   const [execImage, setExecImage] = useState(null);
   const [executives, setExecutives] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
+  const [mainImageLoading, setMainImageLoading] = useState(false);
+  const [execImageLoading, setExecImageLoading] = useState(false);
 
   const pickImage = async (setter) => {
+    if (setter === setMainImage) setMainImageLoading(true);
+    if (setter === setExecImage) setExecImageLoading(true);
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
@@ -31,6 +40,9 @@ const CreateGroupScreen = ({ navigation }) => {
     if (!result.canceled) {
       setter(result.assets[0].uri);
     }
+
+    if (setter === setMainImage) setMainImageLoading(false);
+    if (setter === setExecImage) setExecImageLoading(false);
   };
 
   const addExecutive = () => {
@@ -68,14 +80,14 @@ const CreateGroupScreen = ({ navigation }) => {
         throw error;
       }
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('group-assets').getPublicUrl(filePath);
+      const { data: publicUrl } = supabase.storage.from('group-assets').getPublicUrl(filePath);
 
       return publicUrl;
     } catch (error) {
       console.error('Image upload error:', error.message);
-      Alert.alert('Upload Error', error.message);
+      setToastMessage(`Upload Error: ${error.message}`);
+      setToastType('error');
+      setShowToast(true);
       return null;
     }
   };
@@ -91,7 +103,9 @@ const CreateGroupScreen = ({ navigation }) => {
 
   const handleCreateGroup = async () => {
     if (!groupName) {
-      Alert.alert('Error', 'Please enter a group name.');
+      setToastMessage('Please enter a group name.');
+      setToastType('error');
+      setShowToast(true);
       return;
     }
 
@@ -101,7 +115,9 @@ const CreateGroupScreen = ({ navigation }) => {
       const { data: userData, error: userError } = await supabase.auth.getUser();
 
       if (userError || !userData?.user) {
-        Alert.alert('Error', 'User not logged in or failed to fetch user.');
+        setToastMessage('User not logged in or failed to fetch user.');
+        setToastType('error');
+        setShowToast(true);
         setLoading(false);
         return;
       }
@@ -124,7 +140,9 @@ const CreateGroupScreen = ({ navigation }) => {
             imageUrl = await uploadImage(exec.image);
             if (!imageUrl) {
               setLoading(false);
-              Alert.alert('Error', `Failed to upload image for executive ${exec.name}`);
+              setToastMessage(`Failed to upload image for executive ${exec.name}`);
+              setToastType('error');
+              setShowToast(true);
               throw new Error('Exec image upload failed');
             }
           }
@@ -159,14 +177,18 @@ const CreateGroupScreen = ({ navigation }) => {
         .select();
 
       if (insertError) {
-        Alert.alert('Error', insertError.message);
+        setToastMessage(insertError.message);
+        setToastType('error');
+        setShowToast(true);
         setLoading(false);
         return;
       }
 
       const newGroup = insertData?.[0];
       if (!newGroup) {
-        Alert.alert('Error', 'Failed to create group.');
+        setToastMessage('Failed to create group.');
+        setToastType('error');
+        setShowToast(true);
         setLoading(false);
         return;
       }
@@ -176,8 +198,17 @@ const CreateGroupScreen = ({ navigation }) => {
         .update({
           group_id: newGroup.id,
           is_group_creator: true,
+          role: 'Admin',
         })
         .eq('id', user.id);
+
+      if (profileError) {
+        setToastMessage(`Error updating profile: ${profileError.message}`);
+        setToastType('error');
+        setShowToast(true);
+        setLoading(false);
+        return;
+      }
 
       if (profileError) {
         Alert.alert('Error updating profile:', profileError.message);
@@ -185,21 +216,16 @@ const CreateGroupScreen = ({ navigation }) => {
         return;
       }
 
-      Alert.alert(
-        'Group Created',
-        `Group password: ${groupPassword}\n\nPlease share this password with others so they can join.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'MainApp', params: { groupId: newGroup.id } }],
-              });
-            },
-          },
-        ]
-      );
+      setToastMessage(`Group created! Password: ${groupPassword}`);
+      setToastType('success');
+      setShowToast(true);
+
+      setTimeout(() => {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainApp', params: { groupId: newGroup.id } }],
+        });
+      }, 2000); // Show toast for 2 seconds before navigating
     } catch (error) {
       console.error('Error creating group:', error);
       Alert.alert('Error', 'Something went wrong creating your group.');
@@ -210,15 +236,35 @@ const CreateGroupScreen = ({ navigation }) => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Create a New Group</Text>
+      <Text style={styles.description}>
+        Fill out the form below to create a new group for your community. You can provide as much or as little detail as you like.
+      </Text>
+
+      <Text style={styles.subheading}>Group Details</Text>
       <Text style={styles.label}>Group Name</Text>
       <TextInput value={groupName} onChangeText={setGroupName} style={styles.input} />
 
       <Text style={styles.label}>Welcome Text</Text>
       <TextInput value={welcomeText} onChangeText={setWelcomeText} style={styles.input} multiline />
 
-      <Button title="Select Main Image" onPress={() => pickImage(setMainImage)} />
+      <Text style={styles.label}>Contact Email</Text>
+      <TextInput value={contactEmail} onChangeText={setContactEmail} style={styles.input} />
+
+      <TouchableOpacity
+        onPress={() => pickImage(setMainImage)}
+        style={styles.imagePickerButton}
+        disabled={mainImageLoading}
+      >
+        {mainImageLoading ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Select Main Image</Text>
+        )}
+      </TouchableOpacity>
       {mainImage && <Image source={{ uri: mainImage }} style={styles.image} />}
 
+      <Text style={styles.subheading}>Group Information</Text>
       <Text style={styles.label}>Vision</Text>
       <TextInput value={vision} onChangeText={setVision} style={styles.input} multiline />
 
@@ -231,9 +277,10 @@ const CreateGroupScreen = ({ navigation }) => {
       <Text style={styles.label}>Objectives</Text>
       <TextInput value={objectives} onChangeText={setObjectives} style={styles.input} multiline />
 
-      <Text style={styles.label}>Contact Email</Text>
-      <TextInput value={contactEmail} onChangeText={setContactEmail} style={styles.input} />
-
+      <Text style={styles.subheading}>Executive Committee</Text>
+      <Text style={styles.description}>
+        To add an executive, fill in their name and role, select an image, and press the "Add Executive" button.
+      </Text>
       <Text style={styles.label}>Executives Section Title</Text>
       <TextInput value={executivesTitle} onChangeText={setExecutivesTitle} style={styles.input} />
 
@@ -242,21 +289,33 @@ const CreateGroupScreen = ({ navigation }) => {
       <Text style={styles.label}>Executive Role</Text>
       <TextInput value={execRole} onChangeText={setExecRole} style={styles.input} />
       <View style={{ marginBottom: 15 }}>
-        <Button title="Select Executive Image" onPress={() => pickImage(setExecImage)} />
+        <TouchableOpacity
+          onPress={() => pickImage(setExecImage)}
+          style={styles.imagePickerButton}
+          disabled={execImageLoading}
+        >
+          {execImageLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Select Executive Image</Text>
+          )}
+        </TouchableOpacity>
       </View>
       {execImage && <Image source={{ uri: execImage }} style={styles.execImage} />}
       <View style={{ marginTop: 15 }}>
-        <Button title="Add Executive" onPress={addExecutive} />
+        <TouchableOpacity onPress={addExecutive} style={styles.addButton}>
+          <Text style={styles.buttonText}>Add Executive</Text>
+        </TouchableOpacity>
       </View>
       {executives.length > 0 && (
         <View style={{ marginTop: 20 }}>
-          <Text style={{ fontWeight: 'bold' }}>Current Executives:</Text>
+          <Text style={styles.executivesHeader}>Current Executives:</Text>
           {executives.map((exec, index) => (
-            <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 5 }}>
+            <View key={index} style={styles.execCard}>
               {exec.image && <Image source={{ uri: exec.image }} style={styles.execImage} />}
               <View>
-                <Text>{exec.name}</Text>
-                <Text>{exec.role}</Text>
+                <Text style={styles.execName}>{exec.name}</Text>
+                <Text style={styles.execRole}>{exec.role}</Text>
               </View>
             </View>
           ))}
@@ -280,6 +339,13 @@ const CreateGroupScreen = ({ navigation }) => {
           <Text style={styles.buttonText}>Create Group</Text>
         )}
       </TouchableOpacity>
+
+      <Toast
+        visible={showToast}
+        message={toastMessage}
+        type={toastType}
+        onHide={() => setShowToast(false)}
+      />
     </ScrollView>
   );
 };
@@ -289,12 +355,47 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 80,
   },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  description: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  subheading: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingBottom: 5,
+  },
   label: { fontWeight: '600', marginTop: 10 },
   input: { borderWidth: 1, borderColor: '#ccc', padding: 8, marginBottom: 10, backgroundColor: '#fff' },
   image: { width: '100%', height: 200, marginVertical: 10 },
   execImage: { width: 60, height: 60, borderRadius: 30, marginRight: 10 },
+  imagePickerButton: {
+    backgroundColor: '#14b8a6',
+    paddingVertical: 12,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  addButton: {
+    backgroundColor: '#f97316',
+    paddingVertical: 12,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   createButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#1f2937',
     paddingVertical: 12,
     borderRadius: 4,
     alignItems: 'center',
@@ -309,6 +410,28 @@ const styles = StyleSheet.create({
   },
   loadingButton: {
     backgroundColor: '#999',
+  },
+  executivesHeader: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginTop: 20,
+  },
+  execCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 5,
+    padding: 10,
+    backgroundColor: '#1f2937',
+    borderRadius: 5,
+  },
+  execName: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: 'white',
+  },
+  execRole: {
+    fontStyle: 'italic',
+    color: 'white',
   },
 });
 

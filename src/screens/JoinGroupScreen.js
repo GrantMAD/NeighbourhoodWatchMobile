@@ -197,7 +197,13 @@ const JoinGroupScreen = () => {
     if (notifyError) {
       Alert.alert('Error', 'Failed to notify group creator');
     } else {
-      navigation.navigate('WaitingStatusScreen', { groupId: selectedGroupId });
+      navigation.reset({
+        index: 1,
+        routes: [
+          { name: 'NoGroupScreen' },
+          { name: 'WaitingStatusScreen', params: { groupId: selectedGroupId } },
+        ],
+      });
     }
   };
 

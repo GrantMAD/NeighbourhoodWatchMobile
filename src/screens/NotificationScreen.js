@@ -264,6 +264,7 @@ const NotificationScreen = () => {
         .update({ notifications: updatedRequesterNotifs })
         .eq('id', userId);
 
+      showToast(`Request from ${notification.message.split(' requested')[0]} accepted.`, 'success');
       fetchNotifications();
       setActionModalVisible(false);
     } catch (error) {
@@ -366,6 +367,7 @@ const NotificationScreen = () => {
       const updatedRequesterNotifs = [...(requesterProfile.notifications || []), declineNotif];
       await supabase.from('profiles').update({ notifications: updatedRequesterNotifs }).eq('id', userId);
 
+      showToast(`Request from ${notification.message.split(' requested')[0]} declined.`, 'success');
       // 5. Refresh notifications in UI
       fetchNotifications();
       setActionModalVisible(false);

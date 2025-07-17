@@ -64,6 +64,7 @@ const WaitingStatusScreen = () => {
           groupName: group.name,
           status: req.status,
           requestedAt: req.requestedAt,
+          requestId: req.id, // Pass the requestId here
         });
       }
     }
@@ -82,7 +83,7 @@ const WaitingStatusScreen = () => {
     setRefreshing(false);
   };
 
-  const cancelRequest = (groupId) => {
+  const cancelRequest = (groupId, requestId) => {
     Alert.alert(
       'Cancel Request',
       'Are you sure you want to cancel your join request?',
@@ -93,10 +94,10 @@ const WaitingStatusScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Fetch current group's requests
+              // Fetch current group's requests and created_by
               const { data: group, error: groupError } = await supabase
                 .from('groups')
-                .select('requests')
+                .select('requests, created_by')
                 .eq('id', groupId)
                 .single();
 
@@ -105,24 +106,63 @@ const WaitingStatusScreen = () => {
                 return;
               }
 
-              // Remove the user's request
+              // Remove the user's request from the group's requests array
               const updatedRequests = group.requests.filter(
                 (r) => r.userId !== currentUserId
               );
 
               // Update group requests in DB
-              const { error: updateError } = await supabase
+              const { error: updateGroupError } = await supabase
                 .from('groups')
                 .update({ requests: updatedRequests })
                 .eq('id', groupId);
 
-              if (updateError) {
+              if (updateGroupError) {
                 Alert.alert('Error', 'Failed to cancel request.');
                 return;
               }
 
-              // Refresh list
-              fetchUserRequests();
+              // Now, remove the corresponding notification from the group creator's profile
+              if (group.created_by) {
+                const { data: creatorProfile, error: creatorProfileError } = await supabase
+                  .from('profiles')
+                  .select('notifications')
+                  .eq('id', group.created_by)
+                  .single();
+
+                if (creatorProfileError) {
+                  console.error('Error fetching creator profile:', creatorProfileError);
+                } else if (creatorProfile && creatorProfile.notifications) {
+                  const updatedCreatorNotifications = creatorProfile.notifications.filter(
+                    (notif) => !(notif.type === 'join_request' && notif.requestId === requestId)
+                  );
+
+                  const { error: updateCreatorNotifError } = await supabase
+                    .from('profiles')
+                    .update({ notifications: updatedCreatorNotifications })
+                    .eq('id', group.created_by);
+
+                  if (updateCreatorNotifError) {
+                    console.error('Error updating creator notifications:', updateCreatorNotifError);
+                  }
+                }
+              }
+
+              // Clear the requestedgroupid from the user's profile
+              const { error: updateProfileError } = await supabase
+                .from('profiles')
+                .update({ requestedgroupid: null })
+                .eq('id', currentUserId);
+
+              if (updateProfileError) {
+                console.error('Error clearing requestedgroupid:', updateProfileError);
+              }
+
+              // Refresh list and navigate to NoGroupScreen
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'NoGroupScreen' }],
+              });
 
               Alert.alert('Success', 'Your join request has been cancelled.');
             } catch (err) {
@@ -158,7 +198,7 @@ const WaitingStatusScreen = () => {
       </View>
       <TouchableOpacity
         style={styles.cancelButton}
-        onPress={() => cancelRequest(item.groupId)}
+        onPress={() => cancelRequest(item.groupId, item.requestId)}
       >
         <Text style={styles.cancelButtonText}>Cancel Request</Text>
       </TouchableOpacity>
@@ -202,16 +242,16 @@ const WaitingStatusScreen = () => {
 export default WaitingStatusScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#1f2937' },
+  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
   center: { justifyContent: 'center', alignItems: 'center' },
-  heading: { fontSize: 22, fontWeight: '700', marginBottom: 16, color: 'white' },
+  heading: { fontSize: 22, fontWeight: '700', marginBottom: 16, color: '#1f2937' },
   description: {
     fontSize: 16,
-    color: '#d1d5db',
+    color: '#4b5563',
     marginBottom: 12,
   },
   requestCard: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#2d3748',
     padding: 16,
     borderRadius: 16,
     marginBottom: 14,
@@ -219,22 +259,22 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 6,
   },
   groupName: {
     fontWeight: '700',
     fontSize: 18,
-    color: '#111827',
+    color: '#f9fafb',
     marginBottom: 8,
   },
 
   requestInfoLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#d1d5db',
     marginTop: 4,
   },
   statusText: (status) => ({
@@ -242,18 +282,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color:
       status === 'approved'
-        ? '#16a34a'
+        ? '#34d399'
         : status === 'rejected'
-          ? '#dc2626'
-          : '#d97706',
+          ? '#f87171'
+          : '#fbbf24',
     marginBottom: 4,
   }),
   requestDate: {
     fontSize: 14,
-    color: '#4b5563',
+    color: '#9ca3af',
   },
   cancelButton: {
-    backgroundColor: '#dc2626',
+    backgroundColor: '#ef4444',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
@@ -268,10 +308,10 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     fontStyle: 'italic',
-    color: '#6b7280',
+    color: '#4b5563',
   },
   signOutButton: {
-    backgroundColor: '#14b8a6',
+    backgroundColor: '#1f2937',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -285,20 +325,20 @@ const styles = StyleSheet.create({
   loadingHeading: {
     width: '70%',
     height: 25,
-    backgroundColor: '#374151',
+    backgroundColor: '#d1d5db',
     borderRadius: 5,
     marginBottom: 16,
   },
   loadingDescription: {
     width: '90%',
     height: 15,
-    backgroundColor: '#4b5563',
+    backgroundColor: '#e5e7eb',
     borderRadius: 5,
     marginBottom: 12,
   },
   loadingRequestCard: {
     height: 120,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f3f4f6',
     borderRadius: 16,
     marginBottom: 14,
   },

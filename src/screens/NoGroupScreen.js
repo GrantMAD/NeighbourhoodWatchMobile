@@ -6,6 +6,7 @@ import {
     StyleSheet,
     ScrollView,
     Alert,
+    Image
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
@@ -119,6 +120,10 @@ export default function NoGroupScreen({ navigation }) {
 
     return (
         <View style={styles.container}>
+            <Image
+                source={require('../../assets/Images/nwLogo.png')}
+                style={styles.logo}
+            />
             <Text style={styles.title}>You're not part of a group yet.</Text>
 
             {!pendingGroupName && (
@@ -191,6 +196,8 @@ export default function NoGroupScreen({ navigation }) {
                 </TouchableOpacity>
             )}
 
+            <View style={styles.hr} />
+
             <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
                 <Text style={styles.signOutText}>Sign Out</Text>
             </TouchableOpacity>
@@ -204,6 +211,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingHorizontal: 20,
         backgroundColor: '#1f2937',
+    },
+    logo: {
+        width: 300,
+        height: 300,
+        alignSelf: 'center',
+        resizeMode: 'contain',
     },
     title: {
         fontSize: 22,
@@ -270,7 +283,7 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     button: {
-        backgroundColor: '#14b8a6',
+        backgroundColor: '#f97316',
         paddingVertical: 15,
         borderRadius: 8,
         alignItems: 'center',
@@ -287,7 +300,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     signOutButton: {
-        marginTop: 30,
         paddingVertical: 12,
         backgroundColor: '#ef4444',
         borderRadius: 8,
@@ -315,5 +327,10 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: 'white',
         textAlign: 'center',
+    },
+    hr: {
+        borderBottomColor: 'white',
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        marginVertical: 20,
     },
 });

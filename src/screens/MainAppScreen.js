@@ -123,7 +123,7 @@ function CustomDrawerContent(props) {
   );
 }
 
-const NotificationDropdown = ({ notifications, onClose, onNavigate, visible, onAttend, processingStatus, attendedEvents }) => {
+const NotificationDropdown = ({ notifications, onClose, onNavigate, visible, onAttend, processingStatus, attendedEvents, onViewAllNotifications }) => {
   const renderNotificationItem = ({ item }) => {
     let headingText = 'Notification';
     if (item.type === 'join_request') {
@@ -262,7 +262,7 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate, visible, onA
                 />
               )}
 
-              <TouchableOpacity style={styles.viewAllButton} onPress={() => { onClose(); onNavigate(); }}>
+              <TouchableOpacity style={styles.viewAllButton} onPress={onViewAllNotifications}>
                 <Text style={styles.viewAllText}>View All Notifications</Text>
               </TouchableOpacity>
             </View>
@@ -717,7 +717,13 @@ const MainAppScreen = ({ route, navigation }) => {
             onNavigate={async (item) => {
               setDropdownVisible(false);
 
-              // Remove notification
+              // If it's a join request, navigate to NotificationsScreen without deleting
+              if (item.type === 'join_request') {
+                navigation.navigate("Notifications", { notification: item });
+                return; // Exit early to prevent deletion
+              }
+
+              // For other notification types, mark as read and then navigate
               const { data: { user } } = await supabase.auth.getUser();
               if (user) {
                 const newNotifications = notifications.filter(n => n.id !== item.id);
@@ -752,6 +758,10 @@ const MainAppScreen = ({ route, navigation }) => {
             onAttend={handleAttendEvent}
             processingStatus={processingStatus}
             attendedEvents={attendedEvents}
+            onViewAllNotifications={() => {
+              setDropdownVisible(false);
+              navigation.navigate("Notifications");
+            }}
           />
         )}
       </View>
