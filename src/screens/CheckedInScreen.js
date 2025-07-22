@@ -14,6 +14,26 @@ import {
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 
+const GOOGLE_API_KEY = "AIzaSyCdoxC_Bhb8wy7-KncOxhXgMFY1y5eGhZ8";
+
+const reverseGeocode = async (latitude, longitude) => {
+  try {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_API_KEY}`
+    );
+    const data = await response.json();
+    if (data.status === "OK" && data.results.length > 0) {
+      return data.results[0].formatted_address;
+    } else {
+      console.warn("No address found for coordinates:", latitude, longitude);
+      return "Unknown Location";
+    }
+  } catch (error) {
+    console.error("Reverse geocoding failed:", error);
+    return "Unknown Location";
+  }
+};
+
 const CheckedInScreen = () => {
   const [checkedInUsers, setCheckedInUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +76,35 @@ const CheckedInScreen = () => {
       return [];
     }
 
-    return data || [];
+    // For each user, fetch latest location and resolve address
+    const usersWithLocations = await Promise.all(
+      (data || []).map(async (user) => {
+        const { data: locationData, error: locError } = await supabase
+          .from("user_locations")
+          .select("latitude, longitude")
+          .eq("user_id", user.id)
+          .order("timestamp", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (locError) {
+          console.error("Error fetching location for user:", user.id, locError);
+        }
+
+        let address = null;
+        if (locationData) {
+          address = await reverseGeocode(locationData.latitude, locationData.longitude);
+        }
+
+        return {
+          ...user,
+          latestLocation: locationData || null,
+          latestAddress: address || null,
+        };
+      })
+    );
+
+    return usersWithLocations;
   };
 
   const loadUsers = async () => {
@@ -159,6 +207,11 @@ const CheckedInScreen = () => {
                     <Text style={styles.checkInTimeText}>
                       Checked in at {latestCheckIn}{" "}
                       {latestCheckInRelative ? `(${latestCheckInRelative})` : ""}
+                    </Text>
+                  )}
+                  {item.latestAddress && (
+                    <Text style={[styles.checkInTimeText, { marginTop: 4 }]}>
+                       📍 Current Location: {item.latestAddress}
                     </Text>
                   )}
                 </View>

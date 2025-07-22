@@ -21,7 +21,8 @@
         "backgroundColor": "#1f2937"
       },
       "softwareKeyboardLayoutMode": "pan",
-      "edgeToEdgeEnabled": false
+      "edgeToEdgeEnabled": false,
+      "package": "com.grant6908.NeighbourhoodWatchMobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"

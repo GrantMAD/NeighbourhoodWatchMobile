@@ -35,6 +35,43 @@ import ContactScreen from "../screens/ContactScreen";
 import CheckedInScreen from "../screens/CheckedInScreen";
 import Toast from "../components/Toast";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Location from 'expo-location';
+import * as TaskManager from 'expo-task-manager';
+
+const LOCATION_TRACKING_TASK = 'location-tracking-task';
+
+TaskManager.defineTask(LOCATION_TRACKING_TASK, async ({ data, error }) => {
+  if (error) {
+    console.error('Location tracking task error:', error);
+    return;
+  }
+  if (data) {
+    const { locations } = data;
+    const { latitude, longitude } = locations[0].coords;
+    const timestamp = new Date(locations[0].timestamp).toISOString();
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error: insertError } = await supabase
+          .from('user_locations')
+          .insert({
+            user_id: user.id,
+            latitude: latitude,
+            longitude: longitude,
+            timestamp: timestamp,
+            is_checked_in: true, // Mark as checked in
+          });
+
+        if (insertError) {
+          console.error('Error inserting location:', insertError);
+        }
+      }
+    } catch (e) {
+      console.error('Error in location task Supabase operation:', e);
+    }
+  }
+});
 
 const Drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator();
@@ -162,7 +199,7 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate, visible, onA
     const isAttending = item.type === 'new_event' && attendedEvents.includes(item.eventId);
 
     return (
-      <TouchableOpacity onPress={() => { onClose(); onNavigate(item); } }>
+      <TouchableOpacity onPress={() => { onClose(); onNavigate(item); }}>
         <View style={[
           styles.notificationCard,
           !item.read ? styles.unread : styles.read,
@@ -416,6 +453,20 @@ const MainAppScreen = ({ route, navigation }) => {
   };
 
   useEffect(() => {
+    (async () => {
+      const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+      if (foregroundStatus !== 'granted') {
+        Alert.alert('Permission to access location was denied');
+        return;
+      }
+
+      const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+      if (backgroundStatus !== 'granted') {
+        Alert.alert('Permission to access background location was denied');
+        return;
+      }
+    })();
+
     if (hasNotifications) {
       Animated.loop(
         Animated.sequence([
@@ -608,58 +659,98 @@ const MainAppScreen = ({ route, navigation }) => {
             setIsCheckingIn(true);
 
             try {
-            const {
-              data: { user },
-            } = await supabase.auth.getUser();
-            if (!user) return;
+              const {
+                data: { user },
+              } = await supabase.auth.getUser();
+              if (!user) return;
 
-            // Get current checked_in status AND group_id
-            const { data, error } = await supabase
-              .from("profiles")
-              .select("checked_in, group_id")
-              .eq("id", user.id)
-              .single();
+              // Get current checked_in status AND group_id
+              const { data, error } = await supabase
+                .from("profiles")
+                .select("checked_in, group_id")
+                .eq("id", user.id)
+                .single();
 
-            if (error || !data) {
-              Alert.alert("Error", "Unable to fetch current check-in status.");
-              return;
+              if (error || !data) {
+                Alert.alert("Error", "Unable to fetch current check-in status.");
+                return;
+              }
+
+              const newCheckedIn = !data.checked_in;
+              const timestampField = newCheckedIn ? "check_in_time" : "check_out_time";
+
+              // Update checked_in status
+              const { error: updateStatusError } = await supabase
+                .from("profiles")
+                .update({ checked_in: newCheckedIn })
+                .eq("id", user.id);
+
+              if (updateStatusError) {
+                Alert.alert("Error", "Failed to update check-in status.");
+                return;
+              }
+
+              // Append timestamp via RPC
+              const { error: appendError } = await supabase.rpc("append_check_time", {
+                field_name: timestampField,
+                user_id: user.id,
+              });
+
+              if (appendError) {
+                Alert.alert("Error", "Failed to update check-in/check-out time.");
+                return;
+              }
+
+              setCheckedIn(newCheckedIn);
+
+              // --- Location Tracking Logic ---
+              if (newCheckedIn) {
+                // User is checking in, start tracking
+                const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TRACKING_TASK);
+                if (!hasStarted) {
+                  await Location.startLocationUpdatesAsync(LOCATION_TRACKING_TASK, {
+                    accuracy: Location.Accuracy.High,
+                    timeInterval: 60000,
+                    distanceInterval: 10,
+                    deferredUpdatesInterval: 5000,
+                    foregroundService: {
+                      notificationTitle: 'Tracking your location',
+                      notificationBody: 'To ensure community safety',
+                      notificationColor: '#22d3ee',
+                    },
+                  });
+                  console.log('Location tracking started.');
+
+                  // Insert initial location point (keep this)
+                  const location = await Location.getLastKnownPositionAsync();
+                  if (location) {
+                    const { latitude, longitude } = location.coords;
+                    await supabase.from('user_locations').insert({
+                      user_id: user.id,
+                      latitude,
+                      longitude,
+                      timestamp: new Date().toISOString(),
+                      is_checked_in: true,
+                    });
+                  }
+                }
+              } else {
+                // User is checking out, stop tracking
+                const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TRACKING_TASK);
+                if (hasStarted) {
+                  await Location.stopLocationUpdatesAsync(LOCATION_TRACKING_TASK);
+                  console.log('Location tracking stopped.');
+                }
+              }
+
+              // --- NEW: Notify group users ---
+              if (data.group_id) {
+                notifyGroupUsersAboutCheckStatus(user.id, data.group_id, newCheckedIn ? "checked in" : "checked out");
+              }
+              setToast({ visible: true, message: `Successfully ${newCheckedIn ? 'checked in' : 'checked out'}!` });
+            } finally {
+              setIsCheckingIn(false);
             }
-
-            const newCheckedIn = !data.checked_in;
-            const timestampField = newCheckedIn ? "check_in_time" : "check_out_time";
-
-            // Update checked_in status
-            const { error: updateStatusError } = await supabase
-              .from("profiles")
-              .update({ checked_in: newCheckedIn })
-              .eq("id", user.id);
-
-            if (updateStatusError) {
-              Alert.alert("Error", "Failed to update check-in status.");
-              return;
-            }
-
-            // Append timestamp via RPC
-            const { error: appendError } = await supabase.rpc("append_check_time", {
-              field_name: timestampField,
-              user_id: user.id,
-            });
-
-            if (appendError) {
-              Alert.alert("Error", "Failed to update check-in/check-out time.");
-              return;
-            }
-
-            setCheckedIn(newCheckedIn);
-
-            // --- NEW: Notify group users ---
-            if (data.group_id) {
-              notifyGroupUsersAboutCheckStatus(user.id, data.group_id, newCheckedIn ? "checked in" : "checked out");
-            }
-            setToast({ visible: true, message: `Successfully ${newCheckedIn ? 'checked in' : 'checked out'}!` });
-          } finally {
-            setIsCheckingIn(false);
-          }
           }}
           style={{
             marginRight: 20,
@@ -675,9 +766,9 @@ const MainAppScreen = ({ route, navigation }) => {
           {isCheckingIn ? (
             <ActivityIndicator color="#f9fafb" />
           ) : (
-          <Text style={{ color: "#f9fafb", fontWeight: "bold" }}>
-            {checkedIn ? "Check Out" : "Check In"}
-          </Text>
+            <Text style={{ color: "#f9fafb", fontWeight: "bold" }}>
+              {checkedIn ? "Check Out" : "Check In"}
+            </Text>
           )}
         </TouchableOpacity>
 
@@ -863,142 +954,142 @@ const MainAppScreen = ({ route, navigation }) => {
   if (!groupId) {
     return (
       <View style={{ flex: 1 }}>
-      <Drawer.Navigator
-        screenOptions={({ navigation, route }) => ({
-          ...screenOptionsWithDrawerButton({ navigation, route }),
-          drawerActiveTintColor: "#22d3ee",
-          drawerInactiveTintColor: "#fff",
-          drawerStyle: { backgroundColor: "#1f2937" },
-          drawerLabelStyle: { fontWeight: "600" },
-        })}
-        drawerContent={(props) => <CustomDrawerContent {...props} />}
-      >
-        <Drawer.Screen
-          name="NoGroupScreen"
-          component={NoGroupScreen}
-          options={{
-            title: "NoGroupScreen",
-            drawerIcon: ({ color, size }) => (
-              <FontAwesome5 name="exclamation-circle" size={size} color={color} />
-            ),
-          }}
+        <Drawer.Navigator
+          screenOptions={({ navigation, route }) => ({
+            ...screenOptionsWithDrawerButton({ navigation, route }),
+            drawerActiveTintColor: "#22d3ee",
+            drawerInactiveTintColor: "#fff",
+            drawerStyle: { backgroundColor: "#1f2937" },
+            drawerLabelStyle: { fontWeight: "600" },
+          })}
+          drawerContent={(props) => <CustomDrawerContent {...props} />}
+        >
+          <Drawer.Screen
+            name="NoGroupScreen"
+            component={NoGroupScreen}
+            options={{
+              title: "NoGroupScreen",
+              drawerIcon: ({ color, size }) => (
+                <FontAwesome5 name="exclamation-circle" size={size} color={color} />
+              ),
+            }}
+          />
+        </Drawer.Navigator>
+        <Toast
+          visible={toast.visible}
+          message={toast.message}
+          type={toast.type}
+          onHide={() => setToast({ ...toast, visible: false })}
         />
-      </Drawer.Navigator>
-      <Toast
-        visible={toast.visible}
-        message={toast.message}
-        type={toast.type}
-        onHide={() => setToast({ ...toast, visible: false })}
-      />
       </View>
     );
   }
 
   return (
     <View style={{ flex: 1 }}>
-    <Drawer.Navigator
-      screenOptions={({ navigation, route }) => ({
-        ...screenOptionsWithDrawerButton({ navigation, route }),
-        drawerActiveTintColor: "#22d3ee",
-        drawerInactiveTintColor: "#fff",
-        drawerStyle: { backgroundColor: "#1f2937" },
-        drawerLabelStyle: {
-          fontWeight: "600",
-        },
-        headerTitle: getHeaderTitle(route),
-      })}
-      drawerContent={(props) => <CustomDrawerContent {...props} />}
-    >
-      <Drawer.Screen
-        name="MainTabs"
-        component={BottomTabNavigator}
-        initialParams={{ groupId }}
-        options={({ route }) => ({
-          title: "Home",
-          drawerIcon: ({ color, size }) => {
-            const routeName = getFocusedRouteNameFromRoute(route) ?? 'Home';
-            const focused = routeName === 'Home';
-            return (
+      <Drawer.Navigator
+        screenOptions={({ navigation, route }) => ({
+          ...screenOptionsWithDrawerButton({ navigation, route }),
+          drawerActiveTintColor: "#22d3ee",
+          drawerInactiveTintColor: "#fff",
+          drawerStyle: { backgroundColor: "#1f2937" },
+          drawerLabelStyle: {
+            fontWeight: "600",
+          },
+          headerTitle: getHeaderTitle(route),
+        })}
+        drawerContent={(props) => <CustomDrawerContent {...props} />}
+      >
+        <Drawer.Screen
+          name="MainTabs"
+          component={BottomTabNavigator}
+          initialParams={{ groupId }}
+          options={({ route }) => ({
+            title: "Home",
+            drawerIcon: ({ color, size }) => {
+              const routeName = getFocusedRouteNameFromRoute(route) ?? 'Home';
+              const focused = routeName === 'Home';
+              return (
+                <FontAwesome5
+                  name="home"
+                  size={size}
+                  color={focused ? "#22d3ee" : "#fff"}
+                />
+              );
+            },
+          })}
+        />
+        <Drawer.Screen
+          name="CheckedIn"
+          component={CheckedInScreen}
+          initialParams={{ groupId }}
+          options={{
+            drawerLabel: ({ focused }) => (
+              <Text
+                style={{
+                  color: focused ? "#22d3ee" : "#fff",
+                  fontWeight: "600",
+                }}
+              >
+                {`Checked In (${checkedInCount})`}
+              </Text>
+            ),
+            drawerIcon: ({ size, focused }) => (
               <FontAwesome5
-                name="home"
+                name="check-circle"
                 size={size}
                 color={focused ? "#22d3ee" : "#fff"}
               />
-            );
-          },
-        })}
-      />
-      <Drawer.Screen
-        name="CheckedIn"
-        component={CheckedInScreen}
-        initialParams={{ groupId }}
-        options={{
-          drawerLabel: ({ focused }) => (
-            <Text
-              style={{
-                color: focused ? "#22d3ee" : "#fff",
-                fontWeight: "600",
-              }}
-            >
-              {`Checked In (${checkedInCount})`}
-            </Text>
-          ),
-          drawerIcon: ({ size, focused }) => (
-            <FontAwesome5
-              name="check-circle"
-              size={size}
-              color={focused ? "#22d3ee" : "#fff"}
-            />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="About"
-        component={AboutScreen}
-        initialParams={{ groupId }}
-        options={{
-          title: "About",
-          drawerIcon: ({ color, size, focused }) => (
-            <FontAwesome5
-              name="info-circle"
-              size={size}
-              color={focused ? "#22d3ee" : "#fff"}
-            />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="ContactScreen"
-        component={ContactScreen}
-        initialParams={{ groupId }}
-        options={{
-          title: "Contact",
-          drawerIcon: ({ color, size, focused }) => (
-            <FontAwesome5
-              name="envelope"
-              size={size}
-              color={focused ? "#22d3ee" : "#fff"}
-            />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="Settings"
-        component={SettingsScreen}
-        initialParams={{ groupId }}
-        options={{
-          title: "Settings",
-          drawerIcon: ({ color, size, focused }) => (
-            <FontAwesome5
-              name="cog"
-              size={size}
-              color={focused ? "#22d3ee" : "#fff"}
-            />
-          ),
-        }}
-      />
-    </Drawer.Navigator>
-    <Toast
+            ),
+          }}
+        />
+        <Drawer.Screen
+          name="About"
+          component={AboutScreen}
+          initialParams={{ groupId }}
+          options={{
+            title: "About",
+            drawerIcon: ({ color, size, focused }) => (
+              <FontAwesome5
+                name="info-circle"
+                size={size}
+                color={focused ? "#22d3ee" : "#fff"}
+              />
+            ),
+          }}
+        />
+        <Drawer.Screen
+          name="ContactScreen"
+          component={ContactScreen}
+          initialParams={{ groupId }}
+          options={{
+            title: "Contact",
+            drawerIcon: ({ color, size, focused }) => (
+              <FontAwesome5
+                name="envelope"
+                size={size}
+                color={focused ? "#22d3ee" : "#fff"}
+              />
+            ),
+          }}
+        />
+        <Drawer.Screen
+          name="Settings"
+          component={SettingsScreen}
+          initialParams={{ groupId }}
+          options={{
+            title: "Settings",
+            drawerIcon: ({ color, size, focused }) => (
+              <FontAwesome5
+                name="cog"
+                size={size}
+                color={focused ? "#22d3ee" : "#fff"}
+              />
+            ),
+          }}
+        />
+      </Drawer.Navigator>
+      <Toast
         visible={toast.visible}
         message={toast.message}
         type={toast.type}
