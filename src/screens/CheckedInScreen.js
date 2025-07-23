@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
@@ -13,8 +14,6 @@ import {
   Easing,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
-
-const GOOGLE_API_KEY = "AIzaSyCdoxC_Bhb8wy7-KncOxhXgMFY1y5eGhZ8";
 
 const reverseGeocode = async (latitude, longitude) => {
   try {
