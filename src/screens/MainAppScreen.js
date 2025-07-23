@@ -53,18 +53,15 @@ TaskManager.defineTask(LOCATION_TRACKING_TASK, async ({ data, error }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { error: insertError } = await supabase
-          .from('user_locations')
-          .insert({
-            user_id: user.id,
-            latitude: latitude,
-            longitude: longitude,
-            timestamp: timestamp,
-            is_checked_in: true, // Mark as checked in
-          });
+        const { error: rpcError } = await supabase.rpc('update_current_location', {
+          user_id_param: user.id,
+          latitude_param: latitude,
+          longitude_param: longitude,
+          timestamp_param: timestamp,
+        });
 
-        if (insertError) {
-          console.error('Error inserting location:', insertError);
+        if (rpcError) {
+          console.error('Error updating current location in background task:', rpcError);
         }
       }
     } catch (e) {
@@ -703,6 +700,18 @@ const MainAppScreen = ({ route, navigation }) => {
 
               setCheckedIn(newCheckedIn);
 
+              // Ensure a row exists for the user in user_locations before calling RPCs.
+              const { error: upsertError } = await supabase
+                .from('user_locations')
+                .upsert({ user_id: user.id }, { onConflict: 'user_id' });
+
+              if (upsertError) {
+                console.error('Error upserting user location row:', upsertError);
+                Alert.alert("Error", "Could not prepare user for location tracking.");
+                setIsCheckingIn(false);
+                return;
+              }
+
               // --- Location Tracking Logic ---
               if (newCheckedIn) {
                 // User is checking in, start tracking
@@ -720,19 +729,21 @@ const MainAppScreen = ({ route, navigation }) => {
                     },
                   });
                   console.log('Location tracking started.');
+                }
 
-                  // Insert initial location point (keep this)
-                  const location = await Location.getLastKnownPositionAsync();
-                  if (location) {
-                    const { latitude, longitude } = location.coords;
-                    await supabase.from('user_locations').insert({
-                      user_id: user.id,
-                      latitude,
-                      longitude,
-                      timestamp: new Date().toISOString(),
-                      is_checked_in: true,
-                    });
-                  }
+                // Get the current location and call the check_in_location RPC
+                const location = await Location.getCurrentPositionAsync({
+                  accuracy: Location.Accuracy.High,
+                });
+                if (location) {
+                  const { latitude, longitude } = location.coords;
+                  const timestamp = new Date().toISOString();
+                  await supabase.rpc('check_in_location', {
+                    user_id_param: user.id,
+                    latitude_param: latitude,
+                    longitude_param: longitude,
+                    timestamp_param: timestamp,
+                  });
                 }
               } else {
                 // User is checking out, stop tracking
@@ -740,6 +751,21 @@ const MainAppScreen = ({ route, navigation }) => {
                 if (hasStarted) {
                   await Location.stopLocationUpdatesAsync(LOCATION_TRACKING_TASK);
                   console.log('Location tracking stopped.');
+                }
+
+                // Get the current location and call the check_out_location RPC
+                const location = await Location.getCurrentPositionAsync({
+                  accuracy: Location.Accuracy.High,
+                });
+                if (location) {
+                  const { latitude, longitude } = location.coords;
+                  const timestamp = new Date().toISOString();
+                  await supabase.rpc('check_out_location', {
+                    user_id_param: user.id,
+                    latitude_param: latitude,
+                    longitude_param: longitude,
+                    timestamp_param: timestamp,
+                  });
                 }
               }
 

@@ -1,4 +1,5 @@
 
+import { GOOGLE_API_KEY } from "@env";
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
@@ -25,6 +26,7 @@ const reverseGeocode = async (latitude, longitude) => {
       return data.results[0].formatted_address;
     } else {
       console.warn("No address found for coordinates:", latitude, longitude);
+      console.log("Google Geocoding API Response:", JSON.stringify(data, null, 2)); // Log the full response
       return "Unknown Location";
     }
   } catch (error) {
@@ -80,10 +82,8 @@ const CheckedInScreen = () => {
       (data || []).map(async (user) => {
         const { data: locationData, error: locError } = await supabase
           .from("user_locations")
-          .select("latitude, longitude")
+          .select("current_latitude, current_longitude")
           .eq("user_id", user.id)
-          .order("timestamp", { ascending: false })
-          .limit(1)
           .single();
 
         if (locError) {
@@ -91,8 +91,8 @@ const CheckedInScreen = () => {
         }
 
         let address = null;
-        if (locationData) {
-          address = await reverseGeocode(locationData.latitude, locationData.longitude);
+        if (locationData && locationData.current_latitude) {
+          address = await reverseGeocode(locationData.current_latitude, locationData.current_longitude);
         }
 
         return {
