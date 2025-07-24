@@ -124,9 +124,13 @@ const JoinGroupScreen = () => {
     const updatedRequests = group.requests ? [...group.requests, newRequest] : [newRequest];
 
     const { error: updateGroupError } = await supabase
-      .from('groups')
-      .update({ requests: updatedRequests })
-      .eq('id', selectedGroupId);
+      .rpc('add_join_request', {
+        p_group_id: selectedGroupId,
+        p_user_id: userId,
+        p_request_id: requestId,
+        p_requested_at: newRequest.requestedAt,
+        p_status: newRequest.status,
+      });
 
     if (updateGroupError) {
       setLoading(false);

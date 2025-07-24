@@ -65,48 +65,112 @@ function SettingsScreen({ route, navigation }) {
   };
 
   const handleLeaveGroup = async () => {
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    const userId = userData?.user?.id;
+    Alert.alert(
+      "Leave Group",
+      "Are you sure you want to leave this group? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Leave", onPress: async () => {
+          const { data: userData, error: userError } = await supabase.auth.getUser();
+          const userId = userData?.user?.id;
 
-    if (userError || !userId) {
-      Alert.alert("Error", "Could not get user info");
-      return;
-    }
+          if (userError || !userId) {
+            Alert.alert("Error", "Could not get user info");
+            return;
+          }
 
-    const { error: profileUpdateError } = await supabase
-      .from("profiles")
-      .update({ group_id: null })
-      .eq("id", userId);
+          // 1. Fetch current user's profile to get their neighbourhoodwatch data
+          const { data: currentUserProfile, error: currentUserProfileError } = await supabase
+            .from("profiles")
+            .select("group_id, neighbourhoodwatch") // Select neighbourhoodwatch
+            .eq("id", userId)
+            .single();
 
-    if (profileUpdateError) {
-      Alert.alert("Error", "Failed to update profile");
-      return;
-    }
+          if (currentUserProfileError || !currentUserProfile) {
+            console.error("Error fetching current user profile:", currentUserProfileError);
+            Alert.alert("Error", "Failed to fetch your profile data.");
+            return;
+          }
 
-    const { data: groupData, error: groupFetchError } = await supabase
-      .from("groups")
-      .select("users")
-      .eq("id", groupId)
-      .single();
+          const userNeighbourhoodWatches = currentUserProfile.neighbourhoodwatch || [];
 
-    if (groupFetchError || !groupData?.users) {
-      Alert.alert("Error", "Group not found");
-      return;
-    }
+          // 2. Update current user's group_id to null and clear their neighbourhoodwatch
+          const { error: profileUpdateError } = await supabase
+            .from("profiles")
+            .update({ group_id: null, neighbourhoodwatch: [] }) // Clear their own NW array
+            .eq("id", userId);
 
-    const updatedUsers = groupData.users.filter((id) => id !== userId);
+          if (profileUpdateError) {
+            Alert.alert("Error", "Failed to update profile");
+            return;
+          }
 
-    const { error: groupUpdateError } = await supabase
-      .from("groups")
-      .update({ users: updatedUsers })
-      .eq("id", groupId);
+          // 3. Update the groups table (remove user from group's users array)
+          const { data: groupData, error: groupFetchError } = await supabase
+            .from("groups")
+            .select("users")
+            .eq("id", groupId)
+            .single();
 
-    if (groupUpdateError) {
-      Alert.alert("Error", "Failed to update group user list");
-      return;
-    }
+          if (groupFetchError || !groupData?.users) {
+            Alert.alert("Error", "Group not found");
+            return;
+          }
 
-    navigation.reset({ index: 0, routes: [{ name: "NoGroupScreen" }] });
+          const updatedGroupUsers = groupData.users.filter((id) => id !== userId);
+
+          const { error: groupUpdateError } = await supabase
+            .from("groups")
+            .update({ users: updatedGroupUsers })
+            .eq("id", groupId);
+
+          if (groupUpdateError) {
+            Alert.alert("Error", "Failed to update group user list");
+            return;
+          }
+
+          // 4. Process neighbourhoodwatch for creators using the working logic from ProfileScreen
+          if (userNeighbourhoodWatches.length > 0) {
+            for (const nw of userNeighbourhoodWatches) {
+              if (nw.creator_id && nw.members && nw.members.includes(userId)) {
+                // Fetch the creator's profile
+                const { data: creatorProfile, error: creatorProfileError } = await supabase
+                  .from("profiles")
+                  .select("neighbourhoodwatch")
+                  .eq("id", nw.creator_id)
+                  .single();
+
+                if (creatorProfileError || !creatorProfile) {
+                  console.error(`Error fetching creator profile ${nw.creator_id}:`, creatorProfileError);
+                  continue; // Skip to next NW if creator profile can't be fetched
+                }
+
+                let creatorsNws = creatorProfile.neighbourhoodwatch || [];
+                let updatedCreatorsNws = creatorsNws.map(creatorNw => {
+                  if (creatorNw.id === nw.id) { // Find the specific NW object
+                    const updatedMembers = (creatorNw.members || []).filter(memberId => memberId !== userId);
+                    return { ...creatorNw, members: updatedMembers };
+                  }
+                  return creatorNw;
+                });
+
+                // Update the creator's profile with the modified neighbourhoodwatch array
+                const { error: creatorUpdateError } = await supabase
+                  .from("profiles")
+                  .update({ neighbourhoodwatch: updatedCreatorsNws })
+                  .eq("id", nw.creator_id);
+
+                if (creatorUpdateError) {
+                  console.error(`Error updating creator's NW for ${nw.creator_id}:`, creatorUpdateError);
+                }
+              }
+            }
+          }
+
+          navigation.reset({ index: 0, routes: [{ name: "NoGroupScreen" }] });
+        }},
+      ]
+    );
   };
 
   return (

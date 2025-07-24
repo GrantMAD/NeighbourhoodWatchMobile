@@ -834,8 +834,8 @@ const MainAppScreen = ({ route, navigation }) => {
             onNavigate={async (item) => {
               setDropdownVisible(false);
 
-              // If it's a join request, navigate to NotificationsScreen without deleting
-              if (item.type === 'join_request') {
+              // If it's a join request or neighbourhood_watch_request, navigate to NotificationsScreen without deleting
+              if (item.type === 'join_request' || item.type === 'neighbourhood_watch_request') {
                 navigation.navigate("Notifications", { notification: item });
                 return; // Exit early to prevent deletion
               }
