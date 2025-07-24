@@ -132,7 +132,7 @@ function SettingsScreen({ route, navigation }) {
           // 4. Process neighbourhoodwatch for creators using the working logic from ProfileScreen
           if (userNeighbourhoodWatches.length > 0) {
             for (const nw of userNeighbourhoodWatches) {
-              if (nw.creator_id && nw.members && nw.members.includes(userId)) {
+              if (nw.creator_id) {
                 // Fetch the creator's profile
                 const { data: creatorProfile, error: creatorProfileError } = await supabase
                   .from("profiles")
