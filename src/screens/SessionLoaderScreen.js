@@ -13,11 +13,13 @@ export default function SessionLoaderScreen({ navigation }) {
       if (session?.user) {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('group_id')
+          .select('group_id, role')
           .eq('id', session.user.id)
           .single();
 
-        if (profile?.group_id) {
+        if (profile?.role === 'super_admin') {
+          navigation.replace('SuperAdminDashboard');
+        } else if (profile?.group_id) {
           navigation.replace('MainApp', { groupId: profile.group_id });
         } else {
           navigation.replace('NoGroupScreen');

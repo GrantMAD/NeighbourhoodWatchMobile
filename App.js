@@ -23,6 +23,7 @@ import ManageMembersScreen from './src/screens/ManageMembersScreen'
 import ManageEventsScreen from './src/screens/ManageEventsScreen'
 import ManageNewsScreen from './src/screens/ManageNewsScreen'
 import NotificationSetting from './src/screens/NotificationSetting';
+import SuperAdminDashboard from './src/screens/SuperAdminDashboard';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 const Stack = createNativeStackNavigator()
@@ -156,6 +157,11 @@ export default function App() {
           name="ManageNewsScreen"
           component={ManageNewsScreen}
           options={{ title: "Manage News" }}
+        />
+        <Stack.Screen
+          name="SuperAdminDashboard"
+          component={SuperAdminDashboard}
+          options={{ title: "Super Admin Dashboard" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

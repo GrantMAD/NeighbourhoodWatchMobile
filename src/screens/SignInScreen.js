@@ -45,16 +45,22 @@ export default function SignInScreen({ navigation }) {
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('group_id')
+        .select('group_id, role') // Select role as well
         .eq('id', user.id)
         .single();
 
-      if (profileError || !profile || !profile.group_id) {
-        navigation.replace('NoGroupScreen');
+      if (profileError) {
+        Alert.alert('Error', profileError.message);
         return;
       }
 
-      navigation.replace('MainApp', { groupId: profile.group_id });
+      if (profile?.role === 'super_admin') {
+        navigation.replace('SuperAdminDashboard');
+      } else if (profile?.group_id) {
+        navigation.replace('MainApp', { groupId: profile.group_id });
+      } else {
+        navigation.replace('NoGroupScreen');
+      }
     } catch (error) {
       console.error('Sign-in error:', error);
       Alert.alert('Error', 'An unexpected error occurred');
