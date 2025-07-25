@@ -161,7 +161,7 @@ export default function App() {
         <Stack.Screen
           name="SuperAdminDashboard"
           component={SuperAdminDashboard}
-          options={{ title: "Super Admin Dashboard" }}
+          options={{ title: "Admin Dashboard" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

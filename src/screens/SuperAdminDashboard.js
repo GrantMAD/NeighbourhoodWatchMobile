@@ -2,21 +2,22 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, ScrollView, TouchableOpacity, Animated, PanResponder } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { FontAwesome5 } from '@expo/vector-icons';
-import GroupCard from './GroupCard';
-import UserCard from './UserCard';
-import EventCard from './EventCard';
-import NewsCard from './NewsCard';
-import IncidentCard from './IncidentCard';
-import GroupRequestCard from './GroupRequestCard';
-import NeighbourhoodWatchRequestCard from './NeighbourhoodWatchRequestCard';
+import GroupCard from './cards/GroupCard';
+import UserCard from './cards/UserCard';
+import EventCard from './cards/EventCard';
+import NewsCard from './cards/NewsCard';
+import IncidentCard from './cards/IncidentCard';
+import GroupRequestCard from './cards/GroupRequestCard';
+import NeighbourhoodWatchRequestCard from './cards/NeighbourhoodWatchRequestCard';
 import { useNavigation } from '@react-navigation/native';
 
 const SuperAdminDashboard = () => {
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('overall'); // Default active category
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true); // New state for sidebar expansion
-  const sidebarWidthAnim = useRef(new Animated.Value(200)).current; // Initial width
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false); // New state for sidebar expansion
+  const sidebarWidthAnim = useRef(new Animated.Value(70)).current; // Initial width
+  const mainContentMarginLeftAnim = useRef(new Animated.Value(8)).current; // Initial left margin for main content
   const _initialSidebarWidth = useRef(200); // Store initial width for dragging
 
   const panResponder = useRef(
@@ -28,23 +29,38 @@ const SuperAdminDashboard = () => {
       onPanResponderMove: (event, gestureState) => {
         const newWidth = Math.max(70, Math.min(200, _initialSidebarWidth.current + gestureState.dx)); // Min 70, Max 200
         sidebarWidthAnim.setValue(newWidth);
+        mainContentMarginLeftAnim.setValue(newWidth); // Update main content position
         setIsSidebarExpanded(newWidth > 100); // Adjust threshold as needed
       },
       onPanResponderRelease: () => {
         // Optional: Snap to expanded/collapsed state after release
         const currentWidth = sidebarWidthAnim._value;
         if (currentWidth < 135) { // If less than half, snap to collapsed
-          Animated.timing(sidebarWidthAnim, {
-            toValue: 70,
-            duration: 150,
-            useNativeDriver: false,
-          }).start(() => setIsSidebarExpanded(false));
+          Animated.parallel([
+            Animated.timing(sidebarWidthAnim, {
+              toValue: 70,
+              duration: 150,
+              useNativeDriver: false,
+            }),
+            Animated.timing(mainContentMarginLeftAnim, {
+              toValue: 8,
+              duration: 150,
+              useNativeDriver: false,
+            }),
+          ]).start(() => setIsSidebarExpanded(false));
         } else { // Snap to expanded
-          Animated.timing(sidebarWidthAnim, {
-            toValue: 200,
-            duration: 150,
-            useNativeDriver: false,
-          }).start(() => setIsSidebarExpanded(true));
+          Animated.parallel([
+            Animated.timing(sidebarWidthAnim, {
+              toValue: 200,
+              duration: 150,
+              useNativeDriver: false,
+            }),
+            Animated.timing(mainContentMarginLeftAnim, {
+              toValue: 0,
+              duration: 150,
+              useNativeDriver: false,
+            }),
+          ]).start(() => setIsSidebarExpanded(true));
         }
       },
     })
@@ -84,11 +100,18 @@ const SuperAdminDashboard = () => {
   const toggleSidebar = () => {
     const newExpandedState = !isSidebarExpanded;
     setIsSidebarExpanded(newExpandedState);
-    Animated.timing(sidebarWidthAnim, {
-      toValue: newExpandedState ? 200 : 70, // Expanded: 200, Collapsed: 70 (just enough for icon + padding)
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
+    Animated.parallel([
+      Animated.timing(sidebarWidthAnim, {
+        toValue: newExpandedState ? 200 : 70, // Expanded: 200, Collapsed: 70 (just enough for icon + padding)
+        duration: 300,
+        useNativeDriver: false,
+      }),
+      Animated.timing(mainContentMarginLeftAnim, {
+        toValue: newExpandedState ? 0 : 8, // Main content shifts left when sidebar expands
+        duration: 300,
+        useNativeDriver: false,
+      }),
+    ]).start();
   };
 
   const fetchAllData = async () => {
@@ -324,7 +347,7 @@ const SuperAdminDashboard = () => {
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.sidebar, { width: sidebarWidthAnim }]}>
+      <Animated.View style={[styles.sidebar, { width: sidebarWidthAnim }, isSidebarExpanded && styles.sidebarOverlay]}>
         <View style={styles.sidebarHeader}>
           {isSidebarExpanded && <Text style={styles.sidebarTitle}>Dashboard</Text>}
           <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarToggle}>
@@ -367,7 +390,7 @@ const SuperAdminDashboard = () => {
         </TouchableOpacity>
         <View style={styles.sidebarHandle} {...panResponder.panHandlers} />
       </Animated.View>
-      <View style={styles.mainContent}>{renderContent()}</View>
+      <Animated.View style={[styles.mainContent, { marginLeft: mainContentMarginLeftAnim }]}>{renderContent()}</Animated.View>
     </View>
   );
 };
@@ -383,6 +406,12 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 40,
     justifyContent: 'space-between', // Distributes content and pushes sign-out to bottom
+    opacity: 0.9,
+  },
+  sidebarOverlay: {
+    position: 'absolute',
+    zIndex: 10,
+    height: '100%',
   },
   sidebarHeader: {
     flexDirection: 'row',
@@ -439,7 +468,6 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
-    padding: 16,
   },
   contentContainer: {
     flex: 1,
