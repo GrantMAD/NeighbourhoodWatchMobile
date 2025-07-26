@@ -9,6 +9,7 @@ import NewsCard from './cards/NewsCard';
 import IncidentCard from './cards/IncidentCard';
 import GroupRequestCard from './cards/GroupRequestCard';
 import NeighbourhoodWatchRequestCard from './cards/NeighbourhoodWatchRequestCard';
+import GroupMetricsCard from './cards/GroupMetricsCard';
 import { useNavigation } from '@react-navigation/native';
 
 const SuperAdminDashboard = () => {
@@ -72,6 +73,7 @@ const SuperAdminDashboard = () => {
   const [newsMetrics, setNewsMetrics] = useState([]);
   const [incidentMetrics, setIncidentMetrics] = useState([]);
   const [requestMetrics, setRequestMetrics] = useState({ userRequests: [], groupRequests: [] });
+  const [expandedGroup, setExpandedGroup] = useState(null);
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -190,59 +192,37 @@ const SuperAdminDashboard = () => {
 
     switch (activeCategory) {
       case 'overall':
+        const overallMetricsData = [
+          { title: 'Total Users', value: overallMetrics.totalUsers, icon: 'users' },
+          { title: 'Total Groups', value: overallMetrics.totalGroups, icon: 'layer-group' },
+          { title: 'Total Events', value: overallMetrics.totalEvents, icon: 'calendar-check' },
+          { title: 'Total News', value: overallMetrics.totalNews, icon: 'newspaper' },
+          { title: 'Total Incidents', value: overallMetrics.totalIncidents, icon: 'exclamation-triangle' },
+        ];
         return (
-          <View style={styles.contentContainer}>
+          <ScrollView style={styles.contentContainer} contentContainerStyle={{paddingBottom: 20}}>
             <Text style={styles.contentTitle}>Overall Application Metrics</Text>
-            <Text style={styles.metricText}>Total Users: {overallMetrics.totalUsers}</Text>
-            <Text style={styles.metricText}>Total Groups: {overallMetrics.totalGroups}</Text>
-            <Text style={styles.metricText}>Total Events: {overallMetrics.totalEvents}</Text>
-            <Text style={styles.metricText}>Total News Stories: {overallMetrics.totalNews}</Text>
-            <Text style={styles.metricText}>Total Incident Reports: {overallMetrics.totalIncidents}</Text>
-            {/* Add more overall metrics here */}
-          </View>
+            <Text style={styles.contentDescription}>A high-level overview of key metrics across the application.</Text>
+            <View style={styles.metricsGrid}>
+              {overallMetricsData.map((metric, index) => (
+                <View key={index} style={styles.metricCard}>
+                  <FontAwesome5 name={metric.icon} size={24} color="#4A5568" style={styles.metricIcon} />
+                  <Text style={styles.metricValue}>{metric.value}</Text>
+                  <Text style={styles.metricCardTitle}>{metric.title}</Text>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
         );
       case 'groups':
         return (
           <View style={styles.contentContainer}>
             <Text style={styles.contentTitle}>Group Metrics</Text>
+            <Text style={styles.contentDescription}>Click on a group to view detailed metrics and member information.</Text>
             <FlatList
               data={groupMetrics}
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
-              renderItem={({ item }) => {
-                const profileCompleteness = [
-                  item.welcome_text,
-                  item.vision,
-                  item.mission,
-                  item.objectives,
-                  item.values,
-                  item.contact_email,
-                  item.main_image,
-                ].filter(Boolean).length;
-                const totalProfileFields = 7; // welcome_text, vision, mission, objectives, values, contact_email, main_image
-                const completenessPercentage = ((profileCompleteness / totalProfileFields) * 100).toFixed(0);
-
-                return (
-                  <View style={styles.dataCard}>
-                    <Text style={styles.cardTitle}>{item.name}</Text>
-                    <Text>Group ID: {item.id}</Text>
-                    <Text>Created By: {item.created_by}</Text>
-                    <Text>Created At: {new Date(item.created_at).toLocaleDateString()}</Text>
-                    <Text>Members: {item.users ? item.users.length : 0}</Text>
-                    <Text>Events: {item.events ? item.events.length : 0}</Text>
-                    <Text>News: {item.news ? item.news.length : 0}</Text>
-                    <Text>Reports: {item.reports ? item.reports.length : 0}</Text>
-                    <Text>Contact Email: {item.contact_email || 'N/A'}</Text>
-                    <Text>Welcome Text: {item.welcome_text ? 'Yes' : 'No'}</Text>
-                    <Text>Vision: {item.vision ? 'Yes' : 'No'}</Text>
-                    <Text>Mission: {item.mission ? 'Yes' : 'No'}</Text>
-                    <Text>Values: {item.values ? 'Yes' : 'No'}</Text>
-                    <Text>Objectives: {item.objectives ? 'Yes' : 'No'}</Text>
-                    <Text>Main Image: {item.main_image ? 'Yes' : 'No'}</Text>
-                    <Text>Password Set: {item.group_password ? 'Yes' : 'No'}</Text>
-                    <Text>Profile Completeness: {completenessPercentage}%</Text>
-                  </View>
-                );
-              }}
+              renderItem={({ item }) => <GroupMetricsCard item={item} userMetrics={userMetrics} />}
             />
           </View>
         );
@@ -263,6 +243,7 @@ const SuperAdminDashboard = () => {
         return (
           <View style={styles.contentContainer}>
             <Text style={styles.contentTitle}>Event Metrics</Text>
+            <Text style={styles.contentDescription}>Detailed overview of all events across the platform.</Text>
             <FlatList
               data={eventMetrics}
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
@@ -276,10 +257,11 @@ const SuperAdminDashboard = () => {
         return (
           <View style={styles.contentContainer}>
             <Text style={styles.contentTitle}>News Metrics</Text>
+            <Text style={styles.contentDescription}>Overview of news stories published across all groups.</Text>
             <FlatList
               data={newsMetrics}
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
-              renderItem={({ item }) => <NewsCard item={item} />}
+              renderItem={({ item }) => <NewsCard item={item} userMetrics={userMetrics} />}
               initialNumToRender={5}
               windowSize={10}
             />
@@ -312,32 +294,49 @@ const SuperAdminDashboard = () => {
         return (
           <View style={styles.contentContainer}>
             <Text style={styles.contentTitle}>Requests</Text>
+            <Text style={styles.contentDescription}>Manage group join requests and Neighbourhood Watch join requests.</Text>
 
-            <Text style={styles.subContentTitle}>Group Join Requests</Text>
+            <View style={styles.subContentTitleContainer}>
+              <FontAwesome5 name="users" size={20} color="#374151" style={styles.subContentTitleIcon} />
+              <Text style={styles.subContentTitle}>Group Requests</Text>
+            </View>
             <Text style={styles.metricText}>Total: {totalGroupRequests}</Text>
             <Text style={styles.metricText}>Accepted: {acceptedGroupRequests}</Text>
             <Text style={styles.metricText}>Declined: {declinedGroupRequests}</Text>
             <Text style={styles.metricText}>Pending: {pendingGroupRequests}</Text>
-            <FlatList
-              data={requestMetrics.groupRequests}
-              keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
-              renderItem={({ item }) => <GroupCard item={item} onPress={handleGroupPress} />}
-              initialNumToRender={5}
-              windowSize={10}
-            />
+            <Text style={styles.listHeading}>Pending Group Requests</Text>
+            {requestMetrics.groupRequests.length > 0 ? (
+              <FlatList
+                data={requestMetrics.groupRequests}
+                keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
+                renderItem={({ item }) => <GroupRequestCard item={item} userMetrics={userMetrics} />}
+                initialNumToRender={5}
+                windowSize={10}
+              />
+            ) : (
+              <Text style={styles.noRequestsText}>No pending group requests.</Text>
+            )}
 
-            <Text style={styles.subContentTitle}>Neighbourhood Watch Join Requests</Text>
+            <View style={styles.subContentTitleContainer}>
+              <FontAwesome5 name="eye" size={20} color="#374151" style={styles.subContentTitleIcon} />
+              <Text style={styles.subContentTitle}>Neighbourhood Requests</Text>
+            </View>
             <Text style={styles.metricText}>Total: {totalNWRequests}</Text>
             <Text style={styles.metricText}>Accepted: {acceptedNWRequests}</Text>
             <Text style={styles.metricText}>Declined: {declinedNWRequests}</Text>
             <Text style={styles.metricText}>Pending: {pendingNWRequests}</Text>
-            <FlatList
-              data={requestMetrics.userRequests.filter(req => req.type === 'Neighbourhood watch request')}
-              keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
-              renderItem={({ item }) => <NeighbourhoodWatchRequestCard item={item} />}
-              initialNumToRender={5}
-              windowSize={10}
-            />
+            <Text style={styles.listHeading}>Pending Neighbourhood Requests</Text>
+            {requestMetrics.userRequests.filter(req => req.type === 'Neighbourhood watch request').length > 0 ? (
+              <FlatList
+                data={requestMetrics.userRequests.filter(req => req.type === 'Neighbourhood watch request')}
+                keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
+                renderItem={({ item }) => <NeighbourhoodWatchRequestCard item={item} userMetrics={userMetrics} />}
+                initialNumToRender={5}
+                windowSize={10}
+              />
+            ) : (
+              <Text style={styles.noRequestsText}>No pending Neighbourhood requests.</Text>
+            )}
           </View>
         );
       default:
@@ -406,7 +405,7 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 40,
     justifyContent: 'space-between', // Distributes content and pushes sign-out to bottom
-    opacity: 0.9,
+    opacity: 0.95,
   },
   sidebarOverlay: {
     position: 'absolute',
@@ -486,12 +485,26 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: '#1f2937',
   },
+  contentDescription: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 20,
+  },
   subContentTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     marginTop: 16,
     marginBottom: 10,
     color: '#374151',
+  },
+  subContentTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  subContentTitleIcon: {
+    marginRight: 10,
   },
   loadingText: {
     marginTop: 20,
@@ -549,6 +562,52 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  metricCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 20,
+    width: '48%', // Two cards per row with a small gap
+    marginBottom: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  metricIcon: {
+    marginBottom: 15,
+  },
+  metricValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  metricCardTitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 5,
+  },
+  listHeading: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  noRequestsText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 20,
   },
 });
 

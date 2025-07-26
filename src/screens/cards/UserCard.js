@@ -1,108 +1,165 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 const UserCard = React.memo(({ item }) => {
-  const renderDetail = (label, value) => (
-    <Text style={styles.detailText}>
-      <Text style={styles.detailLabel}>{label}: </Text>
-      <Text style={styles.detailValue}>{value}</Text>
-    </Text>
+  const [expanded, setExpanded] = useState(false);
+
+  const renderDetail = (label, value, icon) => (
+    <View style={styles.gridItem}>
+      <View style={styles.labelWithIcon}>
+        <FontAwesome5 name={icon} size={14} color="#6B7280" style={styles.labelIcon} />
+        <Text style={styles.gridLabel}>{label}</Text>
+      </View>
+      <Text style={styles.gridValue}>{value}</Text>
+    </View>
   );
 
-  const renderBooleanStatus = (label, isTrue) => (
-    <Text style={styles.detailText}>
-      <Text style={styles.detailLabel}>{label}: </Text>
+  const renderBooleanStatus = (label, isTrue, icon) => (
+    <View style={styles.gridItem}>
+      <View style={styles.labelWithIcon}>
+        <FontAwesome5 name={icon} size={14} color="#6B7280" style={styles.labelIcon} />
+        <Text style={styles.gridLabel}>{label}</Text>
+      </View>
       <Text style={isTrue ? styles.statusTrue : styles.statusFalse}>
         {isTrue ? 'Yes' : 'No'}
       </Text>
-    </Text>
+    </View>
   );
 
   return (
-    <View style={styles.dataCard}>
-      <Text style={styles.cardTitle}>{item.name || item.email}</Text>
+    <View style={styles.card}>
+      <TouchableOpacity onPress={() => setExpanded(!expanded)} style={styles.cardHeader}>
+        <View style={styles.cardTitleContainer}>
+          <FontAwesome5 name="user" size={20} color="#1F2937" style={styles.cardIcon} />
+          <Text style={styles.cardTitle}>{item.name || item.email}</Text>
+        </View>
+        <FontAwesome5 name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color="#6B7280" />
+      </TouchableOpacity>
+      {expanded && (
+        <View style={styles.cardContent}>
+          <Text style={styles.sectionHeading}>Basic Information</Text>
+          <View style={styles.grid}>
+            {renderDetail('Role', item.role, 'user-tag')}
+            {renderDetail('Created At', new Date(item.created_at).toLocaleDateString(), 'calendar-alt')}
+          </View>
 
-      <View style={styles.section}>
-        {renderDetail('User ID', item.id)}
-        {renderDetail('Email', item.email)}
-        {renderDetail('Role', item.role)}
-        {renderDetail('Group ID', item.group_id || 'N/A')}
-        {renderDetail('Created At', new Date(item.created_at).toLocaleDateString())}
-      </View>
+          <Text style={styles.sectionHeading}>Check-in Status</Text>
+          <View style={styles.grid}>
+            {renderBooleanStatus('Checked In', item.checked_in, 'check-circle')}
+            {renderDetail('Total Check-ins', item.check_in_time ? item.check_in_time.length : 0, 'sign-in-alt')}
+            {renderDetail('Total Check-outs', item.check_out_time ? item.check_out_time.length : 0, 'sign-out-alt')}
+          </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Check-in Status</Text>
-        {renderBooleanStatus('Checked In', item.checked_in)}
-        {renderDetail('Total Check-ins', item.check_in_time ? item.check_in_time.length : 0)}
-        {renderDetail('Total Check-outs', item.check_out_time ? item.check_out_time.length : 0)}
-      </View>
+          <Text style={styles.sectionHeading}>Contact Information</Text>
+          <View style={styles.grid}>
+            {renderDetail('Contact Number', item.number || 'N/A', 'phone')}
+            {renderDetail('Street', item.street || 'N/A', 'road')}
+            {renderDetail('Emergency Contact', item.emergency_contact || 'N/A', 'heartbeat')}
+            {renderDetail('Vehicle Info', item.vehicle_info || 'N/A', 'car')}
+          </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Contact Information</Text>
-        {renderDetail('Contact Number', item.number || 'N/A')}
-        {renderDetail('Street', item.street || 'N/A')}
-        {renderDetail('Emergency Contact', item.emergency_contact || 'N/A')}
-        {renderDetail('Vehicle Info', item.vehicle_info || 'N/A')}
-      </View>
+          <Text style={styles.sectionHeading}>Notification Preferences</Text>
+          <View style={styles.grid}>
+            {renderBooleanStatus('Notifications (Check)', item.receive_check_notifications, 'bell')}
+            {renderBooleanStatus('Notifications (Event)', item.receive_event_notifications, 'calendar-day')}
+            {renderBooleanStatus('Notifications (News)', item.receive_news_notifications, 'newspaper')}
+          </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notification Preferences</Text>
-        {renderBooleanStatus('Notifications (Check)', item.receive_check_notifications)}
-        {renderBooleanStatus('Notifications (Event)', item.receive_event_notifications)}
-        {renderBooleanStatus('Notifications (News)', item.receive_news_notifications)}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Neighbourhood Watch</Text>
-        {renderDetail('Neighbourhood Watch', item.neighbourhoodwatch && item.neighbourhoodwatch.length > 0 ? item.neighbourhoodwatch[0].name : 'N/A')}
-        {renderDetail('Pending NW Requests', item.Requests ? item.Requests.filter(req => req.type === 'Neighbourhood watch request' && req.status === 'pending').length : 0)}
-      </View>
+          <Text style={styles.sectionHeading}>Neighbourhood Watch</Text>
+          <View style={styles.grid}>
+            {renderDetail('Name', item.neighbourhoodwatch && item.neighbourhoodwatch.length > 0 ? item.neighbourhoodwatch[0].name : 'N/A', 'eye')}
+            {renderDetail('Pending NW Requests', item.Requests ? item.Requests.filter(req => req.type === 'Neighbourhood watch request' && req.status === 'pending').length : 0, 'handshake')}
+          </View>
+          <View style={styles.singleLineItemContainer}>
+            <View style={styles.labelWithIcon}>
+              <FontAwesome5 name="at" size={14} color="#6B7280" style={styles.labelIcon} />
+              <Text style={styles.gridLabel}>Email</Text>
+            </View>
+            <Text style={styles.gridValue}>{item.email}</Text>
+          </View>
+          <View style={styles.singleLineItemContainer}>
+            <View style={styles.labelWithIcon}>
+              <FontAwesome5 name="fingerprint" size={14} color="#6B7280" style={styles.labelIcon} />
+              <Text style={styles.gridLabel}>User ID</Text>
+            </View>
+            <Text style={styles.smallGridValue}>{item.id}</Text>
+          </View>
+          <View style={styles.singleLineItemContainer}>
+            <View style={styles.labelWithIcon}>
+              <FontAwesome5 name="layer-group" size={14} color="#6B7280" style={styles.labelIcon} />
+              <Text style={styles.gridLabel}>Group ID</Text>
+            </View>
+            <Text style={styles.smallGridValue}>{item.group_id || 'N/A'}</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  dataCard: {
-    backgroundColor: '#ffffff',
+  card: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
     padding: 20,
-    borderRadius: 10,
-    marginBottom: 15,
+    marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardIcon: {
+    marginRight: 10,
   },
   cardTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#1f2937',
-    textAlign: 'center',
+    color: '#1F2937',
   },
-  section: {
-    marginBottom: 15,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+  cardSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
   },
-  sectionTitle: {
+  cardContent: {
+    marginTop: 20,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  gridItem: {
+    width: '48%',
+    marginBottom: 15,
+  },
+  labelWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  labelIcon: {
+    marginRight: 5,
+  },
+  gridLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  gridValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#374151',
-  },
-  detailText: {
-    fontSize: 14,
-    marginBottom: 4,
-    color: '#4b5563',
-  },
-  detailLabel: {
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  detailValue: {
-    color: '#4b5563',
+    color: '#1F2937',
   },
   statusTrue: {
     color: 'green',
@@ -111,6 +168,23 @@ const styles = StyleSheet.create({
   statusFalse: {
     color: 'red',
     fontWeight: 'bold',
+  },
+  singleLineItemContainer: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  smallGridValue: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#6B7280',
+  },
+  sectionHeading: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginTop: 15,
+    marginBottom: 10,
+    alignSelf: 'flex-start',
   },
 });
 
