@@ -29,6 +29,17 @@ const CreateGroupScreen = ({ navigation }) => {
   const [mainImageLoading, setMainImageLoading] = useState(false);
   const [execImageLoading, setExecImageLoading] = useState(false);
 
+  const handleShowToast = (message, type) => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+  };
+
+  const handleHideToast = () => {
+    setShowToast(false);
+    setToastMessage('');
+  };
+
   const pickImage = async (setter) => {
     if (setter === setMainImage) setMainImageLoading(true);
     if (setter === setExecImage) setExecImageLoading(true);
@@ -85,9 +96,7 @@ const CreateGroupScreen = ({ navigation }) => {
       return publicUrl;
     } catch (error) {
       console.error('Image upload error:', error.message);
-      setToastMessage(`Upload Error: ${error.message}`);
-      setToastType('error');
-      setShowToast(true);
+      handleShowToast(`Upload Error: ${error.message}`, 'error');
       return null;
     }
   };
@@ -115,9 +124,7 @@ const CreateGroupScreen = ({ navigation }) => {
       const { data: userData, error: userError } = await supabase.auth.getUser();
 
       if (userError || !userData?.user) {
-        setToastMessage('User not logged in or failed to fetch user.');
-        setToastType('error');
-        setShowToast(true);
+        handleShowToast('User not logged in or failed to fetch user.', 'error');
         setLoading(false);
         return;
       }
@@ -210,27 +217,30 @@ const CreateGroupScreen = ({ navigation }) => {
         return;
       }
 
-      if (profileError) {
-        Alert.alert('Error updating profile:', profileError.message);
-        setLoading(false);
-        return;
-      }
+      // This duplicate profileError check is redundant and can be removed or consolidated
+      // if (profileError) {
+      //   Alert.alert('Error updating profile:', profileError.message);
+      //   setLoading(false);
+      //   return;
+      // }
 
       setToastMessage(`Group created! Password: ${groupPassword}`);
       setToastType('success');
       setShowToast(true);
 
       setTimeout(() => {
+        setLoading(false); // Set loading to false just before navigation
         navigation.reset({
           index: 0,
-          routes: [{ name: 'MainApp', params: { groupId: newGroup.id } }],
+          routes: [{ name: 'MainApp', params: { groupId: newGroup.id, toastMessage: `Group created! Password: ${groupPassword}`, toastType: 'success' } }],
         });
       }, 2000); // Show toast for 2 seconds before navigating
     } catch (error) {
       console.error('Error creating group:', error);
-      Alert.alert('Error', 'Something went wrong creating your group.');
+      handleShowToast('Something went wrong creating your group.', 'error');
+      setLoading(false); // Ensure loading is false on error
     } finally {
-      setLoading(false);
+      // Removed setLoading(false) from here
     }
   };
 
@@ -344,7 +354,7 @@ const CreateGroupScreen = ({ navigation }) => {
         visible={showToast}
         message={toastMessage}
         type={toastType}
-        onHide={() => setShowToast(false)}
+        onHide={handleHideToast}
       />
     </ScrollView>
   );

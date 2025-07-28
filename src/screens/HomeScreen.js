@@ -53,7 +53,6 @@ export default function HomeScreen({ route, navigation }) {
   const [userRole, setUserRole] = useState(null);
   const [userName, setUserName] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
 
   const fetchGroupData = async () => {
     if (!groupId) return;
@@ -92,14 +91,9 @@ export default function HomeScreen({ route, navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      if (route.params?.toastMessage) {
-        setToast({ visible: true, message: route.params.toastMessage, type: "success" });
-        // Clear the param after showing the toast
-        navigation.setParams({ toastMessage: null }); 
-      }
       setIsLoading(true);
       fetchGroupData().finally(() => setIsLoading(false));
-    }, [groupId, route.params?.toastMessage])
+    }, [groupId])
   );
 
   if (isLoading) {
@@ -116,12 +110,6 @@ export default function HomeScreen({ route, navigation }) {
 
   return (
     <>
-      <Toast
-        visible={toast.visible}
-        message={toast.message}
-        type={toast.type}
-        onHide={() => setToast(prevToast => ({ ...prevToast, visible: false }))}
-      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollPadding}

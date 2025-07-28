@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, ScrollView, TouchableOpacity, Animated, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, ScrollView, TouchableOpacity, Animated, PanResponder, Alert } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { FontAwesome5 } from '@expo/vector-icons';
 import GroupCard from './cards/GroupCard';
@@ -11,6 +11,7 @@ import GroupRequestCard from './cards/GroupRequestCard';
 import NeighbourhoodWatchRequestCard from './cards/NeighbourhoodWatchRequestCard';
 import GroupMetricsCard from './cards/GroupMetricsCard';
 import { useNavigation } from '@react-navigation/native';
+import Toast from '../components/Toast';
 
 const SuperAdminDashboard = () => {
   const navigation = useNavigation();
@@ -74,14 +75,45 @@ const SuperAdminDashboard = () => {
   const [incidentMetrics, setIncidentMetrics] = useState([]);
   const [requestMetrics, setRequestMetrics] = useState({ userRequests: [], groupRequests: [] });
   const [expandedGroup, setExpandedGroup] = useState(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
+
+  const handleShowToast = (message, type) => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+  };
+
+  const handleHideToast = () => {
+    setShowToast(false);
+    setToastMessage('');
+  };
 
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      Alert.alert('Error', 'Failed to sign out');
-    } else {
-      navigation.reset({ index: 0, routes: [{ name: 'SignIn' }] });
-    }
+    Alert.alert(
+      "Confirm Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Sign Out",
+          onPress: async () => {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+              Alert.alert('Error', 'Failed to sign out');
+            } else {
+              navigation.reset({ index: 0, routes: [{ name: 'SignIn' }] });
+            }
+          },
+          style: "destructive"
+        }
+      ],
+      { cancelable: false }
+    );
   };
 
   const categories = [
@@ -200,7 +232,7 @@ const SuperAdminDashboard = () => {
           { title: 'Total Incidents', value: overallMetrics.totalIncidents, icon: 'exclamation-triangle' },
         ];
         return (
-          <ScrollView style={styles.contentContainer} contentContainerStyle={{paddingBottom: 20}}>
+          <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: 20 }}>
             <Text style={styles.contentTitle}>Overall Application Metrics</Text>
             <Text style={styles.contentDescription}>A high-level overview of key metrics across the application.</Text>
             <View style={styles.metricsGrid}>
@@ -222,7 +254,10 @@ const SuperAdminDashboard = () => {
             <FlatList
               data={groupMetrics}
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
-              renderItem={({ item }) => <GroupMetricsCard item={item} userMetrics={userMetrics} />}
+              renderItem={({ item }) => <GroupMetricsCard item={item} userMetrics={userMetrics} onDelete={(message, type) => {
+                handleShowToast(message, type);
+                fetchAllData();
+              }} />}
             />
           </View>
         );
@@ -230,6 +265,8 @@ const SuperAdminDashboard = () => {
         return (
           <View style={styles.contentContainer}>
             <Text style={styles.contentTitle}>User Metrics</Text>
+            <Text style={styles.contentDescription}>Overview of all registered users and their associated details.</Text>
+            <Text style={styles.metricText}>Total Users: {overallMetrics.totalUsers}</Text>
             <FlatList
               data={userMetrics}
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
@@ -271,6 +308,7 @@ const SuperAdminDashboard = () => {
         return (
           <View style={styles.contentContainer}>
             <Text style={styles.contentTitle}>Incident Reports</Text>
+            <Text style={styles.contentDescription}>Overview of all reported incidents across all groups.</Text>
             <FlatList
               data={incidentMetrics}
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
@@ -390,6 +428,7 @@ const SuperAdminDashboard = () => {
         <View style={styles.sidebarHandle} {...panResponder.panHandlers} />
       </Animated.View>
       <Animated.View style={[styles.mainContent, { marginLeft: mainContentMarginLeftAnim }]}>{renderContent()}</Animated.View>
+      <Toast visible={showToast} message={toastMessage} type={toastType} onHide={handleHideToast} />
     </View>
   );
 };
@@ -419,7 +458,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sidebarToggle: {
-    padding: 5,
+    paddingVertical: 15,
+    paddingLeft: 16, // Match other icons
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   sidebarTitle: {
     fontSize: 22,

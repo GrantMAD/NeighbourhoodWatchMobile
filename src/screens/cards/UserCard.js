@@ -43,6 +43,13 @@ const UserCard = React.memo(({ item }) => {
             {renderDetail('Role', item.role, 'user-tag')}
             {renderDetail('Created At', new Date(item.created_at).toLocaleDateString(), 'calendar-alt')}
           </View>
+          <View style={styles.singleLineItemContainer}>
+            <View style={styles.labelWithIcon}>
+              <FontAwesome5 name="at" size={14} color="#6B7280" style={styles.labelIcon} />
+              <Text style={styles.gridLabel}>Email</Text>
+            </View>
+            <Text style={styles.gridValue}>{item.email}</Text>
+          </View>
 
           <Text style={styles.sectionHeading}>Check-in Status</Text>
           <View style={styles.grid}>
@@ -70,13 +77,6 @@ const UserCard = React.memo(({ item }) => {
           <View style={styles.grid}>
             {renderDetail('Name', item.neighbourhoodwatch && item.neighbourhoodwatch.length > 0 ? item.neighbourhoodwatch[0].name : 'N/A', 'eye')}
             {renderDetail('Pending NW Requests', item.Requests ? item.Requests.filter(req => req.type === 'Neighbourhood watch request' && req.status === 'pending').length : 0, 'handshake')}
-          </View>
-          <View style={styles.singleLineItemContainer}>
-            <View style={styles.labelWithIcon}>
-              <FontAwesome5 name="at" size={14} color="#6B7280" style={styles.labelIcon} />
-              <Text style={styles.gridLabel}>Email</Text>
-            </View>
-            <Text style={styles.gridValue}>{item.email}</Text>
           </View>
           <View style={styles.singleLineItemContainer}>
             <View style={styles.labelWithIcon}>
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   },
   singleLineItemContainer: {
     marginTop: 10,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   smallGridValue: {
     fontSize: 12,

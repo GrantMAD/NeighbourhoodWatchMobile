@@ -1,10 +1,61 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import UserCard from './UserCard';
+import { supabase } from '../../../lib/supabase';
 
-const GroupMetricsCard = ({ item, userMetrics }) => {
+const GroupMetricsCard = ({ item, userMetrics, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
+
+  const handleDelete = async () => {
+    Alert.alert(
+      "Confirm Deletion",
+      `Are you sure you want to delete the group "${item.name}"? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Step 1: Update profiles of all users in the group
+              if (item.users && item.users.length > 0) {
+                const { error: updateError } = await supabase
+                  .from('profiles')
+                  .update({ group_id: null, is_group_creator: false })
+                  .in('id', item.users);
+
+                if (updateError) {
+                  throw updateError;
+                }
+              }
+
+              // Step 2: Delete the group itself
+              const { error: deleteError } = await supabase
+                .from('groups')
+                .delete()
+                .match({ id: item.id });
+
+              if (deleteError) {
+                throw deleteError;
+              }
+
+              if (onDelete) {
+                onDelete(`Group "${item.name}" has been deleted.`, 'success'); // Pass message and type
+              }
+
+            } catch (error) {
+              console.error("Error deleting group:", error);
+              if (onDelete) {
+                onDelete("Failed to delete the group. " + error.message, 'error'); // Pass message and type
+              }
+            }
+          },
+        },
+      ]
+    );
+  };
+
 
   const profileCompleteness = [
     item.welcome_text,
@@ -49,6 +100,13 @@ const GroupMetricsCard = ({ item, userMetrics }) => {
               </View>
               <Text style={styles.gridValue}>{new Date(item.created_at).toLocaleDateString()}</Text>
             </View>
+            <View style={styles.singleLineItemContainer}>
+              <View style={styles.labelWithIcon}>
+                <FontAwesome5 name="envelope" size={14} color="#6B7280" style={styles.labelIcon} />
+                <Text style={styles.gridLabel}>Contact Email</Text>
+              </View>
+              <Text style={styles.gridValue}>{item.contact_email || 'N/A'}</Text>
+            </View>
           </View>
 
           <Text style={styles.sectionHeading}>Activity Metrics</Text>
@@ -90,49 +148,49 @@ const GroupMetricsCard = ({ item, userMetrics }) => {
                 <FontAwesome5 name="book-open" size={14} color="#6B7280" style={styles.labelIcon} />
                 <Text style={styles.gridLabel}>Welcome Text</Text>
               </View>
-              <Text style={styles.gridValue}>{item.welcome_text ? 'Yes' : 'No'}</Text>
+              <Text style={item.welcome_text ? styles.statusTrue : styles.statusFalse}>{item.welcome_text ? 'Yes' : 'No'}</Text>
             </View>
             <View style={styles.gridItem}>
               <View style={styles.labelWithIcon}>
                 <FontAwesome5 name="eye" size={14} color="#6B7280" style={styles.labelIcon} />
                 <Text style={styles.gridLabel}>Vision</Text>
               </View>
-              <Text style={styles.gridValue}>{item.vision ? 'Yes' : 'No'}</Text>
+              <Text style={item.vision ? styles.statusTrue : styles.statusFalse}>{item.vision ? 'Yes' : 'No'}</Text>
             </View>
             <View style={styles.gridItem}>
               <View style={styles.labelWithIcon}>
                 <FontAwesome5 name="bullseye" size={14} color="#6B7280" style={styles.labelIcon} />
                 <Text style={styles.gridLabel}>Mission</Text>
               </View>
-              <Text style={styles.gridValue}>{item.mission ? 'Yes' : 'No'}</Text>
+              <Text style={item.mission ? styles.statusTrue : styles.statusFalse}>{item.mission ? 'Yes' : 'No'}</Text>
             </View>
             <View style={styles.gridItem}>
               <View style={styles.labelWithIcon}>
                 <FontAwesome5 name="tasks" size={14} color="#6B7280" style={styles.labelIcon} />
                 <Text style={styles.gridLabel}>Objectives</Text>
               </View>
-              <Text style={styles.gridValue}>{item.objectives ? 'Yes' : 'No'}</Text>
+              <Text style={item.objectives ? styles.statusTrue : styles.statusFalse}>{item.objectives ? 'Yes' : 'No'}</Text>
             </View>
             <View style={styles.gridItem}>
               <View style={styles.labelWithIcon}>
                 <FontAwesome5 name="hand-holding-heart" size={14} color="#6B7280" style={styles.labelIcon} />
                 <Text style={styles.gridLabel}>Values</Text>
               </View>
-              <Text style={styles.gridValue}>{item.values ? 'Yes' : 'No'}</Text>
+              <Text style={item.values ? styles.statusTrue : styles.statusFalse}>{item.values ? 'Yes' : 'No'}</Text>
             </View>
             <View style={styles.gridItem}>
               <View style={styles.labelWithIcon}>
                 <FontAwesome5 name="image" size={14} color="#6B7280" style={styles.labelIcon} />
                 <Text style={styles.gridLabel}>Main Image</Text>
               </View>
-              <Text style={styles.gridValue}>{item.main_image ? 'Yes' : 'No'}</Text>
+              <Text style={item.main_image ? styles.statusTrue : styles.statusFalse}>{item.main_image ? 'Yes' : 'No'}</Text>
             </View>
             <View style={styles.gridItem}>
               <View style={styles.labelWithIcon}>
                 <FontAwesome5 name="lock" size={14} color="#6B7280" style={styles.labelIcon} />
                 <Text style={styles.gridLabel}>Password Set</Text>
               </View>
-              <Text style={styles.gridValue}>{item.group_password ? 'Yes' : 'No'}</Text>
+              <Text style={item.group_password ? styles.statusTrue : styles.statusFalse}>{item.group_password ? 'Yes' : 'No'}</Text>
             </View>
             <View style={styles.gridItem}>
               <View style={styles.labelWithIcon}>
@@ -142,13 +200,7 @@ const GroupMetricsCard = ({ item, userMetrics }) => {
               <Text style={styles.gridValue}>{completenessPercentage}%</Text>
             </View>
           </View>
-          <View style={styles.singleLineItemContainer}>
-            <View style={styles.labelWithIcon}>
-              <FontAwesome5 name="envelope" size={14} color="#6B7280" style={styles.labelIcon} />
-              <Text style={styles.gridLabel}>Contact Email</Text>
-            </View>
-            <Text style={styles.gridValue}>{item.contact_email || 'N/A'}</Text>
-          </View>
+
           <View style={styles.groupIdContainer}>
             <View style={styles.labelWithIcon}>
               <FontAwesome5 name="fingerprint" size={14} color="#1F2937" style={styles.labelIcon} />
@@ -160,6 +212,10 @@ const GroupMetricsCard = ({ item, userMetrics }) => {
           {groupUsers.map(user => (
             <UserCard key={user.id} item={user} />
           ))}
+          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+            <FontAwesome5 name="trash-alt" size={16} color="#fff" />
+            <Text style={styles.deleteButtonText}>Delete Group</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -177,6 +233,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
+  },
+  statusTrue: {
+    color: 'green',
+    fontWeight: 'bold',
+  },
+  statusFalse: {
+    color: 'red',
+    fontWeight: 'bold',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -225,11 +289,11 @@ const styles = StyleSheet.create({
   },
   groupIdContainer: {
     marginTop: 10,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   singleLineItemContainer: {
     marginTop: 10,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   groupIdValue: {
     fontSize: 12,
@@ -250,6 +314,20 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
     alignSelf: 'flex-start',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    backgroundColor: '#dc3545',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    marginLeft: 10,
+    fontWeight: 'bold',
   },
 });
 

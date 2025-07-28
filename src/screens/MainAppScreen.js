@@ -308,7 +308,7 @@ const NotificationDropdown = ({ notifications, onClose, onNavigate, visible, onA
 };
 
 function BottomTabNavigator({ route }) {
-  const { groupId } = route.params;
+  const { groupId, toastMessage, toastType } = route.params;
   return (
     <Tab.Navigator
       tabBar={(props) => <SlidingTabBar {...props} />}
@@ -316,7 +316,7 @@ function BottomTabNavigator({ route }) {
         headerShown: false,
       }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} initialParams={{ groupId }} />
+      <Tab.Screen name="Home" component={HomeScreen} initialParams={{ groupId, toastMessage, toastType }} />
       <Tab.Screen name="Members" component={MembersScreen} initialParams={{ groupId }} />
       <Tab.Screen name="Events" component={EventsScreen} initialParams={{ groupId }} />
       <Tab.Screen name="News" component={NewsScreen} initialParams={{ groupId }} />
@@ -403,7 +403,7 @@ const SlidingTabBar = ({ state, descriptors, navigation }) => {
 };
 
 const MainAppScreen = ({ route, navigation }) => {
-  const { groupId } = route.params;
+  const { groupId, toastMessage, toastType } = route.params;
   const [notifications, setNotifications] = useState([]);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [hasNotifications, setHasNotifications] = useState(false);
@@ -414,6 +414,14 @@ const MainAppScreen = ({ route, navigation }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [processingStatus, setProcessingStatus] = useState({});
   const [attendedEvents, setAttendedEvents] = useState([]);
+
+  useEffect(() => {
+    if (toastMessage) {
+      setToast({ visible: true, message: toastMessage, type: toastType || "success" });
+      // Clear the params after showing the toast
+      navigation.setParams({ toastMessage: null, toastType: null });
+    }
+  }, [toastMessage, toastType]);
 
   const fetchCheckedInCount = useCallback(async () => {
     const { count, error } = await supabase
@@ -1029,7 +1037,7 @@ const MainAppScreen = ({ route, navigation }) => {
         <Drawer.Screen
           name="MainTabs"
           component={BottomTabNavigator}
-          initialParams={{ groupId }}
+          initialParams={{ groupId, toastMessage, toastType }}
           options={({ route }) => ({
             title: "Home",
             drawerIcon: ({ color, size }) => {
