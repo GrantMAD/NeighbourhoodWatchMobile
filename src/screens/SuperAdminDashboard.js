@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, ScrollView, TouchableOpacity, Animated, PanResponder, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, ScrollView, TouchableOpacity, Animated, PanResponder, Alert, TextInput } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { FontAwesome5 } from '@expo/vector-icons';
 import GroupCard from './cards/GroupCard';
@@ -78,6 +78,7 @@ const SuperAdminDashboard = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleShowToast = (message, type) => {
     setToastMessage(message);
@@ -212,6 +213,102 @@ const SuperAdminDashboard = () => {
     }
   };
 
+  const handleDeleteEvent = async (eventId, groupId) => {
+    try {
+      // Step 1: Fetch the group to get the current events and previous_events arrays
+      const { data: group, error: fetchError } = await supabase
+        .from('groups')
+        .select('events, previous_events')
+        .eq('id', groupId)
+        .single();
+
+      if (fetchError) throw new Error(`Failed to fetch group: ${fetchError.message}`);
+
+      const eventToDelete = group.events.find(event => event.id === eventId);
+      if (!eventToDelete) throw new Error("Event not found in the group.");
+
+      // Step 2: Remove the event from the 'events' array
+      const updatedEvents = group.events.filter(event => event.id !== eventId);
+
+      // Step 3: Add the event to the 'previous_events' array
+      const updatedPreviousEvents = [ ...(group.previous_events || []), eventToDelete ];
+
+      // Step 4: Update the group with the modified arrays
+      const { error: updateError } = await supabase
+        .from('groups')
+        .update({ events: updatedEvents, previous_events: updatedPreviousEvents })
+        .eq('id', groupId);
+
+      if (updateError) throw new Error(`Failed to delete event: ${updateError.message}`);
+
+      handleShowToast("Event successfully deleted and archived.", "success");
+      fetchAllData(); // Refresh the dashboard data
+    } catch (error) {
+      console.error("Event deletion error:", error.message);
+      handleShowToast(error.message, "error");
+    }
+  };
+
+  const handleDeleteNews = async (newsId, groupId) => {
+    try {
+      // Step 1: Fetch the group to get the current news array
+      const { data: group, error: fetchError } = await supabase
+        .from('groups')
+        .select('news')
+        .eq('id', groupId)
+        .single();
+
+      if (fetchError) throw new Error(`Failed to fetch group: ${fetchError.message}`);
+
+      // Step 2: Remove the news story from the 'news' array
+      const updatedNews = group.news.filter(story => story.id !== newsId);
+
+      // Step 3: Update the group with the modified array
+      const { error: updateError } = await supabase
+        .from('groups')
+        .update({ news: updatedNews })
+        .eq('id', groupId);
+
+      if (updateError) throw new Error(`Failed to delete news story: ${updateError.message}`);
+
+      handleShowToast("News story successfully deleted.", "success");
+      fetchAllData(); // Refresh the dashboard data
+    } catch (error) {
+      console.error("News deletion error:", error.message);
+      handleShowToast(error.message, "error");
+    }
+  };
+
+  const handleDeleteIncident = async (incidentId, groupId) => {
+    try {
+      // Step 1: Fetch the group to get the current reports array
+      const { data: group, error: fetchError } = await supabase
+        .from('groups')
+        .select('reports')
+        .eq('id', groupId)
+        .single();
+
+      if (fetchError) throw new Error(`Failed to fetch group: ${fetchError.message}`);
+
+      // Step 2: Remove the incident report from the 'reports' array
+      const updatedReports = group.reports.filter(report => report.id !== incidentId);
+
+      // Step 3: Update the group with the modified array
+      const { error: updateError } = await supabase
+        .from('groups')
+        .update({ reports: updatedReports })
+        .eq('id', groupId);
+
+      if (updateError) throw new Error(`Failed to delete incident report: ${updateError.message}`);
+
+      handleShowToast("Incident report successfully deleted.", "success");
+      fetchAllData(); // Refresh the dashboard data
+    } catch (error) {
+      console.error("Incident deletion error:", error.message);
+      handleShowToast(error.message, "error");
+    }
+  };
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -267,10 +364,19 @@ const SuperAdminDashboard = () => {
             <Text style={styles.contentTitle}>User Metrics</Text>
             <Text style={styles.contentDescription}>Overview of all registered users and their associated details.</Text>
             <Text style={styles.metricText}>Total Users: {overallMetrics.totalUsers}</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by name..."
+              onChangeText={setSearchQuery}
+              value={searchQuery}
+            />
             <FlatList
-              data={userMetrics}
+              data={userMetrics.filter(user => user.name.toLowerCase().includes(searchQuery.toLowerCase()))}
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
-              renderItem={({ item }) => <UserCard item={item} />}
+              renderItem={({ item }) => <UserCard item={item} onDelete={(message, type) => {
+                handleShowToast(message, type);
+                fetchAllData();
+              }} />}
               initialNumToRender={5}
               windowSize={10}
             />
@@ -284,7 +390,7 @@ const SuperAdminDashboard = () => {
             <FlatList
               data={eventMetrics}
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
-              renderItem={({ item }) => <EventCard item={item} />}
+              renderItem={({ item }) => <EventCard item={item} onDelete={handleDeleteEvent} />}
               initialNumToRender={5}
               windowSize={10}
             />
@@ -298,7 +404,7 @@ const SuperAdminDashboard = () => {
             <FlatList
               data={newsMetrics}
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
-              renderItem={({ item }) => <NewsCard item={item} userMetrics={userMetrics} />}
+              renderItem={({ item }) => <NewsCard item={item} userMetrics={userMetrics} onDelete={handleDeleteNews} />}
               initialNumToRender={5}
               windowSize={10}
             />
@@ -312,7 +418,7 @@ const SuperAdminDashboard = () => {
             <FlatList
               data={incidentMetrics}
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
-              renderItem={({ item }) => <IncidentCard item={item} />}
+              renderItem={({ item }) => <IncidentCard item={item} userMetrics={userMetrics} onDelete={handleDeleteIncident} />}
               initialNumToRender={5}
               windowSize={10}
             />
@@ -610,7 +716,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginTop: 20,
-  },
+},
   metricCard: {
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
@@ -650,6 +756,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
     marginBottom: 20,
+  },
+  searchInput: {
+    height: 40,
+    borderColor: '#D1D5DB',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    marginBottom: 20,
+    fontSize: 16,
+    backgroundColor: '#F9FAFB',
   },
 });
 

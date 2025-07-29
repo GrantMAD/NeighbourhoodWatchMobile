@@ -1,9 +1,24 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 
-const NewsCard = React.memo(({ item, userMetrics }) => {
+const NewsCard = React.memo(({ item, userMetrics, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
+
+  const handleDelete = () => {
+    Alert.alert(
+      "Confirm Deletion",
+      `Are you sure you want to permanently delete the news story "${item.title}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => onDelete(item.id, item.groupId),
+        },
+      ]
+    );
+  };
 
   const renderDetail = (label, value, icon) => (
     <View style={styles.gridItem}>
@@ -60,6 +75,10 @@ const NewsCard = React.memo(({ item, userMetrics }) => {
             </View>
             <Text style={styles.smallGridValue}>{item.id}</Text>
           </View>
+          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+            <FontAwesome5 name="trash-alt" size={16} color="#FFF" />
+            <Text style={styles.deleteButtonText}>Delete Story</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -149,6 +168,21 @@ const styles = StyleSheet.create({
     marginTop: 15,
     marginBottom: 10,
     alignSelf: 'flex-start',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#dc3545',
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  deleteButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 10,
   },
 });
 
