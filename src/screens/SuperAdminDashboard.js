@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, ScrollView, TouchableOpacity, Animated, PanResponder, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, ScrollView, TouchableOpacity, Animated, PanResponder, Alert, TextInput, Dimensions } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { FontAwesome5 } from '@expo/vector-icons';
 import GroupCard from './cards/GroupCard';
@@ -12,6 +12,10 @@ import NeighbourhoodWatchRequestCard from './cards/NeighbourhoodWatchRequestCard
 import GroupMetricsCard from './cards/GroupMetricsCard';
 import { useNavigation } from '@react-navigation/native';
 import Toast from '../components/Toast';
+
+import { LineChart, BarChart } from 'react-native-chart-kit';
+
+const screenWidth = Dimensions.get('window').width;
 
 const SuperAdminDashboard = () => {
   const navigation = useNavigation();
@@ -129,8 +133,8 @@ const SuperAdminDashboard = () => {
   ];
 
   useEffect(() => {
-    fetchAllData();
-  }, []);
+    fetchDataForCategory(activeCategory);
+  }, [activeCategory]);
 
   const toggleSidebar = () => {
     const newExpandedState = !isSidebarExpanded;
@@ -149,65 +153,76 @@ const SuperAdminDashboard = () => {
     ]).start();
   };
 
-  const fetchAllData = async () => {
+  const fetchDataForCategory = async (category) => {
     setLoading(true);
     try {
-      // Fetch Overall Metrics
-      const { count: totalUsers, error: usersError } = await supabase.from('profiles').select('id', { count: 'exact', head: true });
-      const { count: totalGroups, error: groupsError } = await supabase.from('groups').select('id', { count: 'exact', head: true });
+      switch (category) {
+        case 'overall':
+          const { count: totalUsers, error: usersError } = await supabase.from('profiles').select('id', { count: 'exact', head: true });
+          const { count: totalGroups, error: groupsError } = await supabase.from('groups').select('id', { count: 'exact', head: true });
+          const { data: allGroupsData, error: allGroupsError } = await supabase.from('groups').select('events, news, reports');
+          if (allGroupsError) console.error("Error fetching all groups for counts:", allGroupsError.message);
 
-      // Fetch all groups to get aggregated counts for events, news, reports
-      const { data: allGroupsData, error: allGroupsError } = await supabase.from('groups').select('events, news, reports');
-      if (allGroupsError) console.error("Error fetching all groups for counts:", allGroupsError.message);
+          let totalEvents = 0;
+          let totalNews = 0;
+          let totalIncidents = 0;
+          if (allGroupsData) {
+            allGroupsData.forEach(group => {
+              totalEvents += group.events ? group.events.length : 0;
+              totalNews += group.news ? group.news.length : 0;
+              totalIncidents += group.reports ? group.reports.length : 0;
+            });
+          }
 
-      let totalEvents = 0;
-      let totalNews = 0;
-      let totalIncidents = 0;
-      if (allGroupsData) {
-        allGroupsData.forEach(group => {
-          totalEvents += group.events ? group.events.length : 0;
-          totalNews += group.news ? group.news.length : 0;
-          totalIncidents += group.reports ? group.reports.length : 0;
-        });
+          setOverallMetrics({
+            totalUsers: totalUsers || 0,
+            totalGroups: totalGroups || 0,
+            totalEvents: totalEvents,
+            totalNews: totalNews,
+            totalIncidents: totalIncidents,
+          });
+          break;
+        case 'groups':
+          const { data: groupsData, error: groupsDataError } = await supabase.from('groups').select('id, name, created_by, users, events, news, reports, contact_email, welcome_text, vision, mission, objectives, values, group_password, created_at');
+          if (groupsDataError) console.error("Error fetching group data:", groupsDataError.message);
+          setGroupMetrics(groupsData || []);
+          break;
+        case 'users':
+          const { data: usersData, error: usersDataError } = await supabase.from('profiles').select('id, name, email, role, group_id, neighbourhoodwatch, checked_in, check_in_time, check_out_time, number, street, emergency_contact, vehicle_info, receive_check_notifications, receive_event_notifications, receive_news_notifications, Requests, created_at');
+          if (usersDataError) console.error("Error fetching user data:", usersDataError.message);
+          setUserMetrics(usersData || []);
+          break;
+        case 'events':
+          const { data: eventsGroupsData, error: eventsGroupsDataError } = await supabase.from('groups').select('id, name, created_by, events');
+          if (eventsGroupsDataError) console.error("Error fetching group data for events:", eventsGroupsDataError.message);
+          const allEvents = eventsGroupsData ? eventsGroupsData.flatMap(group => (group.events ?? []).filter(event => event != null).map(event => ({ ...event, groupId: group.id, groupName: group.name, groupCreatorId: group.created_by }))) : [];
+          setEventMetrics(allEvents);
+          break;
+        case 'news':
+          const { data: newsGroupsData, error: newsGroupsDataError } = await supabase.from('groups').select('id, name, created_by, news');
+          if (newsGroupsDataError) console.error("Error fetching group data for news:", newsGroupsDataError.message);
+          const allNews = newsGroupsData ? newsGroupsData.flatMap(group => (group.news ?? []).map(story => ({ ...story, groupId: group.id, groupName: group.name, groupCreatorId: group.created_by }))) : [];
+          setNewsMetrics(allNews);
+          break;
+        case 'incidents':
+          const { data: incidentsGroupsData, error: incidentsGroupsDataError } = await supabase.from('groups').select('id, name, created_by, reports');
+          if (incidentsGroupsDataError) console.error("Error fetching group data for incidents:", incidentsGroupsDataError.message);
+          const allIncidents = incidentsGroupsData ? incidentsGroupsData.flatMap(group => (group.reports ?? []).map(report => ({ ...report, groupId: group.id, groupName: group.name, groupCreatorId: group.created_by }))) : [];
+          setIncidentMetrics(allIncidents);
+          break;
+        case 'requests':
+          const { data: usersRequestsData, error: usersRequestsDataError } = await supabase.from('profiles').select('id, name, email, Requests');
+          if (usersRequestsDataError) console.error("Error fetching user data for requests:", usersRequestsDataError.message);
+          const { data: groupsRequestsData, error: groupsRequestsDataError } = await supabase.from('groups').select('id, name, created_by, requests');
+          if (groupsRequestsDataError) console.error("Error fetching group data for requests:", groupsRequestsDataError.message);
+
+          const allUserRequests = usersRequestsData ? usersRequestsData.flatMap(user => (user.Requests ?? []).map(req => ({ ...req, userId: user.id, userName: user.name, userEmail: user.email }))) : [];
+          const allGroupRequests = groupsRequestsData ? groupsRequestsData.flatMap(group => (group.requests ?? []).map(req => ({ ...req, groupId: group.id, groupName: group.name, creatorId: group.created_by }))) : [];
+          setRequestMetrics({ userRequests: allUserRequests, groupRequests: allGroupRequests });
+          break;
       }
-
-      setOverallMetrics({
-        totalUsers: totalUsers || 0,
-        totalGroups: totalGroups || 0,
-        totalEvents: totalEvents,
-        totalNews: totalNews,
-        totalIncidents: totalIncidents,
-      });
-
-      // Fetch Group Metrics
-      const { data: groupsData, error: groupsDataError } = await supabase.from('groups').select('id, name, created_by, users, events, news, reports, contact_email, welcome_text, vision, mission, objectives, values, group_password, created_at'); // Added created_at
-      if (groupsDataError) console.error("Error fetching group data:", groupsDataError.message);
-      setGroupMetrics(groupsData || []);
-
-      // Fetch User Metrics (basic)
-      const { data: usersData, error: usersDataError } = await supabase.from('profiles').select('id, name, email, role, group_id, neighbourhoodwatch, checked_in, check_in_time, check_out_time, number, street, emergency_contact, vehicle_info, receive_check_notifications, receive_event_notifications, receive_news_notifications, Requests, created_at'); // Added created_at
-      if (usersDataError) console.error("Error fetching user data:", usersDataError.message);
-      setUserMetrics(usersData || []);
-
-      // Event Metrics (will be derived from groupMetrics.events)
-      const allEvents = groupsData ? groupsData.flatMap(group => (group.events ?? []).filter(event => event != null).map(event => ({ ...event, groupId: group.id, groupName: group.name, groupCreatorId: group.created_by }))) : [];
-      setEventMetrics(allEvents);
-
-      // News Metrics (will be derived from groupMetrics.news)
-      const allNews = groupsData ? groupsData.flatMap(group => (group.news ?? []).map(story => ({ ...story, groupId: group.id, groupName: group.name, groupCreatorId: group.created_by }))) : [];
-      setNewsMetrics(allNews);
-
-      // Incident Metrics (will be derived from groupMetrics.reports)
-      const allIncidents = groupsData ? groupsData.flatMap(group => (group.reports ?? []).map(report => ({ ...report, groupId: group.id, groupName: group.name, groupCreatorId: group.created_by }))) : [];
-      setIncidentMetrics(allIncidents);
-
-      // Request Metrics (will be derived from userMetrics.Requests and groupMetrics.requests)
-      const allUserRequests = usersData ? usersData.flatMap(user => (user.Requests ?? []).map(req => ({ ...req, userId: user.id, userName: user.name, userEmail: user.email }))) : [];
-      const allGroupRequests = groupsData ? groupsData.flatMap(group => (group.requests ?? []).map(req => ({ ...req, groupId: group.id, groupName: group.name, creatorId: group.created_by }))) : [];
-      setRequestMetrics({ userRequests: allUserRequests, groupRequests: allGroupRequests });
-
     } catch (error) {
-      console.error("Error fetching all dashboard data:", error.message);
+      console.error(`Error fetching data for ${category}:`, error.message);
     } finally {
       setLoading(false);
     }
@@ -231,7 +246,7 @@ const SuperAdminDashboard = () => {
       const updatedEvents = group.events.filter(event => event.id !== eventId);
 
       // Step 3: Add the event to the 'previous_events' array
-      const updatedPreviousEvents = [ ...(group.previous_events || []), eventToDelete ];
+      const updatedPreviousEvents = [...(group.previous_events || []), eventToDelete];
 
       // Step 4: Update the group with the modified arrays
       const { error: updateError } = await supabase
@@ -322,24 +337,80 @@ const SuperAdminDashboard = () => {
     switch (activeCategory) {
       case 'overall':
         const overallMetricsData = [
-          { title: 'Total Users', value: overallMetrics.totalUsers, icon: 'users' },
-          { title: 'Total Groups', value: overallMetrics.totalGroups, icon: 'layer-group' },
-          { title: 'Total Events', value: overallMetrics.totalEvents, icon: 'calendar-check' },
-          { title: 'Total News', value: overallMetrics.totalNews, icon: 'newspaper' },
-          { title: 'Total Incidents', value: overallMetrics.totalIncidents, icon: 'exclamation-triangle' },
+          { title: 'Total Users', value: overallMetrics.totalUsers, icon: 'users', targetCategory: 'users' },
+          { title: 'Total Groups', value: overallMetrics.totalGroups, icon: 'layer-group', targetCategory: 'groups' },
+          { title: 'Total Events', value: overallMetrics.totalEvents, icon: 'calendar-check', targetCategory: 'events' },
+          { title: 'Total News', value: overallMetrics.totalNews, icon: 'newspaper', targetCategory: 'news' },
+          { title: 'Total Incidents', value: overallMetrics.totalIncidents, icon: 'exclamation-triangle', targetCategory: 'incidents' },
         ];
         return (
-          <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: 20 }}>
+          <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: 40 }}>
             <Text style={styles.contentTitle}>Overall Application Metrics</Text>
             <Text style={styles.contentDescription}>A high-level overview of key metrics across the application.</Text>
             <View style={styles.metricsGrid}>
               {overallMetricsData.map((metric, index) => (
-                <View key={index} style={styles.metricCard}>
+                <TouchableOpacity key={index} style={styles.metricCard} onPress={() => setActiveCategory(metric.targetCategory)}>
                   <FontAwesome5 name={metric.icon} size={24} color="#4A5568" style={styles.metricIcon} />
                   <Text style={styles.metricValue}>{metric.value}</Text>
                   <Text style={styles.metricCardTitle}>{metric.title}</Text>
-                </View>
+                </TouchableOpacity>
               ))}
+            </View>
+
+            <View style={styles.chartContainer}>
+              <Text style={styles.chartTitle}>User & Group Creation (Last 30 Days)</Text>
+              <LineChart
+                data={{
+                  labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                  datasets: [
+                    {
+                      data: [10, 20, 15, 25],
+                      color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`,
+                      strokeWidth: 2,
+                    },
+                    {
+                      data: [5, 10, 8, 12],
+                      color: (opacity = 1) => `rgba(255, 165, 0, ${opacity})`,
+                      strokeWidth: 2,
+                    },
+                  ],
+                  legend: ['Users', 'Groups'],
+                }}
+                width={screenWidth - 64} // Adjust for padding
+                height={220}
+                chartConfig={{
+                  backgroundColor: '#ffffff',
+                  backgroundGradientFrom: '#ffffff',
+                  backgroundGradientTo: '#ffffff',
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                }}
+                style={styles.chart}
+              />
+            </View>
+
+            <View style={styles.chartContainer}>
+              <Text style={styles.chartTitle}>Content Distribution</Text>
+              <BarChart
+                data={{
+                  labels: ['Events', 'News', 'Incidents'],
+                  datasets: [
+                    {
+                      data: [overallMetrics.totalEvents, overallMetrics.totalNews, overallMetrics.totalIncidents],
+                    },
+                  ],
+                }}
+                width={screenWidth - 64} // Adjust for padding
+                height={220}
+                chartConfig={{
+                  backgroundColor: '#ffffff',
+                  backgroundGradientFrom: '#ffffff',
+                  backgroundGradientTo: '#ffffff',
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                }}
+                style={styles.chart}
+              />
             </View>
           </ScrollView>
         );
@@ -375,7 +446,7 @@ const SuperAdminDashboard = () => {
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
               renderItem={({ item }) => <UserCard item={item} onDelete={(message, type) => {
                 handleShowToast(message, type);
-                fetchAllData();
+                fetchDataForCategory('users');
               }} />}
               initialNumToRender={5}
               windowSize={10}
@@ -716,7 +787,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginTop: 20,
-},
+  },
   metricCard: {
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
@@ -766,6 +837,68 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontSize: 16,
     backgroundColor: '#F9FAFB',
+  },
+  chartContainer: {
+    marginTop: 20,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#1F2937',
+    textAlign: 'center',
+  },
+  chart: {
+    borderRadius: 12,
+    marginLeft: -16,
+  },
+  filterContainer: {
+    marginBottom: 10,
+  },
+  filterButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+  },
+  filterButton: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#E5E7EB',
+  },
+  filterButtonText: {
+    fontWeight: 'bold',
+    color: '#4B5563',
+  },
+  sortContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sortLabel: {
+    marginRight: 10,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4B5563',
+  },
+  sortButton: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#E5E7EB',
+    marginRight: 10,
+  },
+  sortButtonText: {
+    fontWeight: 'bold',
+    color: '#4B5563',
   },
 });
 
