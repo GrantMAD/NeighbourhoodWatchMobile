@@ -13,6 +13,7 @@ import {
   Animated,
   Dimensions,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import {
   createDrawerNavigator,
@@ -37,6 +38,8 @@ import Toast from "../components/Toast";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 
 const LOCATION_TRACKING_TASK = 'location-tracking-task';
 
@@ -423,6 +426,70 @@ const MainAppScreen = ({ route, navigation }) => {
     }
   }, [toastMessage, toastType]);
 
+  useEffect(() => {
+    // We will call registerForPushNotificationsAsync from a place where we are sure the user is logged in.
+    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
+      // Handle received notification
+    });
+
+    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+      const { notification } = response;
+      // Handle notification tap
+      if (notification.request.content.data.notification) {
+        navigation.navigate("Notifications", { notification: notification.request.content.data.notification });
+      }
+    });
+
+    return () => {
+      notificationListener.remove();
+      responseListener.remove();
+    };
+  }, []);
+
+  async function registerForPushNotificationsAsync(userId) {
+    console.log(`Register function started. Received userId: ${userId}`);
+    let token;
+    if (Device.isDevice) {
+      // ... (rest of the function is the same)
+      try {
+        token = (await Notifications.getExpoPushTokenAsync()).data;
+        console.log('Expo Push Token:', token);
+      } catch (e) {
+        console.error('Failed to get Expo push token:', e);
+        return;
+      }
+    } else {
+      // ...
+      return;
+    }
+
+    if (Platform.OS === 'android') {
+      try {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        });
+      } catch (e) {
+        console.error('Failed to set notification channel:', e);
+      }
+    }
+
+    console.log(`Values before save check: token is typeof ${typeof token} with value ${token}, userId is typeof ${typeof userId} with value ${userId}`);
+    if (token && userId) {
+      console.log('Saving push token to Supabase for user:', userId);
+      const { error } = await supabase.from('profiles').update({ push_token: token }).eq('id', userId);
+      if (error) {
+        console.error('Error saving push token to Supabase:', error);
+      } else {
+        console.log('Push token saved successfully!');
+      }
+    } else {
+      console.log('Condition to save token failed. Token or userId is missing.');
+    }
+  }
+
   const fetchCheckedInCount = useCallback(async () => {
     const { count, error } = await supabase
       .from("profiles")
@@ -568,34 +635,37 @@ const MainAppScreen = ({ route, navigation }) => {
   useFocusEffect(
     useCallback(() => {
       let subscription = null;
-      let userId = null;
 
-      async function fetchNotifications() {
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
+      async function setupUser() {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-        if (userError || !user) return;
-
-        userId = user.id;
-
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("notifications, checked_in, attended_events")
-          .eq("id", userId)
-          .single();
-
-        if (error) {
-          console.error("Error fetching notifications:", error);
+        if (userError || !user) {
+          console.log("User not logged in, skipping setup.");
           return;
         }
 
-        const notifs = data.notifications ?? [];
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("notifications, checked_in, attended_events, push_token")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
+          return;
+        }
+
+        // If there's no push token in the profile, get one and save it.
+        if (!profile.push_token) {
+          console.log('Push token not found in profile, attempting to register.');
+          await registerForPushNotificationsAsync(user.id);
+        }
+
+        const notifs = profile.notifications ?? [];
         setNotifications(notifs);
         setHasNotifications(notifs.some((n) => !n.read));
-        setCheckedIn(data.checked_in ?? false);
-        setAttendedEvents(data.attended_events ?? []);
+        setCheckedIn(profile.checked_in ?? false);
+        setAttendedEvents(profile.attended_events ?? []);
 
         subscription = supabase
           .channel("notifications-channel")
@@ -605,7 +675,7 @@ const MainAppScreen = ({ route, navigation }) => {
               event: "UPDATE",
               schema: "public",
               table: "profiles",
-              filter: `id=eq.${userId}`,
+              filter: `id=eq.${user.id}`,
             },
             (payload) => {
               const updatedNotifs = payload.new.notifications ?? [];
@@ -618,7 +688,7 @@ const MainAppScreen = ({ route, navigation }) => {
           .subscribe();
       }
 
-      fetchNotifications();
+      setupUser();
 
       return () => {
         if (subscription) {

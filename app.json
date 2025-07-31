@@ -13,8 +13,10 @@
       "backgroundColor": "#1f2937"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.grant6908.NeighbourhoodWatchMobile"
     },
+    "scheme": "neighbourhoodwatchmobile",
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/Images/nwLogo.png",
@@ -22,10 +24,16 @@
       },
       "softwareKeyboardLayoutMode": "pan",
       "edgeToEdgeEnabled": false,
-      "package": "com.grant6908.NeighbourhoodWatchMobile"
+      "package": "com.grant6908.NeighbourhoodWatchMobile",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "772b4517-3ef7-4f22-8b83-055c9870faca"
+      }
     }
   }
 }
