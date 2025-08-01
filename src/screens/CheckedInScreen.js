@@ -1,4 +1,3 @@
-
 import { GOOGLE_API_KEY } from "@env";
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import {

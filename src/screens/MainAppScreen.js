@@ -828,6 +828,22 @@ const MainAppScreen = ({ route, navigation }) => {
                     longitude_param: longitude,
                     timestamp_param: timestamp,
                   });
+
+                  // Schedule a 4-hour check-out reminder
+                  const notificationId = await Notifications.scheduleNotificationAsync({
+                    content: {
+                      title: "Still on duty?",
+                      body: "You have been checked in for 4 hours. Tap here to check out if you are finished.",
+                      data: { screen: 'CheckedIn' }, // To navigate to the right screen on tap
+                    },
+                    trigger: { date: new Date(Date.now() + 20 * 1000) }, // 20 seconds for testing
+                  });
+
+                  // Save the notification ID to the user's profile
+                  await supabase
+                    .from('profiles')
+                    .update({ check_in_notification_id: notificationId })
+                    .eq('id', user.id);
                 }
               } else {
                 // User is checking out, stop tracking
