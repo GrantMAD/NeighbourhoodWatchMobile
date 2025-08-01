@@ -634,6 +634,7 @@ const MainAppScreen = ({ route, navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
+      console.log("MainAppScreen useFocusEffect fired");
       let subscription = null;
 
       async function setupUser() {
@@ -656,9 +657,14 @@ const MainAppScreen = ({ route, navigation }) => {
         }
 
         // If there's no push token in the profile, get one and save it.
+        console.log("User ID:", user.id);
+        console.log("Profile push_token:", profile.push_token);
+
         if (!profile.push_token) {
           console.log('Push token not found in profile, attempting to register.');
           await registerForPushNotificationsAsync(user.id);
+        } else {
+          console.log('Push token already exists, skipping registration.');
         }
 
         const notifs = profile.notifications ?? [];
