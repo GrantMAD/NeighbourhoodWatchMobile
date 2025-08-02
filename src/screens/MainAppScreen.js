@@ -450,7 +450,16 @@ const MainAppScreen = ({ route, navigation }) => {
     console.log(`Register function started. Received userId: ${userId}`);
     let token;
     if (Device.isDevice) {
-      // ... (rest of the function is the same)
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        Alert.alert('Failed to get push token for push notification!');
+        return;
+      }
       try {
         token = (await Notifications.getExpoPushTokenAsync()).data;
         console.log('Expo Push Token:', token);
@@ -459,7 +468,7 @@ const MainAppScreen = ({ route, navigation }) => {
         return;
       }
     } else {
-      // ...
+      console.log('Not a device, skipping push token registration.');
       return;
     }
 
