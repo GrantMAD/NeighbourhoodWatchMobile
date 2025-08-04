@@ -16,6 +16,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 
+
+
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -202,19 +204,25 @@ const MembersScreen = ({ route }) => {
               <View style={styles.detailCard}>
                 <Text style={styles.cardHeader}>Contact Information</Text>
                 <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`mailto:${selectedMember.email}`)}>
-                  <Text style={styles.icon}>📧</Text>
-                  <Text style={styles.detailLabel}>Email:</Text>
-                  <Text style={styles.detailText}>{selectedMember.email || '-'}</Text>
+                  <View style={styles.detailRowHeader}>
+                    <Text style={styles.icon}>📧</Text>
+                    <Text style={styles.detailLabel}>Email:</Text>
+                  </View>
+                  <Text style={styles.detailText}>{selectedMember.email ? `${selectedMember.email}` : '-'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`tel:${selectedMember.number}`)}>
-                  <Text style={styles.icon}>📞</Text>
-                  <Text style={styles.detailLabel}>Contact Number:</Text>
-                  <Text style={styles.detailText}>{selectedMember.number || '-'}</Text>
+                  <View style={styles.detailRowHeader}>
+                    <Text style={styles.icon}>📞</Text>
+                    <Text style={styles.detailLabel}>Contact Number:</Text>
+                  </View>
+                  <Text style={styles.detailText}>{selectedMember.number ? `${selectedMember.number}` : '-'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`tel:${selectedMember.emergency_contact}`)}>
-                  <Text style={styles.icon}>🆘</Text>
-                  <Text style={styles.detailLabel}>Emergency Contact:</Text>
-                  <Text style={styles.detailText}>{selectedMember.emergency_contact || '-'}</Text>
+                  <View style={styles.detailRowHeader}>
+                    <Text style={styles.icon}>🆘</Text>
+                    <Text style={styles.detailLabel}>Emergency Contact:</Text>
+                  </View>
+                  <Text style={styles.detailText}>{selectedMember.emergency_contact ? `${selectedMember.emergency_contact}` : '-'}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -222,14 +230,18 @@ const MembersScreen = ({ route }) => {
               <View style={styles.detailCard}>
                 <Text style={styles.cardHeader}>Location & Vehicle</Text>
                 <View style={styles.detailRow}>
-                  <Text style={styles.icon}>📍</Text>
-                  <Text style={styles.detailLabel}>Street:</Text>
-                  <Text style={styles.detailText}>{selectedMember.street || '-'}</Text>
+                  <View style={styles.detailRowHeader}>
+                    <Text style={styles.icon}>📍</Text>
+                    <Text style={styles.detailLabel}>Street:</Text>
+                  </View>
+                  <Text style={styles.detailText}>{selectedMember.street ? `${selectedMember.street}` : '-'}</Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={styles.icon}>🚗</Text>
-                  <Text style={styles.detailLabel}>Vehicle Info:</Text>
-                  <Text style={styles.detailText}>{selectedMember.vehicle_info || '-'}</Text>
+                  <View style={styles.detailRowHeader}>
+                    <Text style={styles.icon}>🚗</Text>
+                    <Text style={styles.detailLabel}>Vehicle Info:</Text>
+                  </View>
+                  <Text style={styles.detailText}>{selectedMember.vehicle_info ? `${selectedMember.vehicle_info}` : '-'}</Text>
                 </View>
               </View>
             </ScrollView>
@@ -410,9 +422,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   detailRow: {
+    marginBottom: 12,
+  },
+  detailRowHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 4,
   },
   icon: {
     marginRight: 12,
@@ -421,12 +436,12 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontWeight: 'bold',
     color: '#bdc3c7',
-    marginRight: 5,
+    fontSize: 14,
   },
   detailText: {
-    flex: 1,
     fontSize: 14,
     color: '#ecf0f1',
+    marginLeft: 32, // Align with the label text
   },
   closeButton: {
     position: 'absolute',
