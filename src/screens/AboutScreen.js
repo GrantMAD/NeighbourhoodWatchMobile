@@ -134,7 +134,7 @@ const AboutScreen = ({ route }) => {
         </View>
 
         <Text style={styles.execTitle}>
-          👥 Executive Committee ({executives.length})
+          👥 Executive Committe ({executives.length})
         </Text>
         {executives.length > 0 ? (
           executives.map((exec, index) => (
