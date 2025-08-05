@@ -22,7 +22,7 @@ const NewsModal = ({ visible, onClose, story }) => {
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeButtonText}>✕</Text>
           </TouchableOpacity>
@@ -35,28 +35,35 @@ const NewsModal = ({ visible, onClose, story }) => {
             </View>
           )}
 
-          <ScrollView contentContainerStyle={styles.modalContent}>
+          <ScrollView>
             <Text style={styles.modalTitle}>{story.title}</Text>
 
-            <Text style={styles.modalDescription}>
-              {story.content || story.message || "No content available."}
-            </Text>
-
-            <View style={styles.modalRow}>
-              <Text style={styles.modalIcon}>🗓️</Text>
-              <Text style={styles.modalDetailText}>
-                {new Date(story.date).toLocaleDateString("en-US", {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </Text>
+            <View style={styles.modalSection}>
+                <Text style={styles.sectionTitle}>Story</Text>
+                <Text style={styles.modalDescription}>
+                  {story.content || story.message || "No content available."}
+                </Text>
             </View>
 
-            <View style={styles.modalRow}>
-              <Text style={styles.modalIcon}>👁️</Text>
-              <Text style={styles.modalDetailText}>Views: {story.views || 0}</Text>
+            <View style={styles.modalSection}>
+                <Text style={styles.sectionTitle}>Details</Text>
+                <View style={styles.detailRow}>
+                    <Text style={styles.detailIcon}>🗓️</Text>
+                    <Text style={styles.label}>Published:</Text>
+                    <Text style={styles.detailText}>
+                        {new Date(story.date).toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                        })}
+                    </Text>
+                </View>
+                <View style={styles.detailRow}>
+                    <Text style={styles.detailIcon}>👁️</Text>
+                    <Text style={styles.label}>Views:</Text>
+                    <Text style={styles.detailText}>{story.views || 0}</Text>
+                </View>
             </View>
           </ScrollView>
         </View>
@@ -428,40 +435,42 @@ const styles = StyleSheet.create({
   // MODAL STYLES
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
   },
-  modalContainer: {
-    width: "100%",
-    maxHeight: "80%",
-    backgroundColor: "#1f2937",
-    borderRadius: 12,
-    padding: 16,
+  modalContent: {
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 20,
+    padding: 20,
+    width: "90%",
+    maxHeight: "85%",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.5,
-    shadowRadius: 5,
-    elevation: 10,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
   },
   closeButton: {
     position: "absolute",
-    top: -10,
-    right: -10,
-    zIndex: 10,
-    backgroundColor: "#2563eb",
+    top: 10,
+    right: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
     borderRadius: 15,
     width: 30,
     height: 30,
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 1,
   },
   closeButtonText: {
-    fontSize: 22,
-    color: "#fff",
-    lineHeight: 22,
-    marginTop: -2, // Adjust as needed for visual centering
+    color: "#000",
+    fontSize: 16,
   },
   modalImage: {
     width: "100%",
@@ -474,42 +483,57 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 180,
     borderRadius: 12,
-    backgroundColor: "#374151",
+    backgroundColor: "#ffffff",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
   },
   emoji: {
     fontSize: 72,
   },
-  modalContent: {
-    paddingBottom: 16,
-  },
   modalTitle: {
     fontSize: 24,
-    fontWeight: "700",
-    color: "#fff",
-    marginBottom: 12,
+    fontWeight: "bold",
+    color: "#1f2937",
+    marginBottom: 15,
   },
-  modalRow: {
+  modalSection: {
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#374151",
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#d1d5db",
+    paddingBottom: 5,
+  },
+  detailRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  modalIcon: {
-    fontSize: 22,
-    marginRight: 8,
-    color: "#9ca3af",
+  detailIcon: {
+    fontSize: 18,
+    marginRight: 10,
   },
-  modalDetailText: {
-    color: "#d1d5db",
+  label: {
+    fontWeight: "bold",
+    color: "#4b5563",
+    marginRight: 5,
+  },
+  detailText: {
     fontSize: 14,
-    flexShrink: 1,
+    color: "#4b5563",
+    flex: 1,
   },
   modalDescription: {
-    color: "#d1d5db",
-    fontSize: 16,
-    marginBottom: 20,
+    fontSize: 14,
+    color: "#4b5563",
+    lineHeight: 20,
   },
   loadingNewsCard: {
     width: '100%',

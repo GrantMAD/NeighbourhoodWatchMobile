@@ -46,59 +46,70 @@ const IncidentModal = ({ visible, onClose, report, getSeverityColor }) => {
 
     return (
         <Modal
-            animationType="slide"
+            animationType="fade"
             transparent={true}
             visible={visible}
             onRequestClose={onClose}
         >
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
-                    <ScrollView>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                            <Text style={{ fontSize: 24 }}>⚠️</Text>
-                            <Text style={styles.modalTitle}>{report.title || "Untitled"}</Text>
-                        </View>
-                        <View style={styles.modalHr} />
-
-                        <View style={[styles.severityTag, { backgroundColor: severityColor }]}>
-                            <Text style={styles.severityText}>
-                                {report.severity_tag?.toUpperCase() || "N/A"}
-                            </Text>
-                        </View>
-
-                        <Text style={styles.sectionTitle}>Incident Info</Text>
-                        <Text style={styles.reportRow}>
-                            📝 <Text style={styles.label}>Description:</Text> {report.description || "No description"}
-                        </Text>
-                        <Text style={styles.reportRow}>
-                            ⏱️ <Text style={styles.label}>Reported At:</Text> {report.reported_at ? new Date(report.reported_at).toLocaleString() : "N/A"}
-                        </Text>
-
-                        <Text style={styles.sectionTitle}>Location</Text>
-                        <Text style={styles.reportRow}>
-                            📍 <Text style={styles.label}>Location:</Text> {report.location_of_incident || "Unknown"}
-                        </Text>
-                        <Text style={styles.reportRow}>
-                            🕒 <Text style={styles.label}>Time:</Text> {report.time_of_incident || "N/A"}
-                        </Text>
-                        <Text style={styles.reportRow}>
-                            📅 <Text style={styles.label}>Date of Incident:</Text> {report.date_of_incident ? new Date(report.date_of_incident).toLocaleDateString() : "N/A"}
-                        </Text>
-
-                        <Text style={styles.sectionTitle}>Reporting Details</Text>
-                        <Text style={styles.reportRow}>
-                            👮 <Text style={styles.label}>Patroller:</Text> {reporterName}
-                        </Text>
-                        <Text style={styles.reportRow}>
-                            🚔 <Text style={styles.label}>Police Ref:</Text> {report.police_reference || "N/A"}
-                        </Text>
-                        <Text style={styles.reportRow}>
-                            🗓️ <Text style={styles.label}>Date of Report:</Text> {report.date_of_report ? new Date(report.date_of_report).toLocaleDateString() : "N/A"}
-                        </Text>
-                    </ScrollView>
                     <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                        <Text style={styles.closeButtonText}>Close</Text>
+                        <Text style={styles.closeButtonText}>✕</Text>
                     </TouchableOpacity>
+
+                    <ScrollView>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>{report.title || "Untitled"}</Text>
+                            <View style={[styles.severityBadge, { backgroundColor: severityColor }]}>
+                                <Text style={styles.severityText}>
+                                    {report.severity_tag?.toUpperCase() || "N/A"}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.modalSection}>
+                            <Text style={styles.sectionTitle}>Description</Text>
+                            <Text style={styles.reportRow}>{report.description || "No description"}</Text>
+                        </View>
+
+                        <View style={styles.modalSection}>
+                            <Text style={styles.sectionTitle}>Details</Text>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailIcon}>📅</Text>
+                                <Text style={styles.label}>Date of Incident:</Text>
+                                <Text style={styles.detailText}>{report.date_of_incident ? new Date(report.date_of_incident).toLocaleDateString() : "N/A"}</Text>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailIcon}>🕒</Text>
+                                <Text style={styles.label}>Time of Incident:</Text>
+                                <Text style={styles.detailText}>{report.time_of_incident || "N/A"}</Text>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailIcon}>📍</Text>
+                                <Text style={styles.label}>Location:</Text>
+                                <Text style={styles.detailText}>{report.location_of_incident || "Unknown"}</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.modalSection}>
+                            <Text style={styles.sectionTitle}>Reporting</Text>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailIcon}>👮</Text>
+                                <Text style={styles.label}>Reported by:</Text>
+                                <Text style={styles.detailText}>{reporterName}</Text>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailIcon}>🗓️</Text>
+                                <Text style={styles.label}>Date of Report:</Text>
+                                <Text style={styles.detailText}>{report.date_of_report ? new Date(report.date_of_report).toLocaleDateString() : "N/A"}</Text>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailIcon}>🚔</Text>
+                                <Text style={styles.label}>Police Ref:</Text>
+                                <Text style={styles.detailText}>{report.police_reference || "N/A"}</Text>
+                            </View>
+                        </View>
+                    </ScrollView>
                 </View>
             </View>
         </Modal>
@@ -520,54 +531,95 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     modalContent: {
-        backgroundColor: '#1f2937',
-        borderRadius: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderRadius: 20,
         padding: 20,
         width: '90%',
-        maxHeight: '80%',
-        paddingTop: 40, // Make space for the absolute close button
+        maxHeight: '85%',
         shadowColor: "#000",
         shadowOffset: {
             width: 0,
-            height: 2,
+            height: 4,
         },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
+        shadowOpacity: 0.30,
+        shadowRadius: 4.65,
+        elevation: 8,
+        borderWidth: 1,
+        borderColor: '#d1d5db',
     },
     closeButton: {
-        marginTop: 20,
-        backgroundColor: '#2563eb',
-        padding: 12,
-        borderRadius: 8,
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        backgroundColor: 'rgba(0, 0, 0, 0.1)',
+        borderRadius: 15,
+        width: 30,
+        height: 30,
+        justifyContent: 'center',
         alignItems: 'center',
+        zIndex: 1,
     },
     closeButtonText: {
-        color: '#f9fafb',
-        fontSize: 20,
-        fontWeight: 'bold',
+        color: '#000',
+        fontSize: 16,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
     },
     modalTitle: {
-        fontSize: 24,
+        fontSize: 26,
         fontWeight: 'bold',
+        color: '#1f2937',
+        flex: 1,
+    },
+    severityBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 15,
+    },
+    severityText: {
+        color: "#fff",
+        fontWeight: "bold",
+        fontSize: 12,
+    },
+    modalSection: {
+        marginBottom: 15,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#374151',
         marginBottom: 10,
-        color: '#f9fafb',
-        paddingTop: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#d1d5db',
+        paddingBottom: 5,
     },
-    modalHr: {
-        height: 1,
-        backgroundColor: '#4b5563',
-        marginVertical: 10,
-    },
-    reportRow: {
-        fontSize: 14,
-        color: '#e5e7eb',
+    detailRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginBottom: 8,
-        lineHeight: 20,
+    },
+    detailIcon: {
+        fontSize: 18,
+        marginRight: 10,
     },
     label: {
         fontWeight: 'bold',
-        color: '#d1d5db',
+        color: '#4b5563',
+        marginRight: 5,
+    },
+    detailText: {
+        fontSize: 14,
+        color: '#4b5563',
+        flex: 1,
+    },
+    reportRow: {
+        fontSize: 14,
+        color: '#4b5563',
+        lineHeight: 20,
     },
     loadingReportCard: {
         width: '100%',

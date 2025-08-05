@@ -1,5 +1,4 @@
-import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
-import { faTrash } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesome } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
     View,
@@ -101,9 +100,22 @@ export default function GroupDataScreen() {
                     return;
                 }
 
+                let parsedExecutives = [];
+                if (group.executives) {
+                    if (typeof group.executives === "string") {
+                        try {
+                            parsedExecutives = JSON.parse(group.executives);
+                        } catch {
+                            parsedExecutives = [];
+                        }
+                    } else if (Array.isArray(group.executives)) {
+                        parsedExecutives = group.executives;
+                    }
+                }
+
                 setGroupData({
                     ...group,
-                    executives: Array.isArray(group.executives) ? group.executives : [],
+                    executives: parsedExecutives,
                 });
             } catch (error) {
                 setToast({ visible: true, message: "Error: Unexpected error: " + error.message, type: "error" });
@@ -183,7 +195,7 @@ export default function GroupDataScreen() {
             return;
         }
         const newExec = { name: execName, role: execRole, image: execImage };
-        setGroupData((prev) => ({ ...prev, executives: [...prev.executives, newExec] }));
+        setGroupData((prev) => ({ ...prev, executives: [...(prev.executives || []), newExec] }));
         setExecName("");
         setExecRole("");
         setExecImage(null);
@@ -279,7 +291,7 @@ export default function GroupDataScreen() {
                 <Text style={styles.title}>Edit Group Info</Text>
             <Text style={styles.description}>Update your group's information, including contact details, welcome message, and executive team.</Text>
 
-            {["name", "contact_email", "welcome_text", "vision", "mission", "objectives"].map((key) => (
+            {groupData && ["name", "contact_email", "welcome_text", "vision", "mission", "objectives"].map((key) => (
                 <View key={key} style={styles.inputContainer}>
                     <Text style={styles.label}>
                         {key === "name" && "📝 "}
@@ -292,7 +304,7 @@ export default function GroupDataScreen() {
                     </Text>
                     <TextInput
                         style={[styles.input, ["welcome_text", "vision", "mission", "objectives"].includes(key) && styles.textArea]}
-                        value={groupData[key]}
+                        value={groupData[key] || ''}
                         onChangeText={(text) => handleChange(key, text)}
                         multiline={["welcome_text", "vision", "mission", "objectives"].includes(key)}
                         numberOfLines={4}
@@ -344,10 +356,10 @@ export default function GroupDataScreen() {
             </View>
 
             {/* Display executives as cards */}
-            {groupData.executives.length > 0 && (
+            {groupData.executives && groupData.executives.length > 0 && (
                 <View style={styles.inputContainer}>
                     <Text style={styles.label}>🧑‍💼 Executives</Text>
-                    {groupData.executives.map((exec, index) => (
+                    {groupData.executives.filter(Boolean).map((exec, index) => (
                         <View key={index} style={styles.execCard}>
                             {exec.image ? (
                                 <Image source={{ uri: exec.image }} style={styles.execImage} />
@@ -366,7 +378,7 @@ export default function GroupDataScreen() {
                                 {deletingIndex === index ? (
                                     <ActivityIndicator size="small" color="#fff" />
                                 ) : (
-                                    <FontAwesomeIcon icon={faTrash} size={15} color="white" />
+                                    <FontAwesome name="trash" size={15} color="white" />
                                 )}
                             </TouchableOpacity>
                         </View>

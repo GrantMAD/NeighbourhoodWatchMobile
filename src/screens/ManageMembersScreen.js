@@ -13,7 +13,8 @@ import {
     UIManager,
     Modal,
     ScrollView,
-    TextInput
+    TextInput,
+    ActivityIndicator,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { supabase } from '../../lib/supabase';
@@ -49,25 +50,32 @@ export default function ManageMembersScreen() {
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true); // <-- Added loading state
+    const [loadingManageId, setLoadingManageId] = useState(null);
 
-    const toggleCheckIn = () => {
-        const toValue = checkInAnimation._value === 0 ? 1 : 0;
-        Animated.timing(checkInAnimation, {
-            toValue,
-            duration: 300,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: false,
-        }).start();
+    const toggleCheckIn = (memberId) => {
+        const animation = checkInAnimation[memberId];
+        if (animation) {
+            const toValue = animation._value === 0 ? 1 : 0;
+            Animated.timing(animation, {
+                toValue,
+                duration: 300,
+                easing: Easing.out(Easing.ease),
+                useNativeDriver: false,
+            }).start();
+        }
     };
 
-    const toggleCheckOut = () => {
-        const toValue = checkOutAnimation._value === 0 ? 1 : 0;
-        Animated.timing(checkOutAnimation, {
-            toValue,
-            duration: 300,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: false,
-        }).start();
+    const toggleCheckOut = (memberId) => {
+        const animation = checkOutAnimation[memberId];
+        if (animation) {
+            const toValue = animation._value === 0 ? 1 : 0;
+            Animated.timing(animation, {
+                toValue,
+                duration: 300,
+                easing: Easing.out(Easing.ease),
+                useNativeDriver: false,
+            }).start();
+        }
     };
 
     const groupByDayWithDate = (timestamps) => {
@@ -166,8 +174,14 @@ export default function ManageMembersScreen() {
     }, []);
 
     const openModal = (member) => {
-        setSelectedMember(member);
-        setModalVisible(true);
+        setLoadingManageId(member.id);
+
+        // Simulate brief loading delay or wait for data if needed
+        setTimeout(() => {
+            setSelectedMember(member);
+            setModalVisible(true);
+            setLoadingManageId(null);
+        }, 300); // You can adjust this delay or remove it if unnecessary
     };
 
     const closeModal = () => {
@@ -245,7 +259,12 @@ export default function ManageMembersScreen() {
     };
 
     const handleRoleChange = async (memberId, role) => {
-        setMemberRoles({ ...memberRoles, [memberId]: role });
+        setMemberRoles((prevRoles) => ({ ...prevRoles, [memberId]: role }));
+
+        // Update the selected member's role in the modal
+        if (selectedMember?.id === memberId) {
+            setSelectedMember((prev) => ({ ...prev, role }));
+        }
 
         const { error } = await supabase
             .from('profiles')
@@ -260,6 +279,7 @@ export default function ManageMembersScreen() {
         }
     };
 
+
     const renderItem = ({ item }) => {
         return (
             <View style={styles.memberCard}>
@@ -271,8 +291,13 @@ export default function ManageMembersScreen() {
                 <TouchableOpacity
                     onPress={() => openModal(item)}
                     style={styles.manageButton}
+                    disabled={loadingManageId === item.id}
                 >
-                    <Text style={styles.manageButtonText}>Manage</Text>
+                    {loadingManageId === item.id ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                        <Text style={styles.manageButtonText}>Manage</Text>
+                    )}
                 </TouchableOpacity>
             </View>
         );
@@ -302,7 +327,7 @@ export default function ManageMembersScreen() {
                                 style={styles.modalAvatar}
                             />
                             <View>
-                                <Text style={styles.modalName}>{selectedMember.name || 'No Name'}</Text>
+                                <Text style={styles.modalTitle}>{selectedMember.name || 'No Name'}</Text>
                                 <Text style={styles.modalRole}>{selectedMember.role}</Text>
                             </View>
                         </View>
@@ -311,42 +336,55 @@ export default function ManageMembersScreen() {
                             {/* Contact Info Card */}
                             <View style={styles.detailCard}>
                                 <Text style={styles.cardHeader}>Contact Information</Text>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.icon}>✉️</Text>
-                                    <Text style={styles.detailLabel}>Email:</Text>
-                                    <Text style={styles.detailText}>{selectedMember.email || '-'}</Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.icon}>📞</Text>
-                                    <Text style={styles.detailLabel}>Contact:</Text>
-                                    <Text style={styles.detailText}>{selectedMember.number || '-'}</Text>
-                                </View>
-                                <View style={styles.detailRow}>
-                                    <Text style={styles.icon}>❗</Text>
-                                    <Text style={styles.detailLabel}>Emergency Contact:</Text>
-                                    <Text style={styles.detailText}>{selectedMember.emergency_contact || '-'}</Text>
-                                </View>
+                                <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`mailto:${selectedMember.email}`)}>
+                                    <View style={styles.detailRowHeader}>
+                                        <Text style={styles.icon}>📧</Text>
+                                        <Text style={styles.detailLabel}>Email:</Text>
+                                    </View>
+                                    <Text style={styles.detailText}>{selectedMember.email ? `${selectedMember.email}` : '-'}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`tel:${selectedMember.number}`)}>
+                                    <View style={styles.detailRowHeader}>
+                                        <Text style={styles.icon}>📞</Text>
+                                        <Text style={styles.detailLabel}>Contact Number:</Text>
+                                    </View>
+                                    <Text style={styles.detailText}>{selectedMember.number ? `${selectedMember.number}` : '-'}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`tel:${selectedMember.emergency_contact}`)}>
+                                    <View style={styles.detailRowHeader}>
+                                        <Text style={styles.icon}>🆘</Text>
+                                        <Text style={styles.detailLabel}>Emergency Contact:</Text>
+                                    </View>
+                                    <Text style={styles.detailText}>{selectedMember.emergency_contact ? `${selectedMember.emergency_contact}` : '-'}</Text>
+                                </TouchableOpacity>
                             </View>
 
                             {/* Details Card */}
                             <View style={styles.detailCard}>
                                 <Text style={styles.cardHeader}>Details</Text>
                                 <View style={styles.detailRow}>
-                                    <Text style={styles.icon}>📍</Text>
-                                    <Text style={styles.detailLabel}>Street:</Text>
+                                    <View style={styles.detailRowHeader}>
+                                        <Text style={styles.icon}>📍</Text>
+                                        <Text style={styles.detailLabel}>Street:</Text>
+                                    </View>
                                     <Text style={styles.detailText}>{selectedMember.street || '-'}</Text>
                                 </View>
                                 <View style={styles.detailRow}>
-                                    <Text style={styles.icon}>👑</Text>
-                                    <Text style={styles.detailLabel}>Role:</Text>
+                                    <View style={styles.detailRowHeader}>
+                                        <Text style={styles.icon}>👑</Text>
+                                        <Text style={styles.detailLabel}>Role:</Text>
+                                    </View>
                                     {isGroupCreator ? (
-                                        <View style={styles.pickerContainer}>
+                                        <View style={styles.pickerWrapper}>
                                             <Picker
-                                                selectedValue={memberRoles[selectedMember.id] || selectedMember.role}
-                                                style={styles.picker}
+                                                selectedValue={memberRoles[selectedMember.id] ?? selectedMember.role ?? 'Member'}
                                                 onValueChange={(itemValue) => handleRoleChange(selectedMember.id, itemValue)}
+                                                dropdownIconColor="#f9fafb"
+                                                style={styles.picker}
+                                                itemStyle={styles.pickerItem}
+                                                mode="dropdown" // optional: forces dropdown instead of dialog on Android
                                             >
-                                                <Picker.Item label="Member" value="member" />
+                                                <Picker.Item label="Member" value="Member" />
                                                 <Picker.Item label="Admin" value="Admin" />
                                             </Picker>
                                         </View>
@@ -359,45 +397,45 @@ export default function ManageMembersScreen() {
                             {/* Check-in/out Card */}
                             <View style={styles.detailCard}>
                                 <Text style={styles.cardHeader}>Activity</Text>
-                                <TouchableOpacity onPress={toggleCheckIn} style={styles.toggleHeader}>
+                                <TouchableOpacity onPress={() => toggleCheckIn(selectedMember.id)} style={styles.toggleHeader}>
                                     <Text style={styles.dropdownSubHeading}>Check-in Times</Text>
-                                    <Animated.View style={{ transform: [{ rotate: checkInAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-                                        <Text style={{ color: '#fff' }}>▼</Text>
+                                    <Animated.View style={{ transform: [{ rotate: checkInAnimation[selectedMember.id].interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
+                                        <Text style={{ color: '#ecf0f1' }}>▼</Text>
                                     </Animated.View>
                                 </TouchableOpacity>
-                                <Animated.View style={{ maxHeight: checkInAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, 1000] }), overflow: 'hidden' }}>
+                                <Animated.View style={{ maxHeight: checkInAnimation[selectedMember.id].interpolate({ inputRange: [0, 1], outputRange: [0, 1000] }), overflow: 'hidden' }}>
                                     {Object.keys(groupByDayWithDate(selectedMember.check_in_time)).length > 0 ? (
                                         Object.entries(groupByDayWithDate(selectedMember.check_in_time)).map(([dayKey, times]) => (
                                             <View key={dayKey} style={{ marginBottom: 10, paddingLeft: 10 }}>
-                                                <Text style={{ fontWeight: 'bold', color: '#d1d5db' }}>{dayKey}</Text>
+                                                <Text style={{ fontWeight: 'bold', color: '#bdc3c7' }}>{dayKey}</Text>
                                                 {times.map((time, idx) => (
-                                                    <Text key={idx} style={{ color: '#e5e7eb', marginLeft: 10 }}>• {time}</Text>
+                                                    <Text key={idx} style={{ color: '#ecf0f1', marginLeft: 10 }}>• {time}</Text>
                                                 ))}
                                             </View>
                                         ))
                                     ) : (
-                                        <Text style={{ color: '#9ca3af', fontStyle: 'italic', marginLeft: 10, marginBottom: 10 }}>No check-ins</Text>
+                                        <Text style={{ color: '#95a5a6', fontStyle: 'italic', marginLeft: 10, marginBottom: 10 }}>No check-ins</Text>
                                     )}
                                 </Animated.View>
 
-                                <TouchableOpacity onPress={toggleCheckOut} style={styles.toggleHeader}>
+                                <TouchableOpacity onPress={() => toggleCheckOut(selectedMember.id)} style={styles.toggleHeader}>
                                     <Text style={styles.dropdownSubHeading}>Check-out Times</Text>
-                                    <Animated.View style={{ transform: [{ rotate: checkOutAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-                                        <Text style={{ color: '#fff' }}>▼</Text>
+                                    <Animated.View style={{ transform: [{ rotate: checkOutAnimation[selectedMember.id].interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
+                                        <Text style={{ color: '#ecf0f1' }}>▼</Text>
                                     </Animated.View>
                                 </TouchableOpacity>
-                                <Animated.View style={{ maxHeight: checkOutAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, 1000] }), overflow: 'hidden' }}>
+                                <Animated.View style={{ maxHeight: checkOutAnimation[selectedMember.id].interpolate({ inputRange: [0, 1], outputRange: [0, 1000] }), overflow: 'hidden' }}>
                                     {Object.keys(groupByDayWithDate(selectedMember.check_out_time)).length > 0 ? (
                                         Object.entries(groupByDayWithDate(selectedMember.check_out_time)).map(([dayKey, times]) => (
                                             <View key={dayKey} style={{ marginBottom: 10, paddingLeft: 10 }}>
-                                                <Text style={{ fontWeight: 'bold', color: '#d1d5db' }}>{dayKey}</Text>
+                                                <Text style={{ fontWeight: 'bold', color: '#bdc3c7' }}>{dayKey}</Text>
                                                 {times.map((time, idx) => (
-                                                    <Text key={idx} style={{ color: '#e5e7eb', marginLeft: 10 }}>• {time}</Text>
+                                                    <Text key={idx} style={{ color: '#ecf0f1', marginLeft: 10 }}>• {time}</Text>
                                                 ))}
                                             </View>
                                         ))
                                     ) : (
-                                        <Text style={{ color: '#9ca3af', fontStyle: 'italic', marginLeft: 10, marginBottom: 10 }}>No check-outs</Text>
+                                        <Text style={{ color: '#95a5a6', fontStyle: 'italic', marginLeft: 10, marginBottom: 10 }}>No check-outs</Text>
                                     )}
                                 </Animated.View>
                             </View>
@@ -519,92 +557,111 @@ const styles = StyleSheet.create({
     },
     modalContainer: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.75)',
         justifyContent: 'center',
-        padding: 16,
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
     },
     modalContent: {
-        backgroundColor: '#374151',
+        width: '90%',
+        maxHeight: '80%',
+        backgroundColor: '#1f2937',
         borderRadius: 15,
         padding: 20,
-        maxHeight: '90%',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 10,
     },
     closeButton: {
         position: 'absolute',
-        top: 12,
-        right: 12,
-        zIndex: 10,
-        padding: 6,
+        top: 10,
+        right: 10,
+        backgroundColor: '#34495e',
+        borderRadius: 15,
+        width: 30,
+        height: 30,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     closeButtonText: {
-        fontSize: 20,
-        color: '#f9fafb',
+        color: '#ecf0f1',
+        fontWeight: 'bold',
+        fontSize: 16,
     },
     modalHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 20,
+        paddingBottom: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#34495e',
+        marginBottom: 15,
     },
     modalAvatar: {
-        width: 70,
-        height: 70,
-        borderRadius: 35,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
         marginRight: 15,
+        borderWidth: 2,
+        borderColor: '#3498db',
     },
-    modalName: {
+    modalTitle: {
         fontSize: 24,
-        fontWeight: '700',
-        color: '#f9fafb',
+        fontWeight: 'bold',
+        color: '#ecf0f1',
     },
     modalRole: {
         fontSize: 16,
-        color: '#9ca3af',
-        marginTop: 4,
+        color: '#95a5a6',
+        marginTop: 2,
     },
     detailCard: {
-        backgroundColor: '#4b5563',
-        borderRadius: 12,
+        backgroundColor: '#2c3e50',
+        borderRadius: 10,
         padding: 15,
-        marginBottom: 16,
+        marginBottom: 15,
     },
     cardHeader: {
         fontSize: 18,
-        fontWeight: '600',
-        color: '#f3f4f6',
+        fontWeight: 'bold',
+        color: '#ecf0f1',
         marginBottom: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#9ca3af',
-        paddingBottom: 6,
     },
     detailRow: {
+        marginBottom: 12,
+    },
+    detailRowHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 4,
     },
     icon: {
-        fontSize: 16,
-        marginRight: 6,
-        color: '#d1d5db',
+        marginRight: 12,
+        fontSize: 20,
     },
     detailLabel: {
-        fontWeight: '600',
-        color: '#f3f4f6',
-        marginRight: 8,
-        minWidth: 130,
+        fontWeight: 'bold',
+        color: '#bdc3c7',
+        fontSize: 14,
     },
     detailText: {
-        color: '#e5e7eb',
-        flexShrink: 1,
+        fontSize: 14,
+        color: '#ecf0f1',
+        marginLeft: 32,
     },
-    pickerContainer: {
-        flex: 1,
-        backgroundColor: '#6b7280',
+    pickerWrapper: {
+        backgroundColor: '#374151',
         borderRadius: 8,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
+        overflow: 'hidden',
     },
+
     picker: {
-        height: 35,
+        color: '#f9fafb',
+        height: 50,
+        width: '100%',
+    },
+
+    pickerItem: {
         color: '#f9fafb',
     },
     toggleHeader: {

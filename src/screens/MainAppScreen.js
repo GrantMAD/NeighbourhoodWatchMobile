@@ -1153,6 +1153,12 @@ const MainAppScreen = ({ route, navigation }) => {
               );
             },
           })}
+          listeners={({ navigation }) => ({
+            drawerItemPress: (e) => {
+              e.preventDefault();
+              navigation.navigate('MainTabs', { screen: 'Home' });
+            },
+          })}
         />
         <Drawer.Screen
           name="CheckedIn"
