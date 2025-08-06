@@ -11,15 +11,16 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
+import { FontAwesome } from '@expo/vector-icons';
 
 const LoadingState = () => (
-    <View style={styles.container}>
-        <View style={styles.loadingHeading} />
-        <View style={styles.loadingDescription} />
-        {[...Array(3)].map((_, i) => (
-            <View key={i} style={styles.loadingRequestCard} />
-        ))}
-    </View>
+  <View style={styles.container}>
+    <View style={styles.loadingHeading} />
+    <View style={styles.loadingDescription} />
+    {[...Array(3)].map((_, i) => (
+      <View key={i} style={styles.loadingRequestCard} />
+    ))}
+  </View>
 );
 
 const WaitingStatusScreen = () => {
@@ -27,12 +28,12 @@ const WaitingStatusScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [cancellingRequestId, setCancellingRequestId] = useState(null); // New state for spinner
   const navigation = useNavigation();
 
   const fetchUserRequests = useCallback(async () => {
     setLoading(true);
 
-    // Get current user ID
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       Alert.alert('Error', 'Failed to get current user.');
@@ -41,7 +42,6 @@ const WaitingStatusScreen = () => {
     }
     setCurrentUserId(user.id);
 
-    // Fetch groups with requests array NOT null (has requests)
     const { data: groupsData, error: groupsError } = await supabase
       .from('groups')
       .select('id, name, requests')
@@ -53,7 +53,6 @@ const WaitingStatusScreen = () => {
       return;
     }
 
-    // Filter the requests in groups to only those made by current user
     const filteredRequests = [];
     for (const group of groupsData) {
       if (!group.requests) continue;
@@ -64,7 +63,7 @@ const WaitingStatusScreen = () => {
           groupName: group.name,
           status: req.status,
           requestedAt: req.requestedAt,
-          requestId: req.id, // Pass the requestId here
+          requestId: req.id,
         });
       }
     }
@@ -93,60 +92,21 @@ const WaitingStatusScreen = () => {
           text: 'Yes',
           style: 'destructive',
           onPress: async () => {
+            setCancellingRequestId(requestId); // Set the ID of the request being cancelled
             try {
-              // Fetch current group's requests and created_by
-              const { data: group, error: groupError } = await supabase
-                .from('groups')
-                .select('requests, created_by')
-                .eq('id', groupId)
-                .single();
+              // Call an RPC function to handle the deletion atomically.
+              const { error: removeError } = await supabase.rpc('remove_join_request', {
+                p_group_id: groupId,
+                p_request_id: requestId,
+                p_user_id: currentUserId,
+              });
 
-              if (groupError || !group) {
-                Alert.alert('Error', 'Failed to fetch group data.');
-                return;
+              if (removeError) {
+                throw new Error(removeError.message);
               }
 
-              // Remove the user's request from the group's requests array
-              const updatedRequests = group.requests.filter(
-                (r) => r.userId !== currentUserId
-              );
-
-              // Update group requests in DB
-              const { error: updateGroupError } = await supabase
-                .from('groups')
-                .update({ requests: updatedRequests })
-                .eq('id', groupId);
-
-              if (updateGroupError) {
-                Alert.alert('Error', 'Failed to cancel request.');
-                return;
-              }
-
-              // Now, remove the corresponding notification from the group creator's profile
-              if (group.created_by) {
-                const { data: creatorProfile, error: creatorProfileError } = await supabase
-                  .from('profiles')
-                  .select('notifications')
-                  .eq('id', group.created_by)
-                  .single();
-
-                if (creatorProfileError) {
-                  console.error('Error fetching creator profile:', creatorProfileError);
-                } else if (creatorProfile && creatorProfile.notifications) {
-                  const updatedCreatorNotifications = creatorProfile.notifications.filter(
-                    (notif) => !(notif.type === 'join_request' && notif.requestId === requestId)
-                  );
-
-                  const { error: updateCreatorNotifError } = await supabase
-                    .from('profiles')
-                    .update({ notifications: updatedCreatorNotifications })
-                    .eq('id', group.created_by);
-
-                  if (updateCreatorNotifError) {
-                    console.error('Error updating creator notifications:', updateCreatorNotifError);
-                  }
-                }
-              }
+              // The RPC function should handle both request and notification removal.
+              // Now, just update the UI.
 
               // Clear the requestedgroupid from the user's profile
               const { error: updateProfileError } = await supabase
@@ -158,16 +118,24 @@ const WaitingStatusScreen = () => {
                 console.error('Error clearing requestedgroupid:', updateProfileError);
               }
 
-              // Refresh list and navigate to NoGroupScreen
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'NoGroupScreen' }],
-              });
-
               Alert.alert('Success', 'Your join request has been cancelled.');
+
+              // Refresh the list locally to provide immediate feedback.
+              setUserRequests(prevRequests => prevRequests.filter(req => req.requestId !== requestId));
+
+              // Navigate back if there are no more requests.
+              if (userRequests.length === 1) {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'NoGroupScreen' }],
+                });
+              }
+
             } catch (err) {
-              Alert.alert('Error', 'Something went wrong.');
+              Alert.alert('Error', err.message || 'Something went wrong while cancelling the request.');
               console.error(err);
+            } finally {
+              setCancellingRequestId(null); // Clear the ID after processing
             }
           },
         },
@@ -175,35 +143,42 @@ const WaitingStatusScreen = () => {
     );
   };
 
-  const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      Alert.alert('Error', 'Failed to sign out');
-    } else {
-      navigation.reset({ index: 0, routes: [{ name: 'SignIn' }] });
-    }
-  };
+  const renderRequest = ({ item }) => {
+    const statusInfo = {
+      pending: { icon: 'clock-o', color: '#fbbf24' },
+      approved: { icon: 'check-circle', color: '#34d399' },
+      rejected: { icon: 'times-circle', color: '#f87171' },
+    };
 
+    const { icon, color } = statusInfo[item.status] || statusInfo.pending;
 
-  const renderRequest = ({ item }) => (
-    <View style={styles.requestCard}>
-      <View style={{ flex: 1 }}>
+    return (
+      <View style={styles.requestCard}>
         <Text style={styles.groupName}>{item.groupName}</Text>
-        <Text style={styles.requestInfoLabel}>Status:</Text>
-        <Text style={styles.statusText(item.status)}>{item.status}</Text>
-        <Text style={styles.requestInfoLabel}>Requested on:</Text>
+
+        <View style={styles.statusContainer}>
+          <FontAwesome name={icon} size={16} color={color} />
+          <Text style={[styles.statusText, { color }]}>{item.status}</Text>
+        </View>
+
         <Text style={styles.requestDate}>
-          {new Date(item.requestedAt).toLocaleString()}
+          Requested on {new Date(item.requestedAt).toLocaleDateString()}
         </Text>
+
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={() => cancelRequest(item.groupId, item.requestId)}
+          disabled={cancellingRequestId === item.requestId} // Disable button while cancelling
+        >
+          {cancellingRequestId === item.requestId ? (
+            <ActivityIndicator color="#fff" /> // Show spinner
+          ) : (
+            <Text style={styles.cancelButtonText}>Cancel Request</Text>
+          )}
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={styles.cancelButton}
-        onPress={() => cancelRequest(item.groupId, item.requestId)}
-      >
-        <Text style={styles.cancelButtonText}>Cancel Request</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return <LoadingState />;
@@ -221,7 +196,7 @@ const WaitingStatusScreen = () => {
     <View style={styles.container}>
       <Text style={styles.heading}>Your Join Requests</Text>
       <Text style={styles.description}>
-        Here you can track the status of your group join requests and cancel them if needed.
+        Here you can track the status of your group join requests. You can return to the previous screen by tapping the arrow in the top-left corner.
       </Text>
       <FlatList
         data={userRequests}
@@ -232,9 +207,6 @@ const WaitingStatusScreen = () => {
         }
         contentContainerStyle={{ paddingBottom: 16 }}
       />
-      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Text style={styles.signOutButtonText}>Sign Out</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -242,104 +214,80 @@ const WaitingStatusScreen = () => {
 export default WaitingStatusScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
+  container: { flex: 1, padding: 16, backgroundColor: '#1f2937' },
   center: { justifyContent: 'center', alignItems: 'center' },
-  heading: { fontSize: 22, fontWeight: '700', marginBottom: 16, color: '#1f2937' },
+  heading: { fontSize: 24, fontWeight: 'bold', marginBottom: 8, color: '#f9fafb' },
   description: {
     fontSize: 16,
-    color: '#4b5563',
-    marginBottom: 12,
+    color: '#d1d5db',
+    marginBottom: 24,
   },
   requestCard: {
     backgroundColor: '#2d3748',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   groupName: {
-    fontWeight: '700',
-    fontSize: 18,
+    fontWeight: 'bold',
+    fontSize: 20,
     color: '#f9fafb',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-
-  requestInfoLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#d1d5db',
-    marginTop: 4,
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  statusText: (status) => ({
-    fontWeight: '700',
-    fontSize: 14,
-    color:
-      status === 'approved'
-        ? '#34d399'
-        : status === 'rejected'
-          ? '#f87171'
-          : '#fbbf24',
-    marginBottom: 4,
-  }),
+  statusText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginLeft: 8,
+    textTransform: 'capitalize',
+  },
   requestDate: {
     fontSize: 14,
     color: '#9ca3af',
+    marginBottom: 16,
   },
   cancelButton: {
     backgroundColor: '#ef4444',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginLeft: 12,
+    alignItems: 'center',
   },
   cancelButtonText: {
     color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   emptyText: {
     fontSize: 16,
-    fontStyle: 'italic',
-    color: '#4b5563',
-  },
-  signOutButton: {
-    backgroundColor: '#1f2937',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  signOutButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#9ca3af',
   },
   loadingHeading: {
     width: '70%',
     height: 25,
-    backgroundColor: '#d1d5db',
+    backgroundColor: '#374151',
     borderRadius: 5,
     marginBottom: 16,
   },
   loadingDescription: {
     width: '90%',
     height: 15,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#4b5563',
     borderRadius: 5,
     marginBottom: 12,
   },
   loadingRequestCard: {
-    height: 120,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 16,
-    marginBottom: 14,
+    height: 150,
+    backgroundColor: '#2d3748',
+    borderRadius: 12,
+    marginBottom: 16,
   },
 });

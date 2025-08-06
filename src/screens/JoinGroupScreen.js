@@ -1,76 +1,50 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   Alert,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
-
-const LoadingState = () => (
-    <View style={styles.container}>
-        <View style={styles.loadingTitle} />
-        <View style={styles.loadingDescription} />
-        <View style={styles.loadingPicker} />
-        <View style={styles.loadingButton} />
-    </View>
-);
+import { FontAwesome } from '@expo/vector-icons';
 
 const JoinGroupScreen = () => {
-  const [groups, setGroups] = useState([]);
-  const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [groupPasswordInput, setGroupPasswordInput] = useState('');
-  const [actualGroupPassword, setActualGroupPassword] = useState('');
+  const [foundGroup, setFoundGroup] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigation = useNavigation();
 
-  useEffect(() => {
-    const fetchGroups = async () => {
-      const { data, error } = await supabase.from('groups').select('id, name');
-      if (error) {
-        Alert.alert('Error', 'Failed to load groups');
-      } else {
-        setGroups(data);
-      }
-    };
-    fetchGroups();
-  }, []);
-
-  const fetchGroupPassword = async (groupId) => {
-    const { data, error } = await supabase
-      .from('groups')
-      .select('group_password')
-      .eq('id', groupId)
-      .single();
-
-    if (error || !data?.group_password) {
-      Alert.alert('Error', 'Failed to fetch group password');
-      setActualGroupPassword('');
+  const handleFindGroup = async () => {
+    if (!groupPasswordInput.trim()) {
+      Alert.alert('Error', 'Please enter a group password.');
       return;
     }
+    setSearching(true);
+    setFoundGroup(null);
 
-    setActualGroupPassword(data.group_password);
-  };
+    const { data, error } = await supabase
+      .from('groups')
+      .select('id, name')
+      .eq('group_password', groupPasswordInput.trim());
 
-  const handleGroupChange = (groupId) => {
-    setSelectedGroupId(groupId);
-    setGroupPasswordInput('');
-    if (groupId) fetchGroupPassword(groupId);
+    setSearching(false);
+
+    if (error || !data || data.length === 0) {
+      Alert.alert('Group Not Found', 'No group found with that password. Please check the password and try again.');
+    } else {
+      setFoundGroup(data[0]);
+    }
   };
 
   const handleJoinRequest = async () => {
-    if (!selectedGroupId) {
-      Alert.alert('Please select a group to join');
-      return;
-    }
-
-    if (!groupPasswordInput || groupPasswordInput.trim() !== actualGroupPassword) {
-      Alert.alert('Incorrect Password', 'The password you entered is incorrect.');
+    if (!foundGroup) {
+      Alert.alert('Please find a group before requesting to join.');
       return;
     }
 
@@ -88,7 +62,7 @@ const JoinGroupScreen = () => {
     const { data: group, error: groupError } = await supabase
       .from('groups')
       .select('id, name, requests, created_by')
-      .eq('id', selectedGroupId)
+      .eq('id', foundGroup.id)
       .single();
 
     if (groupError || !group) {
@@ -121,11 +95,9 @@ const JoinGroupScreen = () => {
       status: 'pending',
     };
 
-    const updatedRequests = group.requests ? [...group.requests, newRequest] : [newRequest];
-
     const { error: updateGroupError } = await supabase
       .rpc('add_join_request', {
-        p_group_id: selectedGroupId,
+        p_group_id: foundGroup.id,
         p_user_id: userId,
         p_request_id: requestId,
         p_requested_at: newRequest.requestedAt,
@@ -189,7 +161,7 @@ const JoinGroupScreen = () => {
 
     const { error: updateRequesterError } = await supabase
       .from('profiles')
-      .update({ requestedgroupid: selectedGroupId })
+      .update({ requestedgroupid: foundGroup.id })
       .eq('id', userId);
 
     if (updateRequesterError) {
@@ -205,7 +177,7 @@ const JoinGroupScreen = () => {
         index: 1,
         routes: [
           { name: 'NoGroupScreen' },
-          { name: 'WaitingStatusScreen', params: { groupId: selectedGroupId } },
+          { name: 'WaitingStatusScreen', params: { groupId: foundGroup.id } },
         ],
       });
     }
@@ -215,116 +187,147 @@ const JoinGroupScreen = () => {
     <View style={styles.container}>
       <Text style={styles.title}>Join a Group</Text>
       <Text style={styles.description}>
-        Choose a group from the list below and enter the group password to request to join.
+        Enter the group password to find and request to join a group.
       </Text>
 
-      {groups.length === 0 ? (
-        <LoadingState />
-      ) : (
-        <View style={styles.pickerWrapper}>
-          <Picker
-            selectedValue={selectedGroupId}
-            onValueChange={handleGroupChange}
-            style={styles.picker}
-          >
-            <Picker.Item label="Select a group..." value={null} />
-            {groups.map((group) => (
-              <Picker.Item key={group.id} label={group.name} value={group.id} />
-            ))}
-          </Picker>
-        </View>
-      )}
-
-      {selectedGroupId && (
-        <>
-          <TextInput
-            placeholder="Enter group password"
-            secureTextEntry
-            style={styles.passwordInput}
-            value={groupPasswordInput}
-            onChangeText={setGroupPasswordInput}
-          />
-        </>
-      )}
+      <View style={styles.passwordContainer}>
+        <TextInput
+          placeholder="Enter group password"
+          secureTextEntry={!showPassword}
+          style={styles.passwordInput}
+          value={groupPasswordInput}
+          onChangeText={setGroupPasswordInput}
+        />
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+          <FontAwesome name={showPassword ? 'eye-slash' : 'eye'} size={24} color="gray" />
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity
-        onPress={handleJoinRequest}
-        disabled={loading}
-        style={styles.joinButton}
+        onPress={handleFindGroup}
+        disabled={searching || loading}
+        style={styles.findButton}
       >
-        <Text style={styles.joinButtonText}>
-          {loading ? 'Requesting...' : 'Request to Join'}
-        </Text>
+        {searching ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text style={styles.joinButtonText}>Find Group</Text>
+        )}
       </TouchableOpacity>
+
+      {foundGroup && (
+        <View style={styles.card}>
+          <View style={styles.groupInfo}>
+            <Text style={styles.emoji}>👨‍👩‍👧‍👦</Text>
+            <Text style={styles.groupName} numberOfLines={1} ellipsizeMode="tail">{foundGroup.name}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleJoinRequest}
+            disabled={loading}
+            style={styles.joinButton}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.joinButtonText}>Request</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: 'center', backgroundColor: '#1f2937' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, color: 'white' },
-  pickerWrapper: {
-    marginBottom: 20,
-    borderRadius: 8,
-    backgroundColor: 'white',
-    overflow: 'hidden',
+  container: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'center',
+    backgroundColor: '#1f2937',
   },
-  picker: {
-    height: 60,
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: 'white',
+    textAlign: 'center',
+  },
+  description: {
+    fontSize: 16,
+    color: '#d1d5db',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 20,
+    paddingHorizontal: 15,
   },
   passwordInput: {
-    backgroundColor: 'white',
-    paddingHorizontal: 15,
+    flex: 1,
     paddingVertical: 10,
-    borderRadius: 8,
     fontSize: 16,
+  },
+  eyeIcon: {
+    padding: 10,
+  },
+  findButton: {
+    backgroundColor: '#14b8a6',
+    paddingVertical: 18,
+    borderRadius: 10,
+    alignItems: 'center',
     marginBottom: 20,
   },
   joinButton: {
-    backgroundColor: '#14b8a6',
-    paddingVertical: 15,
+    backgroundColor: '#f97316',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 10,
   },
   joinButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  description: {
-    fontSize: 16,
-    color: '#d1d5db',
-    marginBottom: 20,
+  groupInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1, // Allow group info to take up available space
   },
-  loadingTitle: {
-    width: '70%',
-    height: 30,
-    backgroundColor: '#374151',
-    borderRadius: 8,
-    marginBottom: 20,
+  groupName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    marginLeft: 10,
+    flex: 1, // Allow text to shrink and wrap if needed
   },
-  loadingDescription: {
-    width: '90%',
-    height: 20,
-    backgroundColor: '#4b5563',
-    borderRadius: 6,
-    marginBottom: 20,
+  card: {
+    marginTop: 20,
+    backgroundColor: '#2d3748',
+    borderRadius: 12,
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    borderWidth: 0.5,
+    borderColor: 'white',
   },
-  loadingPicker: {
-    width: '100%',
-    height: 60,
-    backgroundColor: '#4b5563',
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  loadingButton: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#374151',
-    borderRadius: 8,
-    marginTop: 10,
+  emoji: {
+    fontSize: 40,
   },
 });
 
 export default JoinGroupScreen;
+
