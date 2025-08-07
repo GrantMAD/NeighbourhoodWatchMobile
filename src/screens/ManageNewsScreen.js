@@ -1,12 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import {
+    Alert,
+    TouchableOpacity,
+    ActivityIndicator,
+    ScrollView,
     View,
     Text,
-    ScrollView,
-    StyleSheet,
     Image,
-    TouchableOpacity,
-    Alert,
+    StyleSheet,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
@@ -17,6 +18,8 @@ const ManageNewsScreen = ({ route, navigation }) => {
     const [news, setNews] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+    const [editingStoryId, setEditingStoryId] = useState(null);
+    const [deletingStoryId, setDeletingStoryId] = useState(null);
 
     const fetchNews = async () => {
         setLoading(true);
@@ -27,7 +30,15 @@ const ManageNewsScreen = ({ route, navigation }) => {
             .single();
 
         if (data?.news) {
-            const sortedNews = [...data.news].sort(
+            const colors = [
+                "#ffadad", "#ffd6a5", "#fdffb6", "#caffbf",
+                "#9bf6ff", "#a0c4ff", "#bdb2ff", "#ffc6ff",
+            ];
+            const newsWithColors = data.news.map((story, index) => ({
+                ...story,
+                color: colors[index % colors.length],
+            }));
+            const sortedNews = [...newsWithColors].sort(
                 (a, b) => new Date(b.date) - new Date(a.date)
             );
             setNews(sortedNews);
@@ -39,7 +50,12 @@ const ManageNewsScreen = ({ route, navigation }) => {
 
     useFocusEffect(
         useCallback(() => {
+            if (route.params?.toastMessage) {
+                setToast({ visible: true, message: route.params.toastMessage, type: "success" });
+                navigation.setParams({ toastMessage: null });
+            }
             fetchNews();
+            setEditingStoryId(null); // Reset editing state when screen gains focus
         }, [groupId])
     );
 
@@ -54,6 +70,7 @@ const ManageNewsScreen = ({ route, navigation }) => {
                 },
                 {
                     text: "OK", onPress: async () => {
+                        setDeletingStoryId(storyId);
                         const { data, error } = await supabase
                             .from('groups')
                             .select('news')
@@ -62,6 +79,7 @@ const ManageNewsScreen = ({ route, navigation }) => {
 
                         if (error) {
                             setToast({ visible: true, message: "Error: Failed to fetch news for deletion.", type: "error" });
+                            setDeletingStoryId(null);
                             return;
                         }
 
@@ -78,6 +96,7 @@ const ManageNewsScreen = ({ route, navigation }) => {
                             setNews(updatedNews);
                             setToast({ visible: true, message: "News story deleted successfully.", type: "success" });
                         }
+                        setDeletingStoryId(null);
                     }
                 }
             ]
@@ -139,54 +158,55 @@ const ManageNewsScreen = ({ route, navigation }) => {
                     news.map((story, index) => (
                         <TouchableOpacity
                             key={story.id ?? index.toString()}
-                            style={styles.eventCard}
-                            activeOpacity={0.85}
+                            style={styles.cardTouchable}
+                            activeOpacity={0.9}
                         >
-                            <View style={styles.eventCardLeft}>
-                                {story.image && story.image !== '📰' ? (
-                                    <Image source={{ uri: story.image }} style={styles.eventCardImage} />
-                                ) : (
-                                    <View style={styles.eventCardEmojiCircle}>
-                                        <Text style={styles.eventCardEmoji}>📰</Text>
-                                    </View>
-                                )}
-                            </View>
-
-                            <View style={styles.eventCardRight}>
-                                <View style={{ marginBottom: 8 }}>
+                            <View style={[styles.eventCard, { borderLeftColor: story.color || '#374151' }]}>
+                                <View style={styles.eventImageContainer}>
+                                    {story.image && (story.image.startsWith('http://') || story.image.startsWith('https://')) ? (
+                                        <Image source={{ uri: story.image }} style={styles.eventImage} resizeMode="cover" />
+                                    ) : (
+                                        <Text style={styles.eventEmoji}>{story.image || '📰'}</Text>
+                                    )}
+                                </View>
+                                <View style={styles.eventTextContainer}>
                                     <Text style={styles.eventTitle}>{story.title}</Text>
-                                </View>
-                                <View style={styles.eventMetaContainer}>
-                                    <Text style={styles.eventIcon}>📅</Text>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.eventDateText}>
-                                            {new Date(story.date).toLocaleDateString("en-US", {
-                                                weekday: "long",
-                                                month: "long",
-                                                day: "numeric",
-                                                year: "numeric",
-                                            })}
-                                        </Text>
+                                    <Text style={styles.eventTime}>📅 {new Date(story.date).toLocaleDateString("en-US", {
+                                        weekday: "long",
+                                        month: "long",
+                                        day: "numeric",
+                                        year: "numeric",
+                                    })}</Text>
+                                    <Text style={styles.eventMessage} numberOfLines={2}>{story.content}</Text>
+                                    <View style={styles.buttonsRow}>
+                                        <TouchableOpacity
+                                            style={[styles.button, styles.editButton]}
+                                            onPress={() => {
+                                                setEditingStoryId(story.id);
+                                                navigation.navigate('AddNewsScreen', {
+                                                    groupId,
+                                                    storyToEdit: story,
+                                                    returnTo: { screen: 'ManageNewsScreen' }
+                                                });
+                                            }}
+                                        >
+                                            {editingStoryId === story.id ? (
+                                                <ActivityIndicator size="small" color="#F1F5F9" />
+                                            ) : (
+                                                <Text style={styles.buttonText}>Edit</Text>
+                                            )}
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.button, styles.deleteButton]}
+                                            onPress={() => handleDelete(story.id)}
+                                        >
+                                            {deletingStoryId === story.id ? (
+                                                <ActivityIndicator size="small" color="#F1F5F9" />
+                                            ) : (
+                                                <Text style={styles.buttonText}>Delete</Text>
+                                            )}
+                                        </TouchableOpacity>
                                     </View>
-                                </View>
-                                <View style={styles.buttonsRow}>
-                                    <TouchableOpacity
-                                        style={[styles.button, styles.editButton]}
-                                        onPress={() => navigation.navigate('AddNewsScreen', {
-                                        groupId,
-                                        storyToEdit: story,
-                                        returnTo: { screen: 'ManageNewsScreen' }
-                                    })}
-                                    >
-                                        <Text style={styles.buttonText}>Edit</Text>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
-                                        style={[styles.button, styles.deleteButton]}
-                                        onPress={() => handleDelete(story.id)}
-                                    >
-                                        <Text style={styles.buttonText}>Delete</Text>
-                                    </TouchableOpacity>
                                 </View>
                             </View>
                         </TouchableOpacity>
@@ -238,101 +258,81 @@ const styles = StyleSheet.create({
         marginTop: 60,
     },
 
+    cardTouchable: {
+        marginHorizontal: 4,
+    },
     eventCard: {
-        flexDirection: "row",
-        backgroundColor: "#1f2937", // Dark cards
+        flexDirection: 'row',
+        backgroundColor: '#1f2937',
         borderRadius: 16,
-        marginBottom: 18,
-        alignItems: "flex-start",
-        height: 140,
         padding: 12,
+        marginVertical: 8,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-        elevation: 8,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 4,
+        elevation: 3,
+        borderLeftWidth: 5,
     },
-    eventCardLeft: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        marginRight: 14,
-        overflow: "hidden",
-        backgroundColor: "#374151",
-        justifyContent: "center",
-        alignItems: "center",
-        marginTop: 6,
-        borderWidth: 2,
-        borderColor: "#17609bff",
+    eventImageContainer: {
+        width: 52,
+        height: 52,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+        backgroundColor: '#475569',
     },
-    eventCardImage: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        resizeMode: "cover",
+    eventEmoji: {
+        fontSize: 26,
     },
-    eventCardEmojiCircle: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: "#374151",
-        justifyContent: "center",
-        alignItems: "center",
+    eventImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 12,
     },
-    eventCardEmoji: {
-        fontSize: 24,
-    },
-    eventCardRight: {
+    eventTextContainer: {
         flex: 1,
-        justifyContent: "space-between",
     },
     eventTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: "#fff",
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#ffffff',
+        marginBottom: 4,
     },
-    eventMetaContainer: {
-        flexDirection: "row",
-        alignItems: "center",
+    eventTime: {
+        fontSize: 14,
+        color: '#ffffff',
+        marginBottom: 6,
     },
-    eventIcon: {
-        fontSize: 22,
-        marginRight: 8,
-        color: "#9ca3af",
-    },
-    eventDateText: {
-        color: "#d1d5db",
-        fontSize: 12,
+    eventMessage: {
+        fontSize: 14,
+        color: '#ffffff',
+        lineHeight: 20,
     },
     buttonsRow: {
         flexDirection: 'row',
-        justifyContent: 'flex-start',
-        marginTop: 8,
+        justifyContent: 'flex-end',
+        marginTop: 16,
     },
     button: {
-        paddingVertical: 8,
-        paddingHorizontal: 24,
-        borderRadius: 30,
-        borderWidth: 1.5,
-        shadowColor: '#000',
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 6,
-        marginRight: 12,
+        paddingVertical: 6,
+        paddingHorizontal: 18,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 10,
     },
     editButton: {
-        borderColor: '#2563eb',
-        backgroundColor: 'transparent',
+        backgroundColor: '#2563EB',
     },
     deleteButton: {
-        borderColor: '#dc2626',
-        backgroundColor: 'transparent',
+        backgroundColor: '#DC2626',
     },
     buttonText: {
         fontWeight: '600',
-        fontSize: 16,
-        color: '#e0e7ff',
+        fontSize: 14,
+        color: '#F1F5F9',
     },
 
     skeletonCard: {

@@ -7,16 +7,31 @@ import {
     Image,
     Alert,
     TouchableOpacity,
+    LayoutAnimation,
+    Platform,
+    UIManager,
+    ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import Toast from "../components/Toast";
 
 const ManageEventsScreen = ({ route, navigation }) => {
+    if (Platform.OS === 'android') {
+        UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+
     const { groupId } = route.params;
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+
+    const [editingEventId, setEditingEventId] = useState(null);
+    const [deletingEventId, setDeletingEventId] = useState(null);
+
+    const [ongoingExpanded, setOngoingExpanded] = useState(true);
+    const [futureExpanded, setFutureExpanded] = useState(true);
+    const [pastExpanded, setPastExpanded] = useState(false);
 
     const fetchEvents = async () => {
         setLoading(true);
@@ -49,6 +64,7 @@ const ManageEventsScreen = ({ route, navigation }) => {
                 setToast({ visible: true, message: route.params.toastMessage, type: "success" });
                 navigation.setParams({ toastMessage: null });
             }
+            setEditingEventId(null); // Reset editing state when screen gains focus
             fetchEvents();
         }, [groupId, route.params?.toastMessage])
     );
@@ -59,6 +75,7 @@ const ManageEventsScreen = ({ route, navigation }) => {
             {
                 text: 'OK',
                 onPress: async () => {
+                    setDeletingEventId(eventId);
                     const { data, error } = await supabase
                         .from('groups')
                         .select('events')
@@ -67,6 +84,7 @@ const ManageEventsScreen = ({ route, navigation }) => {
 
                     if (error) {
                         setToast({ visible: true, message: "Error: Failed to fetch events for deletion.", type: "error" });
+                        setDeletingEventId(null);
                         return;
                     }
 
@@ -83,44 +101,126 @@ const ManageEventsScreen = ({ route, navigation }) => {
                         setEvents(updatedEvents);
                         setToast({ visible: true, message: "Event deleted successfully.", type: "success" });
                     }
+                    setDeletingEventId(null);
                 },
             },
         ]);
     };
 
-    // Skeleton card styled like MembersScreen loading placeholders
-    const SkeletonCard = () => (
-        <View style={styles.skeletonCard}>
-            <View style={styles.skeletonImage} />
-            <View style={styles.skeletonContent}>
-                <View style={styles.skeletonTitle} />
-                <View style={styles.skeletonDateRow} />
-                <View style={styles.skeletonButtonsRow}>
-                    <View style={styles.skeletonButton} />
-                    <View style={styles.skeletonButton} />
-                </View>
-            </View>
-        </View>
-    );
+    const formatEventTime = (start, end) => {
+        const optionsDate = { month: 'short', day: 'numeric' };
+        const optionsTime = { hour: 'numeric', minute: '2-digit' };
 
-    if (loading) {
-        return (
-            <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
-                <View style={styles.headerRow}>
-                    <View style={styles.headingContainer}>
-                        <Text style={styles.headingIcon}>🗓️</Text>
-                        <Text style={styles.mainHeading}>Manage Events</Text>
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+
+        const dateStr = startDate.toLocaleDateString('en-US', optionsDate);
+        const startTime = startDate.toLocaleTimeString('en-US', optionsTime);
+        const endTime = endDate.toLocaleTimeString('en-US', optionsTime);
+
+        return `${dateStr}, ${startTime} - ${endTime}`;
+    };
+
+    const renderEventCard = (event, index) => (
+        <TouchableOpacity
+            key={event.id ?? index.toString()}
+            style={styles.cardTouchable}
+            activeOpacity={0.9}
+        >
+            <View style={[styles.eventCard, { borderLeftColor: event.color || '#374151' }]}>
+                <View style={styles.eventImageContainer}>
+                    {event.image && (event.image.startsWith('http://') || event.image.startsWith('https://')) ? (
+                        <Image source={{ uri: event.image }} style={styles.eventImage} resizeMode="cover" />
+                    ) : (
+                        <Text style={styles.eventEmoji}>{event.image || '📅'}</Text>
+                    )}
+                </View>
+                <View style={styles.eventTextContainer}>
+                    <Text style={styles.eventTitle}>{event.title}</Text>
+                    <Text style={styles.eventTime}>🕒 {formatEventTime(event.startDate, event.endDate)}</Text>
+                    <Text style={styles.eventMessage} numberOfLines={2}>{event.message}</Text>
+                    <View style={styles.buttonsRow}>
+                        <TouchableOpacity
+                            style={[styles.button, styles.editButton]}
+                            onPress={() => {
+                                setEditingEventId(event.id);
+                                requestAnimationFrame(() => {
+                                    navigation.navigate('AddEventScreen', {
+                                        groupId,
+                                        eventToEdit: event,
+                                        returnTo: { screen: 'ManageEventsScreen' }
+                                    });
+                                });
+                            }}
+                        >
+                            {editingEventId === event.id ? (
+                                <ActivityIndicator size="small" color="#F1F5F9" />
+                            ) : (
+                                <Text style={styles.buttonText}>Edit</Text>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.button, styles.deleteButton]}
+                            onPress={() => handleDelete(event.id)}
+                        >
+                            {deletingEventId === event.id ? (
+                                <ActivityIndicator size="small" color="#F1F5F9" />
+                            ) : (
+                                <Text style={styles.buttonText}>Delete</Text>
+                            )}
+                        </TouchableOpacity>
                     </View>
                 </View>
+            </View>
+        </TouchableOpacity>
+    );
 
-                <Text style={styles.description}>Loading events...</Text>
 
-                {[...Array(3)].map((_, idx) => (
-                    <SkeletonCard key={idx} />
-                ))}
-            </ScrollView>
+    const now = new Date();
+
+    const ongoingEvents = events
+        .filter(event => new Date(event.startDate) <= now && new Date(event.endDate) >= now)
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+    const futureEvents = events
+        .filter(event => new Date(event.startDate) > now)
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+    const pastEvents = events
+        .filter(event => new Date(event.endDate) < now)
+        .sort((a, b) => new Date(b.endDate) - new Date(a.endDate)); // Most recent past first
+
+    const renderSection = (title, eventsList, isExpanded, setExpanded) => {
+        let emoji = '';
+        if (title === "Ongoing Events") {
+            emoji = '🟢 ';
+        } else if (title === "Upcoming Events") {
+            emoji = '🗓️ ';
+        } else if (title === "Past Events") {
+            emoji = '🗄️ ';
+        }
+
+        return (
+            <View>
+                <TouchableOpacity onPress={() => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setExpanded(!isExpanded);
+                }} style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>{emoji}{title}</Text>
+                    <Text style={styles.dropdownArrow}>{isExpanded ? '▲' : '▼'}</Text>
+                </TouchableOpacity>
+                {isExpanded && (
+                    <View>
+                        {eventsList.length === 0 ? (
+                            <Text style={styles.noEventsText}>No {title.toLowerCase()} found.</Text>
+                        ) : (
+                            eventsList.map((event, index) => renderEventCard(event, index))
+                        )}
+                    </View>
+                )}
+            </View>
         );
-    }
+    };
 
     return (
         <>
@@ -131,100 +231,25 @@ const ManageEventsScreen = ({ route, navigation }) => {
                 onHide={() => setToast({ ...toast, visible: false })}
             />
             <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
-            <View style={styles.headerRow}>
-                <View style={styles.headingContainer}>
-                    <Text style={styles.headingIcon}>🗓️</Text>
-                    <Text style={styles.mainHeading}>Manage Events</Text>
+                <View style={styles.headerRow}>
+                    <View style={styles.headingContainer}>
+                        <Text style={styles.headingIcon}>🗓️</Text>
+                        <Text style={styles.mainHeading}>Manage Events</Text>
+                    </View>
                 </View>
-            </View>
 
-            <Text style={styles.description}>Edit or delete your group’s events below.</Text>
+                <Text style={styles.description}>Edit or delete your group’s events below.</Text>
 
-            {events.length === 0 ? (
-                <Text style={styles.noEventsText}>No events found.</Text>
-            ) : (
-                events.map((event, index) => (
-                    <TouchableOpacity
-                        key={event.id ?? index.toString()}
-                        style={[styles.eventCard, { borderLeftColor: event.color || "#4b5563", borderLeftWidth: 4 }]} // Assuming event.color is set like in EventsScreen
-                        activeOpacity={0.85}
-                    >
-                        <View style={styles.eventCardLeft}>
-                            {event.image && event.image !== '🗓️' ? (
-                                <Image source={{ uri: event.image }} style={styles.eventCardImage} />
-                            ) : (
-                                <View style={styles.eventCardEmojiCircle}>
-                                    <Text style={styles.eventCardEmoji}>{event.image || "📅"}</Text>
-                                </View>
-                            )}
-                        </View>
-
-                        <View style={styles.eventCardRight}>
-                            <View style={{ marginBottom: 8 }}>
-                                <Text style={styles.eventTitle}>{event.title}</Text>
-                                {event.location ? (
-                                    <Text style={styles.eventLocation}>📍 {event.location}</Text>
-                                ) : null}
-                            </View>
-                            <View style={styles.eventMetaContainer}>
-                                <Text style={styles.eventIcon}>🕒</Text>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.eventDateText}>
-                                        Start:{" "}
-                                        {new Date(event.startDate).toLocaleDateString("en-US", {
-                                            weekday: "long",
-                                            month: "long",
-                                            day: "numeric",
-                                            year: "numeric",
-                                        })}
-                                        ,{", "}
-                                        {new Date(event.startDate).toLocaleTimeString("en-US", {
-                                            hour: "numeric",
-                                            minute: "2-digit",
-                                            hour12: true,
-                                        })}
-                                    </Text>
-                                    <Text style={styles.eventDateText}>
-                                        End:{" "}
-                                        {new Date(event.endDate).toLocaleDateString("en-US", {
-                                            weekday: "long",
-                                            month: "long",
-                                            day: "numeric",
-                                            year: "numeric",
-                                        })}
-                                        ,{", "}
-                                        {new Date(event.endDate).toLocaleTimeString("en-US", {
-                                            hour: "numeric",
-                                            minute: "2-digit",
-                                            hour12: true,
-                                        })}
-                                    </Text>
-                                </View>
-                            </View>
-                            <View style={styles.buttonsRow}>
-                                <TouchableOpacity
-                                    style={[styles.button, styles.editButton]}
-                                    onPress={() => navigation.navigate('AddEventScreen', { 
-                                        groupId, 
-                                        eventToEdit: event, 
-                                        returnTo: { screen: 'ManageEventsScreen' }
-                                    })}
-                                >
-                                    <Text style={styles.buttonText}>Edit</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.button, styles.deleteButton]}
-                                    onPress={() => handleDelete(event.id)}
-                                >
-                                    <Text style={styles.buttonText}>Delete</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
-                ))
-            )}
-        </ScrollView>
+                {events.length === 0 ? (
+                    <Text style={styles.noEventsText}>No events found.</Text>
+                ) : (
+                    <>
+                        {renderSection("Ongoing Events", ongoingEvents, ongoingExpanded, setOngoingExpanded)}
+                        {renderSection("Upcoming Events", futureEvents, futureExpanded, setFutureExpanded)}
+                        {renderSection("Past Events", pastEvents, pastExpanded, setPastExpanded)}
+                    </>
+                )}
+            </ScrollView>
         </>
     );
 };
@@ -267,76 +292,91 @@ const styles = StyleSheet.create({
         color: '#64748b',
         fontSize: 18,
         textAlign: 'center',
-        marginTop: 60,
+        marginTop: 20,
     },
 
-    // Card styles
+    cardTouchable: {
+        marginHorizontal: 4,
+    },
     eventCard: {
-        flexDirection: "row",
-        backgroundColor: "#1f2937",
-        borderRadius: 12,
-        marginBottom: 14,
-        alignItems: "flex-start",
-        height: 160,
+        flexDirection: 'row',
+        backgroundColor: '#1f2937',
+        borderRadius: 16,
         padding: 12,
+        marginVertical: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 4,
+        elevation: 3,
+        borderLeftWidth: 5,
     },
-    eventCardLeft: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        marginRight: 14,
-        overflow: "hidden",
-        backgroundColor: "#374151",
-        justifyContent: "center",
-        alignItems: "center",
-        marginTop: 6,
-        borderWidth: 2,
-        borderColor: "#4b5563",
+    eventImageContainer: {
+        width: 52,
+        height: 52,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+        backgroundColor: '#475569',
     },
-    eventCardImage: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        resizeMode: "cover",
+    eventEmoji: {
+        fontSize: 26,
     },
-    eventCardEmojiCircle: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: "#374151",
-        justifyContent: "center",
-        alignItems: "center",
+    eventImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 12,
     },
-    eventCardEmoji: {
-        fontSize: 30,
-    },
-    eventCardRight: {
+    eventTextContainer: {
         flex: 1,
-        justifyContent: "space-between",
     },
     eventTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: "#fff",
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#ffffff',
+        marginBottom: 4,
     },
-    eventLocation: {
+    eventTime: {
         fontSize: 14,
-        fontWeight: "600",
-        color: "#9ca3af",
+        color: '#ffffff',
+        marginBottom: 6,
     },
-    eventMetaContainer: {
-        flexDirection: "row",
-        alignItems: "center",
+    eventMessage: {
+        fontSize: 14,
+        color: '#ffffff',
+        lineHeight: 20,
     },
-    eventIcon: {
-        fontSize: 22,
-        marginRight: 8,
-        color: "#9ca3af",
+
+    // Section Title
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#ffffff',
     },
-    eventDateText: {
-        color: "#d1d5db",
-        fontSize: 12,
+
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#1f2937',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        marginTop: 16,
+        elevation: 2, // Android shadow
+        shadowColor: '#000', // iOS shadow
+        shadowOpacity: 0.1,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 4,
     },
+    dropdownArrow: {
+        fontSize: 18,
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+    },
+
+    // Retained styles
     card: {
         backgroundColor: '#1e293b',
         borderRadius: 16,
@@ -389,40 +429,30 @@ const styles = StyleSheet.create({
     },
     buttonsRow: {
         flexDirection: 'row',
-        justifyContent: 'flex-start',
-        marginTop: 12,
+        justifyContent: 'flex-end',
+        marginTop: 16,
     },
     button: {
-        paddingVertical: 8,
-        paddingHorizontal: 24,
-        borderRadius: 30,
-        borderWidth: 1.5,
-        shadowColor: '#000',
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 6,
-        marginRight: 12,
-    },
-    buttonPressed: {
-        opacity: 0.75,
-        transform: [{ scale: 0.95 }],
+        paddingVertical: 6,
+        paddingHorizontal: 18,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 10,
     },
     editButton: {
-        borderColor: '#2563eb',
-        backgroundColor: 'transparent',
+        backgroundColor: '#2563EB',
     },
     deleteButton: {
-        borderColor: '#dc2626',
-        backgroundColor: 'transparent',
+        backgroundColor: '#DC2626',
     },
     buttonText: {
         fontWeight: '600',
-        fontSize: 16,
-        color: '#e0e7ff',
+        fontSize: 14,
+        color: '#F1F5F9',
     },
 
-    // Skeleton styles matching MembersScreen
+    // Skeleton styles
     skeletonCard: {
         backgroundColor: '#f0f0f0',
         borderRadius: 8,
@@ -474,5 +504,6 @@ const styles = StyleSheet.create({
         color: '#94a3b8',
     },
 });
+
 
 export default ManageEventsScreen;

@@ -15,6 +15,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { Buffer } from "buffer";
 import { supabase } from "../../lib/supabase";
+import { StackActions } from '@react-navigation/native';
 
 // Polyfill Buffer globally (if not already)
 if (typeof global.Buffer === "undefined") {
@@ -170,7 +171,12 @@ export default function AddNewsScreen({ navigation, route }) {
             },
           });
         } else if (returnTo.screen) {
-          navigation.navigate(returnTo.screen, { toastMessage: message, ts: Date.now(), groupId: groupId });
+          if (isEditMode && returnTo.screen === 'ManageNewsScreen') {
+            navigation.dispatch(StackActions.pop(2)); // Pop AddNewsScreen and the original ManageNewsScreen
+            navigation.navigate(returnTo.screen, { toastMessage: message, ts: Date.now(), groupId: groupId });
+          } else {
+            navigation.navigate(returnTo.screen, { toastMessage: message, ts: Date.now(), groupId: groupId });
+          }
         }
       } else {
         navigation.goBack();

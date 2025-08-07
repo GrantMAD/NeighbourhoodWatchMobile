@@ -15,6 +15,7 @@ import * as FileSystem from 'expo-file-system';
 import { Buffer } from 'buffer';
 import { supabase } from '../../lib/supabase';
 import { Calendar } from 'react-native-calendars';
+import { StackActions } from '@react-navigation/native';
 
 const AddEventScreen = ({ route, navigation }) => {
   const { groupId, eventToEdit } = route.params;
@@ -218,7 +219,12 @@ const AddEventScreen = ({ route, navigation }) => {
             },
           });
         } else if (returnTo.screen) {
-          navigation.navigate(returnTo.screen, { toastMessage: message, ts: Date.now(), groupId: groupId });
+          if (isEditMode && returnTo.screen === 'ManageEventsScreen') {
+            navigation.dispatch(StackActions.pop(2)); // Pop AddEventScreen and the original ManageEventsScreen
+            navigation.navigate(returnTo.screen, { toastMessage: message, ts: Date.now(), groupId: groupId });
+          } else {
+            navigation.navigate(returnTo.screen, { toastMessage: message, ts: Date.now(), groupId: groupId });
+          }
         }
       } else {
         navigation.goBack();
