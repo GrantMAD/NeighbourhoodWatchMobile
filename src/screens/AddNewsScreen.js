@@ -160,13 +160,13 @@ export default function AddNewsScreen({ navigation, route }) {
         if (returnTo.tab) {
           navigation.navigate('MainApp', {
             groupId: groupId,
+            toastMessage: message,
+            toastType: 'success',
             screen: 'MainTabs',
             params: {
-              groupId: groupId,
               screen: returnTo.tab,
               params: {
-                toastMessage: message,
-                ts: Date.now(),
+                groupId: groupId,
               },
             },
           });

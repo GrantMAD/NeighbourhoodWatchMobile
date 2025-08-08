@@ -156,60 +156,60 @@ const ManageNewsScreen = ({ route, navigation }) => {
                     <Text style={styles.noNewsText}>No news stories found.</Text>
                 ) : (
                     news.map((story, index) => (
-                        <TouchableOpacity
-                            key={story.id ?? index.toString()}
-                            style={styles.cardTouchable}
-                            activeOpacity={0.9}
-                        >
-                            <View style={[styles.eventCard, { borderLeftColor: story.color || '#374151' }]}>
-                                <View style={styles.eventImageContainer}>
-                                    {story.image && (story.image.startsWith('http://') || story.image.startsWith('https://')) ? (
-                                        <Image source={{ uri: story.image }} style={styles.eventImage} resizeMode="cover" />
-                                    ) : (
-                                        <Text style={styles.eventEmoji}>{story.image || '📰'}</Text>
-                                    )}
+                        <View key={story.id ?? index.toString()} style={[styles.newsCard, { borderLeftColor: story.color || '#374151' }]}>
+                            {story.image && (story.image.startsWith('http://') || story.image.startsWith('https://')) ? (
+                                <Image source={{ uri: story.image }} style={styles.newsImage} resizeMode="cover" />
+                            ) : (
+                                <View style={styles.placeholderImage}>
+                                    <Text style={styles.placeholderEmoji}>📰</Text>
                                 </View>
-                                <View style={styles.eventTextContainer}>
-                                    <Text style={styles.eventTitle}>{story.title}</Text>
-                                    <Text style={styles.eventTime}>📅 {new Date(story.date).toLocaleDateString("en-US", {
-                                        weekday: "long",
-                                        month: "long",
-                                        day: "numeric",
-                                        year: "numeric",
-                                    })}</Text>
-                                    <Text style={styles.eventMessage} numberOfLines={2}>{story.content}</Text>
-                                    <View style={styles.buttonsRow}>
-                                        <TouchableOpacity
-                                            style={[styles.button, styles.editButton]}
-                                            onPress={() => {
-                                                setEditingStoryId(story.id);
-                                                navigation.navigate('AddNewsScreen', {
-                                                    groupId,
-                                                    storyToEdit: story,
-                                                    returnTo: { screen: 'ManageNewsScreen' }
-                                                });
-                                            }}
-                                        >
-                                            {editingStoryId === story.id ? (
-                                                <ActivityIndicator size="small" color="#F1F5F9" />
-                                            ) : (
-                                                <Text style={styles.buttonText}>Edit</Text>
-                                            )}
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[styles.button, styles.deleteButton]}
-                                            onPress={() => handleDelete(story.id)}
-                                        >
-                                            {deletingStoryId === story.id ? (
-                                                <ActivityIndicator size="small" color="#F1F5F9" />
-                                            ) : (
-                                                <Text style={styles.buttonText}>Delete</Text>
-                                            )}
-                                        </TouchableOpacity>
-                                    </View>
+                            )}
+                            <View style={styles.newsContent}>
+                                <Text style={styles.newsTitle}>{story.title}</Text>
+                                <Text style={styles.newsDate}>📅 {new Date(story.date).toLocaleDateString("en-US", {
+                                    weekday: "long",
+                                    month: "long",
+                                    day: "numeric",
+                                    year: "numeric",
+                                })}</Text>
+                                <Text style={styles.newsStory} numberOfLines={3}>{story.content}</Text>
+                                <View style={styles.buttonsRow}>
+                                    <TouchableOpacity
+                                        style={styles.iconButton}
+                                        onPress={() => {
+                                            setEditingStoryId(story.id);
+                                            navigation.navigate('AddNewsScreen', {
+                                                groupId,
+                                                storyToEdit: story,
+                                                returnTo: { screen: 'ManageNewsScreen' }
+                                            });
+                                        }}
+                                    >
+                                        {editingStoryId === story.id ? (
+                                            <ActivityIndicator size="small" color="#2563EB" />
+                                        ) : (
+                                            <>
+                                                <Text style={styles.editIcon}>✏️</Text>
+                                                <Text style={[styles.buttonText, { color: '#2563EB' }]}>Edit</Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.iconButton}
+                                        onPress={() => handleDelete(story.id)}
+                                    >
+                                        {deletingStoryId === story.id ? (
+                                            <ActivityIndicator size="small" color="#DC2626" />
+                                        ) : (
+                                            <>
+                                                <Text style={styles.deleteIcon}>🗑️</Text>
+                                                <Text style={[styles.buttonText, { color: '#DC2626' }]}>Delete</Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
                                 </View>
                             </View>
-                        </TouchableOpacity>
+                        </View>
                     ))
                 )}
             </ScrollView>
@@ -220,16 +220,17 @@ const ManageNewsScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff', // White background
-        paddingTop: 40,
-        paddingHorizontal: 20,
+        backgroundColor: '#fff',
     },
     scrollViewContent: {
+        paddingHorizontal: 20,
+        paddingVertical: 20,
         paddingBottom: 80,
     },
     headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         marginBottom: 12,
     },
     headingContainer: {
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
     },
     description: {
         fontSize: 16,
-        color: '#94a3b8',
+        color: '#64748b',
         textAlign: 'center',
         marginBottom: 24,
     },
@@ -257,124 +258,117 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 60,
     },
-
-    cardTouchable: {
-        marginHorizontal: 4,
-    },
-    eventCard: {
-        flexDirection: 'row',
-        backgroundColor: '#1f2937',
+    newsCard: {
+        backgroundColor: '#f8f9fa',
         borderRadius: 16,
-        padding: 12,
-        marginVertical: 8,
+        marginVertical: 12,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.4,
-        shadowRadius: 4,
-        elevation: 3,
-        borderLeftWidth: 5,
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 4,
+        borderLeftWidth: 4,
+        overflow: 'hidden',
     },
-    eventImageContainer: {
-        width: 52,
-        height: 52,
-        borderRadius: 12,
+    newsImage: {
+        width: '100%',
+        height: 180,
+    },
+    placeholderImage: {
+        width: '100%',
+        height: 180,
+        backgroundColor: '#1f2937',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
-        backgroundColor: '#475569',
     },
-    eventEmoji: {
-        fontSize: 26,
+    placeholderEmoji: {
+        fontSize: 60,
     },
-    eventImage: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 12,
+    newsContent: {
+        padding: 16,
     },
-    eventTextContainer: {
-        flex: 1,
+    newsTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#212529',
+        marginBottom: 8,
     },
-    eventTitle: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: '#ffffff',
-        marginBottom: 4,
-    },
-    eventTime: {
+    newsDate: {
         fontSize: 14,
-        color: '#ffffff',
-        marginBottom: 6,
+        color: '#6c757d',
+        marginBottom: 12,
     },
-    eventMessage: {
-        fontSize: 14,
-        color: '#ffffff',
-        lineHeight: 20,
+    newsStory: {
+        fontSize: 16,
+        color: '#495057',
+        lineHeight: 24,
     },
     buttonsRow: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        marginTop: 16,
+        marginTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#e9ecef',
+        paddingTop: 12,
     },
-    button: {
-        paddingVertical: 6,
-        paddingHorizontal: 18,
-        borderRadius: 8,
+    iconButton: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        marginLeft: 10,
+        marginLeft: 20,
     },
-    editButton: {
-        backgroundColor: '#2563EB',
+    editIcon: {
+        fontSize: 18,
+        marginRight: 6,
     },
-    deleteButton: {
-        backgroundColor: '#DC2626',
+    deleteIcon: {
+        fontSize: 18,
+        marginRight: 6,
     },
     buttonText: {
         fontWeight: '600',
-        fontSize: 14,
-        color: '#F1F5F9',
+        fontSize: 16,
     },
-
     skeletonCard: {
         backgroundColor: '#f0f0f0',
-        borderRadius: 8,
+        borderRadius: 16,
         marginBottom: 20,
         overflow: 'hidden',
     },
     skeletonImage: {
         width: '100%',
-        height: 160,
+        height: 180,
         backgroundColor: '#e0e0e0',
-        borderRadius: 8,
     },
     skeletonContent: {
         padding: 16,
-        backgroundColor: '#f9f9f9',
     },
     skeletonTitle: {
-        width: '70%',
-        height: 24,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 5,
+        width: '80%',
+        height: 28,
+        backgroundColor: '#d0d0d0',
+        borderRadius: 8,
         marginBottom: 12,
     },
     skeletonDateRow: {
-        width: '50%',
-        height: 18,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 5,
+        width: '60%',
+        height: 20,
+        backgroundColor: '#d0d0d0',
+        borderRadius: 6,
         marginBottom: 16,
     },
     skeletonButtonsRow: {
         flexDirection: 'row',
-        justifyContent: 'flex-start',
+        justifyContent: 'flex-end',
+        borderTopWidth: 1,
+        borderTopColor: '#e0e0e0',
+        paddingTop: 12,
     },
     skeletonButton: {
-        width: 80,
-        height: 32,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 30,
-        marginRight: 12,
+        width: 90,
+        height: 36,
+        backgroundColor: '#d0d0d0',
+        borderRadius: 8,
+        marginLeft: 12,
     },
 });
 

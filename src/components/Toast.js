@@ -41,6 +41,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         zIndex: 999,
         elevation: 10,
+        backgroundColor: '#333', // Default background color
     },
     success: {
         backgroundColor: '#4CAF50',

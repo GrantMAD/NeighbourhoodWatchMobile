@@ -152,7 +152,7 @@ const AddEventScreen = ({ route, navigation }) => {
         return;
       }
     } else if (!imageUri && !isEditMode) {
-      imageUrl = "🗓️";
+      imageUrl = "shield";
     }
 
     const eventData = {
@@ -206,15 +206,15 @@ const AddEventScreen = ({ route, navigation }) => {
 
       if (returnTo) {
         if (returnTo.tab) {
-          navigation.navigate('MainApp', {
+                    navigation.navigate('MainApp', {
             groupId: groupId,
+            toastMessage: message,
+            toastType: 'success',
             screen: 'MainTabs',
             params: {
-              groupId: groupId,
               screen: returnTo.tab,
               params: {
-                toastMessage: message,
-                ts: Date.now(),
+                groupId: groupId,
               },
             },
           });

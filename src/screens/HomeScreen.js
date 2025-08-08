@@ -13,6 +13,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../lib/supabase";
 import Toast from "../components/Toast";
+import Icon from 'react-native-vector-icons/FontAwesome';
 
 const LoadingState = () => (
   <ScrollView style={styles.container} contentContainerStyle={styles.scrollPadding}>
@@ -33,16 +34,28 @@ const LoadingState = () => (
   </ScrollView>
 );
 
-const formatTime = (date) =>
-  date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const formatEventDateTimeRange = (startDate, endDate) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
 
-const formatDate = (date) =>
-  date.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const optionsDate = { month: "short", day: "numeric" };
+  const optionsTime = { hour: "2-digit", minute: "2-digit" };
+
+  const startDay = start.toLocaleDateString("en-US", optionsDate);
+  const startTime = start.toLocaleTimeString([], optionsTime);
+  const endDay = end.toLocaleDateString("en-US", optionsDate);
+  const endTime = end.toLocaleTimeString([], optionsTime);
+
+  if (start.toDateString() === end.toDateString()) {
+    // Same day event
+    return `${startDay}, ${startTime} - ${endTime}`;
+  } else {
+    // Multi-day event
+    return `${startDay}, ${startTime} - ${endDay}, ${endTime}`;
+  }
+};
+
+const isImageUrl = (str) => typeof str === "string" && str.startsWith("http");
 
 export default function HomeScreen({ route, navigation }) {
   const groupId = route.params?.groupId;
@@ -117,118 +130,113 @@ export default function HomeScreen({ route, navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-      {/* Header Section */}
-      {groupData.main_image && (
-        <Image source={{ uri: groupData.main_image }} style={styles.headerImage} />
-      )}
-
-      {/* Welcome Section */}
-      <View style={styles.welcomeCard}>
-        <Text style={styles.welcomeTitle}>👋 Welcome, {userName}</Text>
-        <View style={styles.groupNameHighlight}>
-          <Text style={styles.groupNameText}>🏡 {groupData.name}</Text>
-        </View>
-        <Text style={styles.welcomeText}>{groupData.welcome_text || "Update your welcome text in settings."}</Text>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => navigation.navigate("ContactScreen")}
-        >
-          <Text style={styles.primaryButtonText}>Contact Us</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Events Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>🗓️ Upcoming Events</Text>
-          {userRole === 'Admin' && (
-            <TouchableOpacity
-              onPress={() => navigation.navigate("AddEventScreen", {
-                groupId,
-                returnTo: { tab: 'Home' }
-              })}
-            >
-              <Text style={styles.link}>+ Add</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <FlatList
-          data={events}
-          keyExtractor={(item, index) => item.id || index.toString()}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 10 }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => navigation.navigate("Events", { groupId, selectedEvent: item })}
-            >
-              {item.image ? (
-                <Image source={{ uri: item.image }} style={styles.cardImage} />
-              ) : (
-                <View style={styles.emojiIconContainer}><Text style={styles.emojiIcon}>🗓️</Text></View>
-              )}
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={styles.cardDateLabel}>🕒 Start:</Text>
-                <View style={styles.cardDateRow}>
-                  <Text style={styles.cardDateText}>{formatDate(new Date(item.startDate))}, {formatTime(new Date(item.startDate))}</Text>
-                </View>
-                <Text style={styles.cardDateLabel}>🕒 End:</Text>
-                <View style={styles.cardDateRow2}>
-                  <Text style={styles.cardDateText}>{formatDate(new Date(item.endDate))}, {formatTime(new Date(item.endDate))}</Text>
-                </View>
-                <Text numberOfLines={2} style={styles.cardDescription}>{item.message}</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={() => (
-            <Text style={styles.noDataText}>No upcoming events.</Text>
-          )}
-        />
-      </View>
-
-      {/* News Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>📰 Community News</Text>
-          {userRole === 'Admin' && (
-            <TouchableOpacity
-              onPress={() => navigation.navigate("AddNewsScreen", {
-                groupId,
-                returnTo: { tab: 'News' }
-              })}
-            >
-              <Text style={styles.link}>+ Add</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        {news.length > 0 ? (
-          news.map((story, index) => (
-            <TouchableOpacity
-              key={story.id || index}
-              style={styles.newsCard}
-              onPress={() => navigation.navigate("NewsScreen", { groupId, selectedStory: story })}
-            >
-              {story.image ? (
-                <Image source={{ uri: story.image }} style={styles.newsImage} />
-              ) : (
-                <View style={styles.newsEmojiContainer}><Text style={styles.newsEmoji}>📰</Text></View>
-              )}
-              <View style={styles.newsContent}>
-                <Text style={styles.newsTitle}>{story.title}</Text>
-                <Text style={styles.newsDescription} numberOfLines={3}>{story.content}</Text>
-                <View style={styles.newsFooter}>
-                  <Text style={styles.newsMeta}>👁️ {story.views || 0} views</Text>
-                  <Text style={styles.newsMeta}>🗓️ {new Date(story.date).toLocaleDateString('en-US')}</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))
-        ) : (
-          <Text style={styles.noDataText}>No news stories.</Text>
+        {/* Header Section */}
+        {groupData.main_image && (
+          <Image source={{ uri: groupData.main_image }} style={styles.headerImage} />
         )}
-      </View>     
+
+        {/* Welcome Section */}
+        <View style={styles.welcomeCard}>
+          <Text style={styles.welcomeTitle}>👋 Welcome, {userName}</Text>
+          <View style={styles.groupNameHighlight}>
+            <Text style={styles.groupNameText}>🏡 {groupData.name}</Text>
+          </View>
+          <Text style={styles.welcomeText}>{groupData.welcome_text || "Update your welcome text in settings."}</Text>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => navigation.navigate("ContactScreen")}
+          >
+            <Text style={styles.primaryButtonText}>Contact Us</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Events Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🗓️ Upcoming Events</Text>
+            {userRole === 'Admin' && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("AddEventScreen", {
+                  groupId,
+                  returnTo: { tab: 'Home' }
+                })}
+              >
+                <Text style={styles.link}>+ Add</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={styles.descriptionText}>Stay informed about all planned group activities.</Text>
+          <FlatList
+            data={events}
+            keyExtractor={(item, index) => item.id || index.toString()}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 10 }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => navigation.navigate("Events", { groupId, selectedEvent: item })}
+              >
+                {isImageUrl(item.image) ? (
+                  <Image source={{ uri: item.image }} style={styles.cardImage} />
+                ) : (
+                  <View style={styles.emojiIconContainer}><Icon name={item.image || "shield"} size={50} color="#4b5563" /></View>
+                )}
+                <View style={styles.cardContent}>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  <Text style={styles.cardDateTime}>🕒 {formatEventDateTimeRange(item.startDate, item.endDate)}</Text>
+                  <Text numberOfLines={2} style={styles.cardDescription}>{item.message}</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={() => (
+              <Text style={styles.noDataText}>No upcoming events.</Text>
+            )}
+          />
+        </View>
+
+        {/* News Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>📰 Community News</Text>
+            {userRole === 'Admin' && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("AddNewsScreen", {
+                  groupId,
+                  returnTo: { tab: 'Home' }
+                })}
+              >
+                <Text style={styles.link}>+ Add</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={styles.descriptionText}>Catch up on the latest updates and announcements.</Text>
+          {news.length > 0 ? (
+            news.map((story, index) => (
+              <TouchableOpacity
+                key={story.id || index}
+                style={styles.newsCard}
+                onPress={() => navigation.navigate('News', { selectedStoryId: story.id })}
+              >
+                {story.image ? (
+                  <Image source={{ uri: story.image }} style={styles.newsImage} />
+                ) : (
+                  <View style={styles.newsEmojiContainer}><Text style={styles.newsEmoji}>📰</Text></View>
+                )}
+                <View style={styles.newsContent}>
+                  <Text style={styles.newsTitle}>{story.title}</Text>
+                  <Text style={styles.newsDescription} numberOfLines={3}>{story.content}</Text>
+                  <View style={styles.newsFooter}>
+                    <Text style={styles.newsMeta}>👁️ {story.views || 0} views</Text>
+                    <Text style={styles.newsMeta}>🗓️ {new Date(story.date).toLocaleDateString('en-US')}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <Text style={styles.noDataText}>No news stories.</Text>
+          )}
+        </View>
       </ScrollView>
     </>
   );
@@ -314,6 +322,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1f2937',
   },
+  descriptionText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 4,
+    marginBottom: 10,
+  },
   link: {
     color: '#3b82f6',
     fontSize: 16,
@@ -349,33 +363,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     color: '#111827',
   },
-  cardSub: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginBottom: 6,
-  },
-  cardDescription: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  cardDateText: {
+  cardDateTime: {
     fontSize: 12,
     color: '#6b7280',
-  },
-  cardDateLabel: {
-    fontSize: 12,
-    color: 'black',
-    marginTop: 4,
-    fontWeight: '600',
-  },
-  cardDateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cardDateRow2: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   newsCard: {
     backgroundColor: '#1f2937',

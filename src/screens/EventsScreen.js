@@ -13,6 +13,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../lib/supabase";
 import { Calendar } from "react-native-calendars";
+import Icon from 'react-native-vector-icons/FontAwesome';
 import Toast from "../components/Toast";
 
 // Helper functions
@@ -46,8 +47,8 @@ const EventModal = ({ visible, onClose, event, onAttend, onNoLongerAttending, is
                     {isImageUrl(event.image) ? (
                         <Image source={{ uri: event.image }} style={styles.modalImage} />
                     ) : (
-                        <View style={styles.emojiContainer}>
-                            <Text style={styles.emoji}>{event.image || "📅"}</Text>
+                        <View style={[styles.emojiContainer, {backgroundColor: '#1f2937'}]}>
+                            <Icon name={event.image || "shield"} size={72} color="#fff" />
                         </View>
                     )}
 
@@ -157,8 +158,8 @@ const DayEventsModal = ({ visible, onClose, events, onEventPress, loadingDayEven
                                     {isImageUrl(event.image) ? (
                                         <Image source={{ uri: event.image }} style={styles.dayEventImage} />
                                     ) : (
-                                        <View style={styles.dayEventEmojiCircle}>
-                                            <Text style={styles.dayEventEmoji}>{event.image || "📅"}</Text>
+                                        <View style={[styles.dayEventEmojiCircle, {backgroundColor: '#1f2937'}]}>
+                                            <Icon name={event.image || "shield"} size={28} color="#fff" />
                                         </View>
                                     )}
                                     <Text style={[styles.dayEventText, { marginLeft: 8, flexShrink: 1 }]}>
@@ -207,6 +208,7 @@ const EventsScreen = ({ route, navigation }) => {
     const [attendedEvents, setAttendedEvents] = useState([]);
     const [userRole, setUserRole] = useState(null);
     const eventRefs = useRef({});
+    const [isModalLoading, setIsModalLoading] = useState(false); // New state for modal loading
 
     useEffect(() => {
         if (route.params?.toastMessage) {
@@ -216,6 +218,7 @@ const EventsScreen = ({ route, navigation }) => {
 
         if (route.params?.selectedEvent) {
             const openEventFromParams = async () => {
+                setIsModalLoading(true); // Start loading
                 const event = route.params.selectedEvent;
                 const updatedViews = await incrementEventViews(event.id);
                 if (updatedViews !== null) {
@@ -223,6 +226,7 @@ const EventsScreen = ({ route, navigation }) => {
                 } else {
                     setSelectedEvent(event);
                 }
+                setIsModalLoading(false); // End loading
             };
             openEventFromParams();
             navigation.setParams({ selectedEvent: null });
@@ -598,8 +602,8 @@ const EventsScreen = ({ route, navigation }) => {
                     {isImageUrl(event.image) ? (
                         <Image source={{ uri: event.image }} style={styles.eventCardImage} />
                     ) : (
-                        <View style={styles.eventCardEmojiCircle}>
-                            <Text style={styles.eventCardEmoji}>{event.image || "📅"}</Text>
+                        <View style={[styles.eventCardEmojiCircle, {backgroundColor: '#1f2937'}]}>
+                            <Icon name={event.image || "shield"} size={30} color="#fff" />
                         </View>
                     )}
                 </View>
@@ -772,6 +776,12 @@ const EventsScreen = ({ route, navigation }) => {
                 onEventPress={onEventPress}
                 loadingDayEventId={loadingDayEventId}
             />
+
+            {isModalLoading && (
+                <View style={styles.fullScreenLoadingOverlay}>
+                    <ActivityIndicator size="large" color="#22d3ee" />
+                </View>
+            )}
         </>
     );
 };
@@ -1105,6 +1115,18 @@ const styles = StyleSheet.create({
     disabledButton: { opacity: 0.6 },
     buttonText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
     attendingText: { color: '#4CAF50', fontWeight: 'bold', fontSize: 14, alignSelf: 'center' },
+    fullScreenLoadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+    },
+
 });
 
 export default EventsScreen;

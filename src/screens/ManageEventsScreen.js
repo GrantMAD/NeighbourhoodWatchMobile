@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
+import Icon from 'react-native-vector-icons/FontAwesome';
 import Toast from "../components/Toast";
 
 const ManageEventsScreen = ({ route, navigation }) => {
@@ -122,57 +123,57 @@ const ManageEventsScreen = ({ route, navigation }) => {
     };
 
     const renderEventCard = (event, index) => (
-        <TouchableOpacity
-            key={event.id ?? index.toString()}
-            style={styles.cardTouchable}
-            activeOpacity={0.9}
-        >
-            <View style={[styles.eventCard, { borderLeftColor: event.color || '#374151' }]}>
-                <View style={styles.eventImageContainer}>
-                    {event.image && (event.image.startsWith('http://') || event.image.startsWith('https://')) ? (
-                        <Image source={{ uri: event.image }} style={styles.eventImage} resizeMode="cover" />
-                    ) : (
-                        <Text style={styles.eventEmoji}>{event.image || '📅'}</Text>
-                    )}
+        <View key={event.id ?? index.toString()} style={[styles.newsCard, { borderLeftColor: event.color || '#374151' }]}>
+            {event.image && (event.image.startsWith('http://') || event.image.startsWith('https://')) ? (
+                <Image source={{ uri: event.image }} style={styles.newsImage} resizeMode="cover" />
+            ) : (
+                <View style={[styles.placeholderImage, {backgroundColor: '#1f2937'}]}>
+                    <Icon name={event.image || "shield"} size={60} color="#fff" />
                 </View>
-                <View style={styles.eventTextContainer}>
-                    <Text style={styles.eventTitle}>{event.title}</Text>
-                    <Text style={styles.eventTime}>🕒 {formatEventTime(event.startDate, event.endDate)}</Text>
-                    <Text style={styles.eventMessage} numberOfLines={2}>{event.message}</Text>
-                    <View style={styles.buttonsRow}>
-                        <TouchableOpacity
-                            style={[styles.button, styles.editButton]}
-                            onPress={() => {
-                                setEditingEventId(event.id);
-                                requestAnimationFrame(() => {
-                                    navigation.navigate('AddEventScreen', {
-                                        groupId,
-                                        eventToEdit: event,
-                                        returnTo: { screen: 'ManageEventsScreen' }
-                                    });
+            )}
+            <View style={styles.newsContent}>
+                <Text style={styles.newsTitle}>{event.title}</Text>
+                <Text style={styles.newsDate}>🕒 {formatEventTime(event.startDate, event.endDate)}</Text>
+                <Text style={styles.newsStory} numberOfLines={3}>{event.message}</Text>
+                <View style={styles.buttonsRow}>
+                    <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={() => {
+                            setEditingEventId(event.id);
+                            requestAnimationFrame(() => {
+                                navigation.navigate('AddEventScreen', {
+                                    groupId,
+                                    eventToEdit: event,
+                                    returnTo: { screen: 'ManageEventsScreen' }
                                 });
-                            }}
-                        >
-                            {editingEventId === event.id ? (
-                                <ActivityIndicator size="small" color="#F1F5F9" />
-                            ) : (
-                                <Text style={styles.buttonText}>Edit</Text>
-                            )}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.button, styles.deleteButton]}
-                            onPress={() => handleDelete(event.id)}
-                        >
-                            {deletingEventId === event.id ? (
-                                <ActivityIndicator size="small" color="#F1F5F9" />
-                            ) : (
-                                <Text style={styles.buttonText}>Delete</Text>
-                            )}
-                        </TouchableOpacity>
-                    </View>
+                            });
+                        }}
+                    >
+                        {editingEventId === event.id ? (
+                            <ActivityIndicator size="small" color="#2563EB" />
+                        ) : (
+                            <>
+                                <Text style={styles.editIcon}>✏️</Text>
+                                <Text style={[styles.buttonText, { color: '#2563EB' }]}>Edit</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={() => handleDelete(event.id)}
+                    >
+                        {deletingEventId === event.id ? (
+                            <ActivityIndicator size="small" color="#DC2626" />
+                        ) : (
+                            <>
+                                <Text style={styles.deleteIcon}>🗑️</Text>
+                                <Text style={[styles.buttonText, { color: '#DC2626' }]}>Delete</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
                 </View>
             </View>
-        </TouchableOpacity>
+        </View>
     );
 
 
@@ -258,15 +259,16 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
-        paddingTop: 40,
-        paddingHorizontal: 20,
     },
     scrollViewContent: {
+        paddingHorizontal: 20,
+        paddingVertical: 20,
         paddingBottom: 80,
     },
     headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         marginBottom: 12,
     },
     headingContainer: {
@@ -284,7 +286,7 @@ const styles = StyleSheet.create({
     },
     description: {
         fontSize: 16,
-        color: '#94a3b8',
+        color: '#64748b',
         textAlign: 'center',
         marginBottom: 24,
     },
@@ -293,215 +295,103 @@ const styles = StyleSheet.create({
         fontSize: 18,
         textAlign: 'center',
         marginTop: 20,
+        padding: 20,
     },
-
-    cardTouchable: {
-        marginHorizontal: 4,
-    },
-    eventCard: {
-        flexDirection: 'row',
-        backgroundColor: '#1f2937',
-        borderRadius: 16,
-        padding: 12,
-        marginVertical: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.4,
-        shadowRadius: 4,
-        elevation: 3,
-        borderLeftWidth: 5,
-    },
-    eventImageContainer: {
-        width: 52,
-        height: 52,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-        backgroundColor: '#475569',
-    },
-    eventEmoji: {
-        fontSize: 26,
-    },
-    eventImage: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 12,
-    },
-    eventTextContainer: {
-        flex: 1,
-    },
-    eventTitle: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: '#ffffff',
-        marginBottom: 4,
-    },
-    eventTime: {
-        fontSize: 14,
-        color: '#ffffff',
-        marginBottom: 6,
-    },
-    eventMessage: {
-        fontSize: 14,
-        color: '#ffffff',
-        lineHeight: 20,
-    },
-
-    // Section Title
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#ffffff',
-    },
-
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#1f2937',
+        backgroundColor: '#f8f9fa',
         paddingVertical: 12,
         paddingHorizontal: 16,
         borderRadius: 10,
         marginTop: 16,
-        elevation: 2, // Android shadow
-        shadowColor: '#000', // iOS shadow
+        elevation: 2,
+        shadowColor: '#000',
         shadowOpacity: 0.1,
         shadowOffset: { width: 0, height: 2 },
         shadowRadius: 4,
     },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#212529',
+    },
     dropdownArrow: {
         fontSize: 18,
-        color: '#FFFFFF',
         fontWeight: 'bold',
+        color: '#212529',
     },
-
-    // Retained styles
-    card: {
-        backgroundColor: '#1e293b',
+    newsCard: {
+        backgroundColor: '#f8f9fa',
         borderRadius: 16,
-        marginBottom: 20,
-        overflow: 'hidden',
+        marginVertical: 12,
         shadowColor: '#000',
-        shadowOpacity: 0.4,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
-        elevation: 10,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        elevation: 4,
+        borderLeftWidth: 4,
+        overflow: 'hidden',
     },
-    cardImage: {
+    newsImage: {
         width: '100%',
-        height: 160,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
+        height: 180,
     },
-    noImage: {
-        backgroundColor: '#475569',
+    placeholderImage: {
+        width: '100%',
+        height: 180,
+        backgroundColor: '#e9ecef',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    noImageText: {
-        color: '#94a3b8',
-        fontSize: 16,
-        fontWeight: '600',
+    placeholderEmoji: {
+        fontSize: 60,
+        opacity: 0.5,
     },
-    overlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.25)',
-    },
-    cardContent: {
+    newsContent: {
         padding: 16,
-        backgroundColor: 'rgba(31, 41, 55, 0.9)',
     },
-    dateRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 16,
+    newsTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#212529',
+        marginBottom: 8,
     },
-    dateIcon: {
-        fontSize: 18,
-        color: '#60a5fa',
-        marginRight: 6,
+    newsDate: {
+        fontSize: 14,
+        color: '#6c757d',
+        marginBottom: 12,
     },
-    dateText: {
-        fontSize: 15,
-        color: '#cbd5e1',
-        fontWeight: '500',
+    newsStory: {
+        fontSize: 16,
+        color: '#495057',
+        lineHeight: 24,
     },
     buttonsRow: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        marginTop: 16,
+        marginTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#e9ecef',
+        paddingTop: 12,
     },
-    button: {
-        paddingVertical: 6,
-        paddingHorizontal: 18,
-        borderRadius: 8,
+    iconButton: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        marginLeft: 10,
+        marginLeft: 20,
     },
-    editButton: {
-        backgroundColor: '#2563EB',
+    editIcon: {
+        fontSize: 18,
+        marginRight: 6,
     },
-    deleteButton: {
-        backgroundColor: '#DC2626',
+    deleteIcon: {
+        fontSize: 18,
+        marginRight: 6,
     },
     buttonText: {
         fontWeight: '600',
-        fontSize: 14,
-        color: '#F1F5F9',
-    },
-
-    // Skeleton styles
-    skeletonCard: {
-        backgroundColor: '#f0f0f0',
-        borderRadius: 8,
-        marginBottom: 20,
-        overflow: 'hidden',
-    },
-    skeletonImage: {
-        width: '100%',
-        height: 160,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 8,
-    },
-    skeletonContent: {
-        padding: 16,
-        backgroundColor: '#f9f9f9',
-    },
-    skeletonTitle: {
-        width: '70%',
-        height: 24,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 5,
-        marginBottom: 12,
-    },
-    skeletonDateRow: {
-        width: '50%',
-        height: 18,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 5,
-        marginBottom: 16,
-    },
-    skeletonButtonsRow: {
-        flexDirection: 'row',
-        justifyContent: 'flex-start',
-    },
-    skeletonButton: {
-        width: 80,
-        height: 32,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 30,
-        marginRight: 12,
-    },
-    emojiContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#475569',
-    },
-    emoji: {
-        fontSize: 64,
-        color: '#94a3b8',
+        fontSize: 16,
     },
 });
 

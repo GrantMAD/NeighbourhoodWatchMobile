@@ -188,60 +188,43 @@ const MembersScreen = ({ route }) => {
               <Text style={styles.closeButtonText}>X</Text>
             </TouchableOpacity>
 
-            <View style={styles.modalHeader}>
-              <Image
-                source={selectedMember.avatar_url ? { uri: selectedMember.avatar_url } : defaultAvatar}
-                style={styles.modalAvatar}
-              />
-              <View>
+            <ScrollView>
+              <View style={styles.modalHeader}>
+                <Image
+                  source={selectedMember.avatar_url ? { uri: selectedMember.avatar_url } : defaultAvatar}
+                  style={styles.modalAvatar}
+                />
                 <Text style={styles.modalTitle}>{selectedMember.name || 'No Name'}</Text>
                 <Text style={styles.modalRole}>{selectedMember.role}</Text>
               </View>
-            </View>
 
-            <ScrollView>
-              {/* Contact Info Card */}
-              <View style={styles.detailCard}>
-                <Text style={styles.cardHeader}>Contact Information</Text>
-                <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`mailto:${selectedMember.email}`)}>
-                  <View style={styles.detailRowHeader}>
-                    <Text style={styles.icon}>📧</Text>
-                    <Text style={styles.detailLabel}>Email:</Text>
-                  </View>
-                  <Text style={styles.detailText}>{selectedMember.email ? `${selectedMember.email}` : '-'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`tel:${selectedMember.number}`)}>
-                  <View style={styles.detailRowHeader}>
-                    <Text style={styles.icon}>📞</Text>
-                    <Text style={styles.detailLabel}>Contact Number:</Text>
-                  </View>
-                  <Text style={styles.detailText}>{selectedMember.number ? `${selectedMember.number}` : '-'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.detailRow} onPress={() => Linking.openURL(`tel:${selectedMember.emergency_contact}`)}>
-                  <View style={styles.detailRowHeader}>
-                    <Text style={styles.icon}>🆘</Text>
-                    <Text style={styles.detailLabel}>Emergency Contact:</Text>
-                  </View>
-                  <Text style={styles.detailText}>{selectedMember.emergency_contact ? `${selectedMember.emergency_contact}` : '-'}</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Location & Vehicle Card */}
-              <View style={styles.detailCard}>
-                <Text style={styles.cardHeader}>Location & Vehicle</Text>
+              {/* Contact Info Section */}
+              <View style={styles.section}>
+                <Text style={styles.sectionHeader}>Contact Information</Text>
                 <View style={styles.detailRow}>
-                  <View style={styles.detailRowHeader}>
-                    <Text style={styles.icon}>📍</Text>
-                    <Text style={styles.detailLabel}>Street:</Text>
-                  </View>
-                  <Text style={styles.detailText}>{selectedMember.street ? `${selectedMember.street}` : '-'}</Text>
+                  <Text style={styles.detailLabel}>Email:</Text>
+                  <Text style={styles.detailText} selectable>{selectedMember.email || '-'}</Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <View style={styles.detailRowHeader}>
-                    <Text style={styles.icon}>🚗</Text>
-                    <Text style={styles.detailLabel}>Vehicle Info:</Text>
-                  </View>
-                  <Text style={styles.detailText}>{selectedMember.vehicle_info ? `${selectedMember.vehicle_info}` : '-'}</Text>
+                  <Text style={styles.detailLabel}>Contact Number:</Text>
+                  <Text style={styles.detailText} selectable>{selectedMember.number || '-'}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Emergency Contact:</Text>
+                  <Text style={styles.detailText} selectable>{selectedMember.emergency_contact || '-'}</Text>
+                </View>
+              </View>
+
+              {/* Location & Vehicle Section */}
+              <View style={styles.section}>
+                <Text style={styles.sectionHeader}>Location & Vehicle</Text>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Street:</Text>
+                  <Text style={styles.detailText}>{selectedMember.street || '-'}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Vehicle Info:</Text>
+                  <Text style={styles.detailText}>{selectedMember.vehicle_info || '-'}</Text>
                 </View>
               </View>
             </ScrollView>
@@ -369,95 +352,90 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
     width: '90%',
-    maxHeight: '80%',
-    backgroundColor: '#1f2937',
-    borderRadius: 15,
+    maxHeight: '85%',
+    backgroundColor: '#f7f9fc',
+    borderRadius: 20,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 10,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#34495e',
-    marginBottom: 15,
-  },
-  modalAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 15,
-    borderWidth: 2,
-    borderColor: '#3498db',
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ecf0f1',
-  },
-  modalRole: {
-    fontSize: 16,
-    color: '#95a5a6',
-    marginTop: 2,
-  },
-  detailCard: {
-    backgroundColor: '#2c3e50',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-  },
-  cardHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ecf0f1',
-    marginBottom: 10,
-  },
-  detailRow: {
-    marginBottom: 12,
-  },
-  detailRowHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  icon: {
-    marginRight: 12,
-    fontSize: 20,
-  },
-  detailLabel: {
-    fontWeight: 'bold',
-    color: '#bdc3c7',
-    fontSize: 14,
-  },
-  detailText: {
-    fontSize: 14,
-    color: '#ecf0f1',
-    marginLeft: 32, // Align with the label text
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#1f2937',
   },
   closeButton: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#34495e',
+    top: 15,
+    right: 15,
+    backgroundColor: '#f0f0f0',
     borderRadius: 15,
     width: 30,
     height: 30,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
   },
   closeButtonText: {
-    color: '#ecf0f1',
+    color: '#333',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalAvatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 10,
+    borderWidth: 3,
+    borderColor: '#007bff',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalRole: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 2,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingBottom: 5,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 5,
+  },
+  detailLabel: {
+    fontWeight: 'bold',
+    color: '#555',
+    fontSize: 14,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#333',
+    flexShrink: 1,
+    textAlign: 'right',
   },
   groupContainer: {
     marginBottom: 10,
@@ -470,7 +448,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#2c3e50', // Darker, richer blue
+    backgroundColor: '#2c3e50',
     borderRadius: 10,
     marginBottom: 8,
     shadowColor: "#000",
@@ -482,7 +460,7 @@ const styles = StyleSheet.create({
   groupTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ecf0f1', // Lighter text for contrast
+    color: '#ecf0f1',
   },
   groupToggleIcon: {
     fontSize: 22,
@@ -491,11 +469,11 @@ const styles = StyleSheet.create({
   memberCountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 10, // Add some space between group name and counts
+    marginLeft: 10,
   },
   memberCountText: {
     fontSize: 14,
-    color: '#bdc3c7', // Softer grey for secondary info
+    color: '#bdc3c7',
     marginRight: 16,
   },
   groupContent: {

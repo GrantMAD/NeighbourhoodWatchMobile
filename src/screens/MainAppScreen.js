@@ -420,11 +420,11 @@ const MainAppScreen = ({ route, navigation }) => {
 
   useEffect(() => {
     if (toastMessage) {
-      setToast({ visible: true, message: toastMessage, type: toastType || "success" });
-      // Clear the params after showing the toast
+      // Clear the params immediately to prevent re-triggering
       navigation.setParams({ toastMessage: null, toastType: null });
+      setToast({ visible: true, message: toastMessage, type: toastType || "success" });
     }
-  }, [toastMessage, toastType]);
+  }, [toastMessage, toastType, navigation]);
 
   useEffect(() => {
     // We will call registerForPushNotificationsAsync from a place where we are sure the user is logged in.
