@@ -2,6 +2,7 @@ import 'react-native-gesture-handler';
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import SignInScreen from './src/screens/SignInScreen'
 import SignUpScreen from './src/screens/SignUpScreen'
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen'
 import GroupAccessScreen from './src/screens/GroupAccessScreen'
 import JoinGroupScreen from './src/screens/JoinGroupScreen'
 import CreateGroupScreen from './src/screens/CreateGroupScreen'
@@ -28,10 +29,19 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 const Stack = createNativeStackNavigator()
 
+const linking = {
+  prefixes: ['neighbourhoodwatchapp://'],
+  config: {
+    screens: {
+      ChangePasswordScreen: 'change-password',
+    },
+  },
+};
+
 export default function App() {
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
+      <NavigationContainer linking={linking}>
         <Stack.Navigator
           initialRouteName="SessionLoader"
         screenOptions={{
@@ -71,6 +81,7 @@ export default function App() {
         {/* Auth screens */}
         <Stack.Screen name="SignIn" component={SignInScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: "Forgot Password" }} />
 
         {/* Group access flow */}
         <Stack.Screen

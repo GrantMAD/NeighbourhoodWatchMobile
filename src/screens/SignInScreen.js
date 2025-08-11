@@ -116,6 +116,10 @@ export default function SignInScreen({ navigation }) {
         )}
       </TouchableOpacity>
 
+      <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotPasswordButton}>
+        <Text style={styles.forgotPasswordButtonText}>Forgot Password?</Text>
+      </TouchableOpacity>
+
       <Text style={styles.signUpText}>
         Don't have an account?{' '}
         <Text style={styles.signUpLink} onPress={() => navigation.navigate('SignUp')}>
@@ -194,5 +198,13 @@ const styles = StyleSheet.create({
   },
   loadingSignInButton: {
     backgroundColor: '#a5b4fc',
+  },
+  forgotPasswordButton: {
+    marginTop: 10,
+    alignSelf: 'center',
+  },
+  forgotPasswordButtonText: {
+    color: '#d1d5db',
+    fontSize: 14,
   },
 });

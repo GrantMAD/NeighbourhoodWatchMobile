@@ -13,7 +13,7 @@ import GroupMetricsCard from './cards/GroupMetricsCard';
 import { useNavigation } from '@react-navigation/native';
 import Toast from '../components/Toast';
 
-import { LineChart, BarChart } from 'react-native-chart-kit';
+
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -107,9 +107,24 @@ const SuperAdminDashboard = () => {
         {
           text: "Sign Out",
           onPress: async () => {
+            const { data: { session }, error: getSessionError } = await supabase.auth.getSession();
+
+            if (getSessionError) {
+              console.error('Error getting session:', getSessionError.message);
+              Alert.alert('Error', `Failed to get session: ${getSessionError.message}`);
+              return;
+            }
+
+            if (!session) {
+              console.warn('No active session found, navigating to SignIn.');
+              navigation.reset({ index: 0, routes: [{ name: 'SignIn' }] });
+              return;
+            }
+
             const { error } = await supabase.auth.signOut();
             if (error) {
-              Alert.alert('Error', 'Failed to sign out');
+              console.error('Sign out error:', error.message);
+              Alert.alert('Error', `Failed to sign out: ${error.message}`);
             } else {
               navigation.reset({ index: 0, routes: [{ name: 'SignIn' }] });
             }
@@ -357,61 +372,9 @@ const SuperAdminDashboard = () => {
               ))}
             </View>
 
-            <View style={styles.chartContainer}>
-              <Text style={styles.chartTitle}>User & Group Creation (Last 30 Days)</Text>
-              <LineChart
-                data={{
-                  labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-                  datasets: [
-                    {
-                      data: [10, 20, 15, 25],
-                      color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`,
-                      strokeWidth: 2,
-                    },
-                    {
-                      data: [5, 10, 8, 12],
-                      color: (opacity = 1) => `rgba(255, 165, 0, ${opacity})`,
-                      strokeWidth: 2,
-                    },
-                  ],
-                  legend: ['Users', 'Groups'],
-                }}
-                width={screenWidth - 64} // Adjust for padding
-                height={220}
-                chartConfig={{
-                  backgroundColor: '#ffffff',
-                  backgroundGradientFrom: '#ffffff',
-                  backgroundGradientTo: '#ffffff',
-                  decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                }}
-                style={styles.chart}
-              />
-            </View>
+            
 
-            <View style={styles.chartContainer}>
-              <Text style={styles.chartTitle}>Content Distribution</Text>
-              <BarChart
-                data={{
-                  labels: ['Events', 'News', 'Incidents'],
-                  datasets: [
-                    {
-                      data: [overallMetrics.totalEvents, overallMetrics.totalNews, overallMetrics.totalIncidents],
-                    },
-                  ],
-                }}
-                width={screenWidth - 64} // Adjust for padding
-                height={220}
-                chartConfig={{
-                  backgroundColor: '#ffffff',
-                  backgroundGradientFrom: '#ffffff',
-                  backgroundGradientTo: '#ffffff',
-                  decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                }}
-                style={styles.chart}
-              />
-            </View>
+            
           </ScrollView>
         );
       case 'groups':
@@ -507,7 +470,7 @@ const SuperAdminDashboard = () => {
         const pendingNWRequests = requestMetrics.userRequests.filter(req => req.type === 'Neighbourhood watch request' && req.status === 'pending').length;
 
         return (
-          <View style={styles.contentContainer}>
+          <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: 40 }}>
             <Text style={styles.contentTitle}>Requests</Text>
             <Text style={styles.contentDescription}>Manage group join requests and Neighbourhood Watch join requests.</Text>
 
@@ -552,7 +515,7 @@ const SuperAdminDashboard = () => {
             ) : (
               <Text style={styles.noRequestsText}>No pending Neighbourhood requests.</Text>
             )}
-          </View>
+          </ScrollView>
         );
       default:
         return <Text>Select a category</Text>;

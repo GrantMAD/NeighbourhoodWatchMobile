@@ -16,7 +16,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.grant6908.NeighbourhoodWatchMobile"
     },
-    "scheme": "neighbourhoodwatchmobile",
+    "scheme": "neighbourhoodwatchapp",
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/Images/nwLogo.png",
