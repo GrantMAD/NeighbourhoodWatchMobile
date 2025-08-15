@@ -1,9 +1,15 @@
 const fs = require('fs');
-const { config } = require('dotenv');
+const path = require('path');
 
-config();
+const googleServicesBase64 = process.env.GOOGLE_SERVICES_BASE64;
 
-const template = fs.readFileSync('google-services.json.template', 'utf8');
-const result = template.replace(/\$\{GOOGLE_API_KEY\}/g, process.env.GOOGLE_API_KEY);
+if (!googleServicesBase64) {
+  console.log('GOOGLE_SERVICES_BASE64 environment variable not found. Skipping google-services.json creation.');
+  return;
+}
 
-fs.writeFileSync('google-services.json', result, 'utf8');
+const decodedJson = Buffer.from(googleServicesBase64, 'base64').toString('utf8');
+const outputPath = path.join(process.cwd(), 'google-services.json');
+
+fs.writeFileSync(outputPath, decodedJson, 'utf8');
+console.log('Successfully created google-services.json');

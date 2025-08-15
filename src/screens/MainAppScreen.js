@@ -669,12 +669,9 @@ const MainAppScreen = ({ route, navigation }) => {
         //console.log("User ID:", user.id);
         //console.log("Profile push_token:", profile.push_token);
 
-        if (!profile.push_token) {
-          //console.log('Push token not found in profile, attempting to register.');
-          await registerForPushNotificationsAsync(user.id);
-        } else {
-          //console.log('Push token already exists, skipping registration.');
-        }
+        // Always attempt to register for push notifications on focus.
+        // The function itself will check for permissions and existing tokens.
+        await registerForPushNotificationsAsync(user.id);
 
         const notifs = profile.notifications ?? [];
         setNotifications(notifs);
