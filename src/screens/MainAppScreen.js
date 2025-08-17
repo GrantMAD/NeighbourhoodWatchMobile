@@ -447,7 +447,7 @@ const MainAppScreen = ({ route, navigation }) => {
   }, []);
 
   async function registerForPushNotificationsAsync(userId) {
-    console.log(`Register function started. Received userId: ${userId}`);
+    
     let token;
     if (Device.isDevice) {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -462,13 +462,13 @@ const MainAppScreen = ({ route, navigation }) => {
       }
       try {
         token = (await Notifications.getExpoPushTokenAsync()).data;
-        console.log('Expo Push Token:', token);
+        
       } catch (e) {
         console.error('Failed to get Expo push token:', e);
         return;
       }
     } else {
-      console.log('Not a device, skipping push token registration.');
+      
       return;
     }
 
@@ -485,17 +485,17 @@ const MainAppScreen = ({ route, navigation }) => {
       }
     }
 
-    console.log(`Values before save check: token is typeof ${typeof token} with value ${token}, userId is typeof ${typeof userId} with value ${userId}`);
+    
     if (token && userId) {
-      console.log('Saving push token to Supabase for user:', userId);
+      
       const { error } = await supabase.from('profiles').update({ push_token: token }).eq('id', userId);
       if (error) {
         console.error('Error saving push token to Supabase:', error);
       } else {
-        console.log('Push token saved successfully!');
+        
       }
     } else {
-      console.log('Condition to save token failed. Token or userId is missing.');
+      
     }
   }
 
@@ -643,14 +643,14 @@ const MainAppScreen = ({ route, navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      //console.log("MainAppScreen useFocusEffect fired");
+      
       let subscription = null;
 
       async function setupUser() {
         const { data: { user }, error: userError } = await supabase.auth.getUser();
 
         if (userError || !user) {
-          console.log("User not logged in, skipping setup.");
+          
           return;
         }
 
@@ -666,8 +666,8 @@ const MainAppScreen = ({ route, navigation }) => {
         }
 
         // If there's no push token in the profile, get one and save it.
-        //console.log("User ID:", user.id);
-        //console.log("Profile push_token:", profile.push_token);
+        
+        
 
         // Always attempt to register for push notifications on focus.
         // The function itself will check for permissions and existing tokens.
@@ -818,7 +818,7 @@ const MainAppScreen = ({ route, navigation }) => {
                       notificationColor: '#22d3ee',
                     },
                   });
-                  console.log('Location tracking started.');
+                  
                 }
 
                 // Get the current location and call the check_in_location RPC
@@ -856,7 +856,7 @@ const MainAppScreen = ({ route, navigation }) => {
                 const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TRACKING_TASK);
                 if (hasStarted) {
                   await Location.stopLocationUpdatesAsync(LOCATION_TRACKING_TASK);
-                  console.log('Location tracking stopped.');
+                  
                 }
 
                 // Get the current location and call the check_out_location RPC

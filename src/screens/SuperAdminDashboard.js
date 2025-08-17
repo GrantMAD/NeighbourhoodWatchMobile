@@ -83,6 +83,17 @@ const SuperAdminDashboard = () => {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
   const [searchQuery, setSearchQuery] = useState('');
+  const [checkedInCount, setCheckedInCount] = useState(0);
+  const [userEngagementMetrics, setUserEngagementMetrics] = useState({
+    profileCompleteness: 0,
+    checkInNotifications: 0,
+    eventNotifications: 0,
+    newsNotifications: 0,
+  });
+  const [roleMetrics, setRoleMetrics] = useState({
+    admins: 0,
+    members: 0,
+  });
 
   const handleShowToast = (message, type) => {
     setToastMessage(message);
@@ -93,6 +104,56 @@ const SuperAdminDashboard = () => {
   const handleHideToast = () => {
     setShowToast(false);
     setToastMessage('');
+  };
+
+  const fetchCheckedInCount = async () => {
+    const { count, error } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('checked_in', true);
+
+    if (error) {
+      console.error('Error fetching checked-in count:', error.message);
+    } else {
+      setCheckedInCount(count || 0);
+    }
+  };
+
+  const fetchUserEngagementMetrics = async () => {
+    const { data, error } = await supabase.from('profiles').select('number, street, emergency_contact, vehicle_info, receive_check_notifications, receive_event_notifications, receive_news_notifications');
+
+    if (error) {
+      console.error('Error fetching user engagement metrics:', error.message);
+    } else {
+      const totalUsers = data.length;
+      const profileCompleteness = data.filter(user => user.number && user.street && user.emergency_contact && user.vehicle_info).length / totalUsers * 100;
+      const checkInNotifications = data.filter(user => user.receive_check_notifications).length / totalUsers * 100;
+      const eventNotifications = data.filter(user => user.receive_event_notifications).length / totalUsers * 100;
+      const newsNotifications = data.filter(user => user.receive_news_notifications).length / totalUsers * 100;
+
+      setUserEngagementMetrics({
+        profileCompleteness: profileCompleteness.toFixed(2),
+        checkInNotifications: checkInNotifications.toFixed(2),
+        eventNotifications: eventNotifications.toFixed(2),
+        newsNotifications: newsNotifications.toFixed(2),
+      });
+    }
+  };
+
+  const fetchRoleMetrics = async () => {
+    const { data, error } = await supabase.from('profiles').select('role');
+
+    if (error) {
+      console.error('Error fetching role metrics:', error.message);
+    } else {
+      const admins = data.filter(user => user.role === 'Admin').length;
+      const members = data.filter(user => user.role === 'Member').length;
+
+      setRoleMetrics({
+        admins,
+        members,
+      });
+    }
   };
 
   const handleSignOut = async () => {
@@ -149,6 +210,13 @@ const SuperAdminDashboard = () => {
 
   useEffect(() => {
     fetchDataForCategory(activeCategory);
+    if (activeCategory === 'overall') {
+      fetchCheckedInCount();
+      fetchUserEngagementMetrics();
+    }
+    if (activeCategory === 'users') {
+      fetchRoleMetrics();
+    }
   }, [activeCategory]);
 
   const toggleSidebar = () => {
@@ -272,7 +340,7 @@ const SuperAdminDashboard = () => {
       if (updateError) throw new Error(`Failed to delete event: ${updateError.message}`);
 
       handleShowToast("Event successfully deleted and archived.", "success");
-      fetchAllData(); // Refresh the dashboard data
+      fetchDataForCategory(activeCategory);
     } catch (error) {
       console.error("Event deletion error:", error.message);
       handleShowToast(error.message, "error");
@@ -302,7 +370,7 @@ const SuperAdminDashboard = () => {
       if (updateError) throw new Error(`Failed to delete news story: ${updateError.message}`);
 
       handleShowToast("News story successfully deleted.", "success");
-      fetchAllData(); // Refresh the dashboard data
+      fetchDataForCategory(activeCategory);
     } catch (error) {
       console.error("News deletion error:", error.message);
       handleShowToast(error.message, "error");
@@ -332,7 +400,7 @@ const SuperAdminDashboard = () => {
       if (updateError) throw new Error(`Failed to delete incident report: ${updateError.message}`);
 
       handleShowToast("Incident report successfully deleted.", "success");
-      fetchAllData(); // Refresh the dashboard data
+      fetchDataForCategory(activeCategory);
     } catch (error) {
       console.error("Incident deletion error:", error.message);
       handleShowToast(error.message, "error");
@@ -357,6 +425,7 @@ const SuperAdminDashboard = () => {
           { title: 'Total Events', value: overallMetrics.totalEvents, icon: 'calendar-check', targetCategory: 'events' },
           { title: 'Total News', value: overallMetrics.totalNews, icon: 'newspaper', targetCategory: 'news' },
           { title: 'Total Incidents', value: overallMetrics.totalIncidents, icon: 'exclamation-triangle', targetCategory: 'incidents' },
+          { title: 'Checked-In Users', value: checkedInCount, icon: 'user-check', targetCategory: 'users' },
         ];
         return (
           <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -372,6 +441,33 @@ const SuperAdminDashboard = () => {
               ))}
             </View>
 
+            <View style={styles.subContentTitleContainer}>
+              <FontAwesome5 name="user-clock" size={20} color="#374151" style={styles.subContentTitleIcon} />
+              <Text style={styles.subContentTitle}>User Engagement</Text>
+            </View>
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricCard}>
+                <FontAwesome5 name="id-card" size={24} color="#4A5568" style={styles.metricIcon} />
+                <Text style={styles.engagementMetricValue}>{userEngagementMetrics.profileCompleteness}%</Text>
+                <Text style={styles.metricCardTitle}>Profile Completeness</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <FontAwesome5 name="bell" size={24} color="#4A5568" style={styles.metricIcon} />
+                <Text style={styles.engagementMetricValue}>{userEngagementMetrics.checkInNotifications}%</Text>
+                <Text style={styles.metricCardTitle}>Check-in Notifications</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <FontAwesome5 name="calendar-alt" size={24} color="#4A5568" style={styles.metricIcon} />
+                <Text style={styles.engagementMetricValue}>{userEngagementMetrics.eventNotifications}%</Text>
+                <Text style={styles.metricCardTitle}>Event Notifications</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <FontAwesome5 name="newspaper" size={24} color="#4A5568" style={styles.metricIcon} />
+                <Text style={styles.engagementMetricValue}>{userEngagementMetrics.newsNotifications}%</Text>
+                <Text style={styles.metricCardTitle}>News Notifications</Text>
+              </View>
+            </View>
+
             
 
             
@@ -379,7 +475,7 @@ const SuperAdminDashboard = () => {
         );
       case 'groups':
         return (
-          <View style={styles.contentContainer}>
+          <View style={[styles.contentContainer, { paddingBottom: 40 }]}>
             <Text style={styles.contentTitle}>Group Metrics</Text>
             <Text style={styles.contentDescription}>Click on a group to view detailed metrics and member information.</Text>
             <FlatList
@@ -387,17 +483,29 @@ const SuperAdminDashboard = () => {
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
               renderItem={({ item }) => <GroupMetricsCard item={item} userMetrics={userMetrics} onDelete={(message, type) => {
                 handleShowToast(message, type);
-                fetchAllData();
+                fetchDataForCategory(activeCategory);
               }} />}
             />
           </View>
         );
       case 'users':
         return (
-          <View style={styles.contentContainer}>
+          <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: 40 }}>
             <Text style={styles.contentTitle}>User Metrics</Text>
             <Text style={styles.contentDescription}>Overview of all registered users and their associated details.</Text>
             <Text style={styles.metricText}>Total Users: {overallMetrics.totalUsers}</Text>
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricCard}>
+                <FontAwesome5 name="user-shield" size={24} color="#4A5568" style={styles.metricIcon} />
+                <Text style={styles.metricValue}>{roleMetrics.admins}</Text>
+                <Text style={styles.metricCardTitle}>Admins</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <FontAwesome5 name="user" size={24} color="#4A5568" style={styles.metricIcon} />
+                <Text style={styles.metricValue}>{roleMetrics.members}</Text>
+                <Text style={styles.metricCardTitle}>Members</Text>
+              </View>
+            </View>
             <TextInput
               style={styles.searchInput}
               placeholder="Search by name..."
@@ -411,14 +519,13 @@ const SuperAdminDashboard = () => {
                 handleShowToast(message, type);
                 fetchDataForCategory('users');
               }} />}
-              initialNumToRender={5}
-              windowSize={10}
+              scrollEnabled={false}
             />
-          </View>
+          </ScrollView>
         );
       case 'events':
         return (
-          <View style={styles.contentContainer}>
+          <View style={[styles.contentContainer, { paddingBottom: 40 }]}>
             <Text style={styles.contentTitle}>Event Metrics</Text>
             <Text style={styles.contentDescription}>Detailed overview of all events across the platform.</Text>
             <FlatList
@@ -432,7 +539,7 @@ const SuperAdminDashboard = () => {
         );
       case 'news':
         return (
-          <View style={styles.contentContainer}>
+          <View style={[styles.contentContainer, { paddingBottom: 40 }]}>
             <Text style={styles.contentTitle}>News Metrics</Text>
             <Text style={styles.contentDescription}>Overview of news stories published across all groups.</Text>
             <FlatList
@@ -446,7 +553,7 @@ const SuperAdminDashboard = () => {
         );
       case 'incidents':
         return (
-          <View style={styles.contentContainer}>
+          <View style={[styles.contentContainer, { paddingBottom: 40 }]}>
             <Text style={styles.contentTitle}>Incident Reports</Text>
             <Text style={styles.contentDescription}>Overview of all reported incidents across all groups.</Text>
             <FlatList
@@ -649,6 +756,8 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
+    marginBottom: 20,
+    marginTop: 20,
   },
   contentContainer: {
     flex: 1,
@@ -772,8 +881,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1F2937',
   },
+  engagementMetricValue: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
   metricCardTitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#6B7280',
     marginTop: 5,
   },

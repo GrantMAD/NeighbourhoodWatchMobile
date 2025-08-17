@@ -38,8 +38,12 @@ export default function SignInScreen({ navigation }) {
       }
 
       const user = authData?.user;
+
       if (!user) {
-        navigation.replace('NoGroupScreen');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'NoGroupScreen' }],
+        });
         return;
       }
 
@@ -55,11 +59,20 @@ export default function SignInScreen({ navigation }) {
       }
 
       if (profile?.role === 'super_admin') {
-        navigation.replace('SuperAdminDashboard');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'SuperAdminDashboard' }],
+        });
       } else if (profile?.group_id) {
-        navigation.replace('MainApp', { groupId: profile.group_id });
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainApp', params: { groupId: profile.group_id } }],
+        });
       } else {
-        navigation.replace('NoGroupScreen');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'NoGroupScreen' }],
+        });
       }
     } catch (error) {
       console.error('Sign-in error:', error);
