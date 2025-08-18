@@ -50,7 +50,7 @@ export default function SignUpScreen({ navigation }) {
             // Update profiles table with name for the new user
             const { error: profileError } = await supabase
                 .from('profiles')
-                .upsert({ id: userId, name, is_verified: true });
+                .upsert({ id: userId, name, role: 'Member' });
 
             if (profileError) {
                 Alert.alert('Error', 'Failed to update profile name');
@@ -58,9 +58,13 @@ export default function SignUpScreen({ navigation }) {
                 return;
             }
 
+            await supabase.auth.refreshSession();
+            console.log('Triggered auth refresh to refetch profile');
             Alert.alert('Success', 'Account created successfully!');
 
-            navigation.replace('GroupAccess');
+            setTimeout(() => {
+                navigation.replace('GroupAccess');
+            }, 1500);
         } catch (error) {
             console.error('Signup error:', error);
             Alert.alert('Error', 'An unexpected error occurred');

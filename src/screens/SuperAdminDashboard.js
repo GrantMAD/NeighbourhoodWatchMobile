@@ -83,6 +83,7 @@ const SuperAdminDashboard = () => {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeRoleFilter, setActiveRoleFilter] = useState('All'); // New state for role filter
   const [checkedInCount, setCheckedInCount] = useState(0);
   const [userEngagementMetrics, setUserEngagementMetrics] = useState({
     profileCompleteness: 0,
@@ -271,7 +272,7 @@ const SuperAdminDashboard = () => {
           setGroupMetrics(groupsData || []);
           break;
         case 'users':
-          const { data: usersData, error: usersDataError } = await supabase.from('profiles').select('id, name, email, role, group_id, neighbourhoodwatch, checked_in, check_in_time, check_out_time, number, street, emergency_contact, vehicle_info, receive_check_notifications, receive_event_notifications, receive_news_notifications, Requests, created_at');
+          const { data: usersData, error: usersDataError } = await supabase.from('profiles').select('id, name, email, role, group_id, neighbourhoodwatch, checked_in, check_in_time, check_out_time, number, street, emergency_contact, vehicle_info, receive_check_notifications, receive_event_notifications, receive_news_notifications, Requests, created_at, last_signed_in');
           if (usersDataError) console.error("Error fetching user data:", usersDataError.message);
           setUserMetrics(usersData || []);
           break;
@@ -493,18 +494,22 @@ const SuperAdminDashboard = () => {
           <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: 40 }}>
             <Text style={styles.contentTitle}>User Metrics</Text>
             <Text style={styles.contentDescription}>Overview of all registered users and their associated details.</Text>
-            <Text style={styles.metricText}>Total Users: {overallMetrics.totalUsers}</Text>
             <View style={styles.metricsGrid}>
-              <View style={styles.metricCard}>
+              <TouchableOpacity style={styles.metricCard} onPress={() => setActiveRoleFilter('All')}>
+                <FontAwesome5 name="users" size={24} color="#4A5568" style={styles.metricIcon} />
+                <Text style={styles.metricValue}>{overallMetrics.totalUsers}</Text>
+                <Text style={styles.metricCardTitle}>All Users</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.metricCard} onPress={() => setActiveRoleFilter('Admin')}>
                 <FontAwesome5 name="user-shield" size={24} color="#4A5568" style={styles.metricIcon} />
                 <Text style={styles.metricValue}>{roleMetrics.admins}</Text>
                 <Text style={styles.metricCardTitle}>Admins</Text>
-              </View>
-              <View style={styles.metricCard}>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.metricCard} onPress={() => setActiveRoleFilter('Member')}>
                 <FontAwesome5 name="user" size={24} color="#4A5568" style={styles.metricIcon} />
                 <Text style={styles.metricValue}>{roleMetrics.members}</Text>
                 <Text style={styles.metricCardTitle}>Members</Text>
-              </View>
+              </TouchableOpacity>
             </View>
             <TextInput
               style={styles.searchInput}
@@ -513,7 +518,10 @@ const SuperAdminDashboard = () => {
               value={searchQuery}
             />
             <FlatList
-              data={userMetrics.filter(user => user.name.toLowerCase().includes(searchQuery.toLowerCase()))}
+              data={userMetrics.filter(user => 
+                (activeRoleFilter === 'All' || user.role === activeRoleFilter) &&
+                user.name.toLowerCase().includes(searchQuery.toLowerCase())
+              )}
               keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
               renderItem={({ item }) => <UserCard item={item} onDelete={(message, type) => {
                 handleShowToast(message, type);

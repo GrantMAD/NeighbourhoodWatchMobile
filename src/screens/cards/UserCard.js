@@ -194,8 +194,8 @@ const UserCard = React.memo(({ item, onDelete }) => {
     onDelete("User successfully deleted.", "success");
   };
 
-  const renderDetail = (label, value, icon) => (
-    <View style={styles.gridItem}>
+  const renderDetail = (label, value, icon, customStyle = {}) => (
+    <View style={[styles.gridItem, customStyle]}>
       <View style={styles.labelWithIcon}>
         <FontAwesome5 name={icon} size={14} color="#6B7280" style={styles.labelIcon} />
         <Text style={styles.gridLabel}>{label}</Text>
@@ -232,6 +232,17 @@ const UserCard = React.memo(({ item, onDelete }) => {
           <View style={styles.grid}>
             {renderDetail('Role', item.role, 'user-tag')}
             {renderDetail('Created At', new Date(item.created_at).toLocaleDateString(), 'calendar-alt')}
+          </View>
+          <View style={styles.singleLineItemContainer}>
+            {renderDetail('Last Signed In', item.last_signed_in ? new Date(item.last_signed_in).toLocaleString('en-GB', { 
+                          weekday: 'short', 
+                          day: 'numeric', 
+                          month: 'short', 
+                          year: 'numeric', 
+                          hour: '2-digit', 
+                          minute: '2-digit', 
+                          second: '2-digit' 
+                        }) : 'Never', 'sign-in-alt', { width: '100%' })}
           </View>
           <View style={styles.singleLineItemContainer}>
             <View style={styles.labelWithIcon}>

@@ -113,10 +113,20 @@ export default function GroupDataScreen() {
                     }
                 }
 
+                // Ensure each executive has a valid image property
+                const sanitizedExecutives = parsedExecutives.map(exec => {
+                    if (exec && typeof exec.image === 'string') {
+                        return exec;
+                    } else if (exec) {
+                        return { ...exec, image: null };
+                    }
+                    return null;
+                }).filter(Boolean);
+
                 setGroupData({
                     ...group,
-                    executives: parsedExecutives,
-                });
+                    executives: sanitizedExecutives,
+                });""
             } catch (error) {
                 setToast({ visible: true, message: "Error: Unexpected error: " + error.message, type: "error" });
             } finally {
@@ -361,7 +371,7 @@ export default function GroupDataScreen() {
                     <Text style={styles.label}>🧑‍💼 Executives</Text>
                     {groupData.executives.filter(Boolean).map((exec, index) => (
                         <View key={index} style={styles.execCard}>
-                            {exec.image ? (
+                            {exec.image && typeof exec.image === 'string' ? (
                                 <Image source={{ uri: exec.image }} style={styles.execImage} />
                             ) : (
                                 <View style={[styles.execImage, styles.execImagePlaceholder]} />

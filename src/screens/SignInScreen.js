@@ -40,19 +40,31 @@ export default function SignInScreen({ navigation }) {
       const user = authData?.user;
 
       if (!user) {
-        Alert.alert('Error', 'Could not find user');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'NoGroupScreen' }],
+        });
         return;
       }
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('group_id, role, is_verified') // Select role and verification status
+        .select('group_id, role') // Select role as well
         .eq('id', user.id)
         .single();
 
       if (profileError) {
         Alert.alert('Error', profileError.message);
         return;
+      }
+
+      const { data: updateData, error: updateError } = await supabase
+        .from('profiles')
+        .update({ last_signed_in: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating last_signed_in:', updateError);
       }
 
       if (profile?.role === 'super_admin') {

@@ -30,7 +30,7 @@ export default function SessionLoaderScreen({ navigation }) {
     };
 
     checkSession();
-  }, [navigation]);
+  }, []);
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1f2937' }}>

@@ -72,7 +72,7 @@ const MembersScreen = ({ route }) => {
 
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, name, email, avatar_url, number, street, emergency_contact, is_group_creator, vehicle_info, neighbourhoodwatch, checked_in, role')
+      .select('id, name, email, avatar_url, number, street, emergency_contact, is_group_creator, vehicle_info, neighbourhoodwatch, checked_in, role, last_signed_in')
       .in('id', userIds);
 
     if (profilesError) {
@@ -212,6 +212,27 @@ const MembersScreen = ({ route }) => {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Emergency Contact:</Text>
                   <Text style={styles.detailText} selectable>{selectedMember.emergency_contact || '-'}</Text>
+                </View>
+              </View>
+
+              {/* Status Section */}
+              <View style={styles.section}>
+                <Text style={styles.sectionHeader}>Status</Text>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Last Signed In:</Text>
+                  <Text style={styles.detailText}>
+                    {selectedMember.last_signed_in
+                      ? new Date(selectedMember.last_signed_in).toLocaleString('en-GB', { 
+                          weekday: 'short', 
+                          day: 'numeric', 
+                          month: 'short', 
+                          year: 'numeric', 
+                          hour: '2-digit', 
+                          minute: '2-digit', 
+                          second: '2-digit' 
+                        })
+                      : 'Never'}
+                  </Text>
                 </View>
               </View>
 

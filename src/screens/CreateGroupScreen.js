@@ -350,6 +350,14 @@ const CreateGroupScreen = ({ navigation }) => {
         )}
       </TouchableOpacity>
 
+      {/* 👇 Add this just below the button */}
+      {loading && (
+        <Text style={styles.loadingNote}>
+          This may take up to a minute to complete...
+        </Text>
+      )}
+
+
       <Toast
         visible={showToast}
         message={toastMessage}
@@ -442,6 +450,13 @@ const styles = StyleSheet.create({
   execRole: {
     fontStyle: 'italic',
     color: 'white',
+  },
+  loadingNote: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#6b7280', 
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
 

@@ -139,7 +139,7 @@ export default function ManageMembersScreen() {
 
         const { data: memberProfiles, error: membersError } = await supabase
             .from('profiles')
-            .select('id, group_id, name, email, avatar_url, number, street, emergency_contact, check_in_time, check_out_time, role')
+            .select('id, group_id, name, email, avatar_url, number, street, emergency_contact, check_in_time, check_out_time, role, last_signed_in')
             .in('id', group.users);
 
         if (membersError) {
@@ -236,6 +236,8 @@ export default function ManageMembersScreen() {
             }
 
             Toast.show('User has been removed');
+            closeModal(); // Close the modal
+            setSelectedMember(null); // Clear selected member
             fetchGroupAndMembers();
         } catch (err) {
             console.error("Unexpected error removing member:", err);
@@ -379,6 +381,22 @@ export default function ManageMembersScreen() {
                             {/* Activity Section */}
                             <View style={styles.section}>
                                 <Text style={styles.sectionHeader}>Activity</Text>
+                                <View style={styles.detailRow}>
+                                    <Text style={styles.detailLabel}>Last Signed In:</Text>
+                                    <Text style={styles.detailText}>
+                                        {selectedMember.last_signed_in
+                                            ? new Date(selectedMember.last_signed_in).toLocaleString('en-GB', {
+                                                weekday: 'short',
+                                                day: 'numeric',
+                                                month: 'short',
+                                                year: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                                second: '2-digit'
+                                            })
+                                            : 'Never'}
+                                    </Text>
+                                </View>
                                 <TouchableOpacity onPress={() => toggleCheckIn(selectedMember.id)} style={styles.toggleHeader}>
                                     <Text style={styles.dropdownSubHeading}>Check-in Times</Text>
                                     <Animated.View style={{ transform: [{ rotate: checkInAnimation[selectedMember.id].interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }) }] }}>
