@@ -31,6 +31,9 @@ export default function SignUpScreen({ navigation }) {
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email,
                 password,
+                options: {
+                    emailRedirectTo: 'https://neighbourhoodwatchapp.com/VerificationPage',
+                },
             });
 
             if (authError) {
@@ -50,7 +53,7 @@ export default function SignUpScreen({ navigation }) {
             // Update profiles table with name for the new user
             const { error: profileError } = await supabase
                 .from('profiles')
-                .upsert({ id: userId, name });
+                .upsert({ id: userId, name, is_verified: false });
 
             if (profileError) {
                 Alert.alert('Error', 'Failed to update profile name');
@@ -58,13 +61,9 @@ export default function SignUpScreen({ navigation }) {
                 return;
             }
 
-            await supabase.auth.refreshSession();
-            console.log('Triggered auth refresh to refetch profile');
-            Alert.alert('Success', 'Account created successfully!');
+            Alert.alert('Success', 'Account created! Please check your email for a verification link.');
 
-            setTimeout(() => {
-                navigation.replace('GroupAccess');
-            }, 1500);
+            // navigation.replace('GroupAccess'); // Commented out until user is verified
         } catch (error) {
             console.error('Signup error:', error);
             Alert.alert('Error', 'An unexpected error occurred');

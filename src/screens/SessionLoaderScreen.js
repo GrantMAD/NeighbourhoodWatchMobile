@@ -1,6 +1,6 @@
 // src/screens/SessionLoaderScreen.js
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Alert, Linking } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
 export default function SessionLoaderScreen({ navigation }) {
@@ -30,7 +30,45 @@ export default function SessionLoaderScreen({ navigation }) {
     };
 
     checkSession();
-  }, []);
+
+    const handleDeepLink = async (event) => {
+      const { url } = event;
+      if (url) {
+        const params = new URL(url).searchParams;
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            Alert.alert('Error', 'Failed to set session from deep link');
+            return;
+          }
+
+          const userId = data.user?.id;
+          if (userId) {
+            await supabase
+              .from('profiles')
+              .update({ is_verified: true })
+              .eq('id', userId);
+          }
+
+          Alert.alert('Success', 'Email verified successfully!');
+          navigation.replace('GroupAccess');
+        }
+      }
+    };
+
+    Linking.addEventListener('url', handleDeepLink);
+
+    return () => {
+      // Linking.removeEventListener('url', handleDeepLink);
+    };
+  }, [navigation]);
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1f2937' }}>

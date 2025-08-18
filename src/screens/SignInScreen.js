@@ -40,21 +40,30 @@ export default function SignInScreen({ navigation }) {
       const user = authData?.user;
 
       if (!user) {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'NoGroupScreen' }],
-        });
+        Alert.alert('Error', 'Could not find user');
+        return;
+      }
+
+      // Check if email is verified
+      if (!user.email_confirmed_at) {
+        Alert.alert('Verification Required', 'Please verify your email before signing in.');
         return;
       }
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('group_id, role') // Select role as well
+        .select('group_id, role, is_verified') // Select role and verification status
         .eq('id', user.id)
         .single();
 
       if (profileError) {
         Alert.alert('Error', profileError.message);
+        return;
+      }
+
+      // Additional check for is_verified flag in your profiles table if you have one
+      if (!profile?.is_verified) {
+        Alert.alert('Verification Required', 'Please complete your profile verification.');
         return;
       }
 
