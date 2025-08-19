@@ -309,6 +309,10 @@ export default function AddNewsScreen({ navigation, route }) {
             </Text>
           )}
         </TouchableOpacity>
+
+        {isSaving && (
+          <Text style={styles.savingMessage}>This may take a moment, please wait...</Text>
+        )}
       </View>
     </ScrollView>
   );
@@ -385,5 +389,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 20,
     marginBottom: 50,
+  },
+  savingMessage: {
+    textAlign: 'center',
+    marginTop: -40, // Adjust to position it closer to the button
+    marginBottom: 20,
+    fontSize: 14,
+    color: '#6b7280',
+    fontStyle: 'italic',
   },
 });

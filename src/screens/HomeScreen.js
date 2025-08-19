@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -66,6 +66,9 @@ export default function HomeScreen({ route, navigation }) {
   const [userRole, setUserRole] = useState(null);
   const [userName, setUserName] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingAction, setLoadingAction] = useState(null);
+  const [loadingEvent, setLoadingEvent] = useState(null);
+  const [loadingNews, setLoadingNews] = useState(null);
 
   const fetchGroupData = async () => {
     if (!groupId) return;
@@ -105,6 +108,9 @@ export default function HomeScreen({ route, navigation }) {
   useFocusEffect(
     useCallback(() => {
       setIsLoading(true);
+      setLoadingAction(null); // Reset loading action on focus
+      setLoadingEvent(null); // Reset loading event on focus
+      setLoadingNews(null); // Reset loading news on focus
       fetchGroupData().finally(() => setIsLoading(false));
     }, [groupId])
   );
@@ -155,14 +161,23 @@ export default function HomeScreen({ route, navigation }) {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>🗓️ Upcoming Events</Text>
             {userRole === 'Admin' && (
-              <TouchableOpacity
-                onPress={() => navigation.navigate("AddEventScreen", {
-                  groupId,
-                  returnTo: { tab: 'Home' }
-                })}
-              >
-                <Text style={styles.link}>+ Add</Text>
-              </TouchableOpacity>
+              loadingAction === 'event' ? (
+                <ActivityIndicator size="small" color="#3b82f6" />
+              ) : (
+                <TouchableOpacity
+                  onPress={() => {
+                    setLoadingAction('event');
+                    setTimeout(() => {
+                        navigation.navigate("AddEventScreen", {
+                            groupId,
+                            returnTo: { tab: 'Home' }
+                        });
+                    }, 100); // 100ms delay
+                  }}
+                >
+                  <Text style={styles.link}>+ Add</Text>
+                </TouchableOpacity>
+              )
             )}
           </View>
           <Text style={styles.descriptionText}>Stay informed about all planned group activities.</Text>
@@ -173,21 +188,33 @@ export default function HomeScreen({ route, navigation }) {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingVertical: 10 }}
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.card}
-                onPress={() => navigation.navigate("Events", { groupId, selectedEvent: item })}
-              >
-                {isImageUrl(item.image) ? (
-                  <Image source={{ uri: item.image }} style={styles.cardImage} />
-                ) : (
-                  <View style={styles.emojiIconContainer}><Icon name={item.image || "shield"} size={50} color="#4b5563" /></View>
+              <View>
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={() => {
+                    setLoadingEvent(item.id);
+                    setTimeout(() => {
+                      navigation.navigate("Events", { groupId, selectedEvent: item });
+                    }, 100);
+                  }}
+                >
+                  {isImageUrl(item.image) ? (
+                    <Image source={{ uri: item.image }} style={styles.cardImage} />
+                  ) : (
+                    <View style={styles.emojiIconContainer}><Icon name={item.image || "shield"} size={50} color="#4b5563" /></View>
+                  )}
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle}>{item.title}</Text>
+                    <Text style={styles.cardDateTime}>🕒 {formatEventDateTimeRange(item.startDate, item.endDate)}</Text>
+                    <Text numberOfLines={2} style={styles.cardDescription}>{item.message}</Text>
+                  </View>
+                </TouchableOpacity>
+                {loadingEvent === item.id && (
+                  <View style={styles.loadingOverlay}>
+                    <ActivityIndicator size="large" color="#ffffff" />
+                  </View>
                 )}
-                <View style={styles.cardContent}>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  <Text style={styles.cardDateTime}>🕒 {formatEventDateTimeRange(item.startDate, item.endDate)}</Text>
-                  <Text numberOfLines={2} style={styles.cardDescription}>{item.message}</Text>
-                </View>
-              </TouchableOpacity>
+              </View>
             )}
             ListEmptyComponent={() => (
               <Text style={styles.noDataText}>No upcoming events.</Text>
@@ -200,38 +227,58 @@ export default function HomeScreen({ route, navigation }) {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>📰 Community News</Text>
             {userRole === 'Admin' && (
-              <TouchableOpacity
-                onPress={() => navigation.navigate("AddNewsScreen", {
-                  groupId,
-                  returnTo: { tab: 'Home' }
-                })}
-              >
-                <Text style={styles.link}>+ Add</Text>
-              </TouchableOpacity>
+              loadingAction === 'news' ? (
+                <ActivityIndicator size="small" color="#3b82f6" />
+              ) : (
+                <TouchableOpacity
+                  onPress={() => {
+                    setLoadingAction('news');
+                    setTimeout(() => {
+                        navigation.navigate("AddNewsScreen", {
+                            groupId,
+                            returnTo: { tab: 'Home' }
+                        });
+                    }, 100); // 100ms delay
+                  }}
+                >
+                  <Text style={styles.link}>+ Add</Text>
+                </TouchableOpacity>
+              )
             )}
           </View>
           <Text style={styles.descriptionText}>Catch up on the latest updates and announcements.</Text>
           {news.length > 0 ? (
             news.map((story, index) => (
-              <TouchableOpacity
-                key={story.id || index}
-                style={styles.newsCard}
-                onPress={() => navigation.navigate('News', { selectedStoryId: story.id })}
-              >
-                {story.image ? (
-                  <Image source={{ uri: story.image }} style={styles.newsImage} />
-                ) : (
-                  <View style={styles.newsEmojiContainer}><Text style={styles.newsEmoji}>📰</Text></View>
-                )}
-                <View style={styles.newsContent}>
-                  <Text style={styles.newsTitle}>{story.title}</Text>
-                  <Text style={styles.newsDescription} numberOfLines={3}>{story.content}</Text>
-                  <View style={styles.newsFooter}>
-                    <Text style={styles.newsMeta}>👁️ {story.views || 0} views</Text>
-                    <Text style={styles.newsMeta}>🗓️ {new Date(story.date).toLocaleDateString('en-US')}</Text>
+              <View key={story.id || index}>
+                <TouchableOpacity
+                  style={styles.newsCard}
+                  onPress={() => {
+                    setLoadingNews(story.id);
+                    setTimeout(() => {
+                      navigation.navigate('News', { selectedStoryId: story.id, from: 'HomeScreen' });
+                    }, 100);
+                  }}
+                >
+                  {story.image ? (
+                    <Image source={{ uri: story.image }} style={styles.newsImage} />
+                  ) : (
+                    <View style={styles.newsEmojiContainer}><Text style={styles.newsEmoji}>📰</Text></View>
+                  )}
+                  <View style={styles.newsContent}>
+                    <Text style={styles.newsTitle}>{story.title}</Text>
+                    <Text style={styles.newsDescription} numberOfLines={3}>{story.content}</Text>
+                    <View style={styles.newsFooter}>
+                      <Text style={styles.newsMeta}>👁️ {story.views || 0} views</Text>
+                      <Text style={styles.newsMeta}>🗓️ {new Date(story.date).toLocaleDateString('en-US')}</Text>
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+                {loadingNews === story.id && (
+                  <View style={styles.loadingOverlay}>
+                    <ActivityIndicator size="large" color="#ffffff" />
+                  </View>
+                )}
+              </View>
             ))
           ) : (
             <Text style={styles.noDataText}>No news stories.</Text>
@@ -419,7 +466,7 @@ const styles = StyleSheet.create({
   noDataText: {
     textAlign: 'left',
     color: '#6b7280',
-    marginTop: 20,
+    marginTop: 10,
     fontSize: 16,
   },
   // Skeleton loader styles
@@ -454,5 +501,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#d1d5db",
     borderRadius: 12,
     marginBottom: 12,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
   },
 });

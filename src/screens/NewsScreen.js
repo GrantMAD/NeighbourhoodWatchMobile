@@ -107,33 +107,29 @@ const NewsScreen = ({ route, navigation }) => {
   const [loadingStoryId, setLoadingStoryId] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
   const [isModalLoading, setIsModalLoading] = useState(false);
+  const [isAddingStory, setIsAddingStory] = useState(false);
 
   useEffect(() => {
     if (initialSelectedStoryId && news.length > 0) {
       const openStoryFromParams = async () => {
-        setIsModalLoading(true); // Start loading
+        setIsModalLoading(true); // Full screen spinner
         try {
           const story = news.find(s => s.id === initialSelectedStoryId);
           if (story) {
-            const updatedViews = await incrementStoryViews(story.id);
-            if (updatedViews !== null) {
-              setSelectedStory({ ...story, views: updatedViews });
-            } else {
-              setSelectedStory(story);
-            }
+            // Pass false so overlay spinner does NOT show
+            const updatedViews = await incrementStoryViews(story.id, false);
+            setSelectedStory(updatedViews !== null ? { ...story, views: updatedViews } : story);
           }
         } catch (error) {
           console.error("Error opening story from params:", error);
-          // Optionally, show a toast message to the user about the error
         } finally {
-          setIsModalLoading(false); // End loading regardless of success or failure
-          navigation.setParams({ selectedStoryId: null }); // Clear the param after processing
+          setIsModalLoading(false);
+          navigation.setParams({ selectedStoryId: null }); // Clear param
         }
       };
       openStoryFromParams();
     }
   }, [initialSelectedStoryId, news]);
-
 
   const fetchNews = async () => {
     setLoading(true);
@@ -168,11 +164,15 @@ const NewsScreen = ({ route, navigation }) => {
         navigation.setParams({ toastMessage: null });
       }
       fetchNews();
+      return () => {
+        // Cleanup function: Reset isAddingStory when the screen blurs
+        setIsAddingStory(false);
+      };
     }, [groupId, route.params?.toastMessage])
   );
 
-  const incrementStoryViews = async (storyId) => {
-    setLoadingStoryId(storyId);
+  const incrementStoryViews = async (storyId, setLoading = true) => {
+    if (setLoading) setLoadingStoryId(storyId); // Only set overlay spinner if setLoading=true
     try {
       const { data, error } = await supabase
         .from("groups")
@@ -180,10 +180,7 @@ const NewsScreen = ({ route, navigation }) => {
         .eq("id", groupId)
         .single();
 
-      if (error) {
-        console.error("Error fetching news before updating views:", error.message);
-        return null;
-      }
+      if (error) return null;
       if (!data?.news) return null;
 
       const newsCopy = [...data.news];
@@ -197,17 +194,14 @@ const NewsScreen = ({ route, navigation }) => {
         .update({ news: newsCopy })
         .eq("id", groupId);
 
-      if (updateError) {
-        console.error("Error updating views:", updateError.message);
-        return null;
-      }
+      if (updateError) return null;
 
       return newsCopy[storyIndex].views;
     } catch (err) {
       console.error("Unexpected error updating views:", err);
       return null;
     } finally {
-      setLoadingStoryId(null);
+      if (setLoading) setLoadingStoryId(null);
     }
   };
 
@@ -240,12 +234,31 @@ const NewsScreen = ({ route, navigation }) => {
           </View>
 
           <TouchableOpacity
-            onPress={() => navigation.navigate("AddNewsScreen", {
-              groupId,
-              returnTo: { tab: 'News' }
-            })}
+            onPress={() => {
+              setIsAddingStory(true);
+              const startTime = Date.now();
+              const navigateAfterDelay = () => {
+                navigation.navigate("AddNewsScreen", {
+                  groupId,
+                  returnTo: { tab: 'News' }
+                });
+                // Reset spinner state after navigation is initiated
+                setIsAddingStory(false);
+              };
+
+              const elapsedTime = Date.now() - startTime;
+              const remainingTime = Math.max(0, 1000 - elapsedTime);
+
+              setTimeout(navigateAfterDelay, remainingTime);
+            }}
+            disabled={isAddingStory}
+            style={isAddingStory ? styles.disabledLink : null}
           >
-            <Text style={styles.link}>+ Add Story</Text>
+            {isAddingStory ? (
+              <ActivityIndicator size="small" color="#3b82f6" />
+            ) : (
+              <Text style={styles.link}>+ Add Story</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -262,38 +275,42 @@ const NewsScreen = ({ route, navigation }) => {
               onPress={async () => {
                 const updatedViews = await incrementStoryViews(story.id);
                 if (updatedViews !== null) {
-                  const updatedStory = { ...story, views: updatedViews };
-                  setSelectedStory(updatedStory);
+                  setSelectedStory({ ...story, views: updatedViews });
                 } else {
                   setSelectedStory(story);
                 }
               }}
               activeOpacity={0.85}
-              style={[styles.newsCard, loadingStoryId === story.id && styles.newsCardLoading]}
+              style={styles.newsCard}
               disabled={loadingStoryId === story.id}
             >
-              {loadingStoryId === story.id ? (
-                <View style={styles.newsCardLoadingOverlay}>
-                  <ActivityIndicator size="large" color="#22d3ee" />
+              <View style={{ position: 'relative' }}>
+                {/* Card contents */}
+                <View style={styles.newsImageContainer}>
+                  {story.image ? (
+                    <Image source={{ uri: story.image }} style={styles.newsImage} />
+                  ) : (
+                    <View style={styles.newsEmojiPlaceholder}>
+                      <Text style={styles.newsEmoji}>📰</Text>
+                    </View>
+                  )}
                 </View>
-              ) : null}
-              <View style={styles.newsImageContainer}>
-                {story.image ? (
-                  <Image source={{ uri: story.image }} style={styles.newsImage} />
-                ) : (
-                  <View style={styles.newsEmojiPlaceholder}>
-                    <Text style={styles.newsEmoji}>📰</Text>
+
+                <View style={styles.newsContent}>
+                  <Text style={styles.newsCardTitle}>{story.title}</Text>
+                  <Text style={styles.newsDescription} numberOfLines={3}>{story.content}</Text>
+                  <View style={styles.newsFooter}>
+                    <Text style={styles.newsDateText}>🗓️ {new Date(story.date).toLocaleDateString()}</Text>
+                    <Text style={styles.newsViewsText}>👁️ {story.views || 0}</Text>
+                  </View>
+                </View>
+
+                {/* Spinner overlay */}
+                {loadingStoryId === story.id && (
+                  <View style={styles.cardLoadingOverlay}>
+                    <ActivityIndicator size="large" color="#22d3ee" />
                   </View>
                 )}
-              </View>
-
-              <View style={styles.newsContent}>
-                <Text style={styles.newsCardTitle}>{story.title}</Text>
-                <Text style={styles.newsDescription} numberOfLines={3}>{story.content}</Text>
-                <View style={styles.newsFooter}>
-                  <Text style={styles.newsDateText}>🗓️ {new Date(story.date).toLocaleDateString()}</Text>
-                  <Text style={styles.newsViewsText}>👁️ {story.views || 0} views</Text>
-                </View>
               </View>
             </TouchableOpacity>
           ))
@@ -559,6 +576,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+  },
+  cardLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12, // match card's border radius
+    zIndex: 10,
+  },
+  disabledLink: {
+    opacity: 0.5,
   },
 });
 

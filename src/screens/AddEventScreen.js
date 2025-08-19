@@ -388,6 +388,7 @@ const AddEventScreen = ({ route, navigation }) => {
 
         {selectedRange.startDate && selectedRange.endDate && (
           <View style={styles.dateRangeDisplay}>
+            <Text style={styles.dateRangeHeading}>🗓️ Chosen Dates</Text>
             <Text style={styles.dateRangeText}>
               Start: {formatDateDisplay(selectedRange.startDate)}
             </Text>
@@ -399,10 +400,13 @@ const AddEventScreen = ({ route, navigation }) => {
 
         <View style={{ marginBottom: 50, marginTop: 10 }}>
           {uploading ? (
-            <View style={styles.loadingButton}>
-              <ActivityIndicator size="small" color="#ffffff" />
-              <Text style={{ color: '#ffffff', marginLeft: 10 }}>{isEditMode ? 'Updating...' : 'Adding...'}</Text>
-            </View>
+            <>
+              <View style={styles.loadingButton}>
+                <ActivityIndicator size="small" color="#ffffff" />
+                <Text style={{ color: '#ffffff', marginLeft: 10 }}>{isEditMode ? 'Updating...' : 'Adding...'}</Text>
+              </View>
+              <Text style={styles.loadingText}>This may take a moment, please wait...</Text>
+            </>
           ) : (
             <TouchableOpacity style={styles.saveButton} onPress={handleSaveEvent}>
               <Text style={styles.saveButtonText}>{isEditMode ? 'Update Event' : 'Add Event'}</Text>
@@ -502,6 +506,17 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginBottom: 16,
     textAlign: "center",
+  },
+  dateRangeHeading: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1f2937",
+  },
+  loadingText: {
+    marginTop: 10,
+    textAlign: 'center',
+    color: '#6b7280',
+    fontStyle: 'italic',
   },
 });
 

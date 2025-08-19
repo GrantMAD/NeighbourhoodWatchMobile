@@ -209,6 +209,7 @@ const EventsScreen = ({ route, navigation }) => {
     const [userRole, setUserRole] = useState(null);
     const eventRefs = useRef({});
     const [isModalLoading, setIsModalLoading] = useState(false); // New state for modal loading
+    const [isAddingEvent, setIsAddingEvent] = useState(false);
 
     useEffect(() => {
         if (route.params?.toastMessage) {
@@ -238,6 +239,10 @@ const EventsScreen = ({ route, navigation }) => {
             fetchEvents();
             fetchUserAttendedEvents();
             fetchUserRole();
+            return () => {
+                // Cleanup function: Reset isAddingEvent when the screen blurs
+                setIsAddingEvent(false);
+            };
         }, [groupId])
     );
 
@@ -649,12 +654,31 @@ const EventsScreen = ({ route, navigation }) => {
 
                     {userRole === 'Admin' && (
                         <TouchableOpacity
-                            onPress={() => navigation.navigate("AddEventScreen", {
-                                groupId,
-                                returnTo: { tab: 'Events' }
-                            })}
+                            onPress={() => {
+                                setIsAddingEvent(true);
+                                const startTime = Date.now();
+                                setTimeout(() => {
+                                    navigation.navigate("AddEventScreen", {
+                                        groupId,
+                                        returnTo: { tab: 'Events' }
+                                    });
+                                    const elapsedTime = Date.now() - startTime;
+                                    const remainingTime = 1000 - elapsedTime;
+                                    if (remainingTime > 0) {
+                                        setTimeout(() => setIsAddingEvent(false), remainingTime);
+                                    } else {
+                                        setIsAddingEvent(false);
+                                    }
+                                }, 0);
+                            }}
+                            disabled={isAddingEvent}
+                            style={isAddingEvent ? styles.disabledLink : null}
                         >
-                            <Text style={styles.link}>+ Add Event</Text>
+                            {isAddingEvent ? (
+                                <ActivityIndicator size="small" color="#3b82f6" />
+                            ) : (
+                                <Text style={styles.link}>+ Add Event</Text>
+                            )}
                         </TouchableOpacity>
                     )}
                 </View>
@@ -1126,6 +1150,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         zIndex: 1000,
     },
+    disabledLink: {
+        opacity: 0.5,
+    },
+    
 
 });
 

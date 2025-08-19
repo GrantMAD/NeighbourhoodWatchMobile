@@ -940,24 +940,7 @@ const MainAppScreen = ({ route, navigation }) => {
             onNavigate={async (item) => {
               setDropdownVisible(false);
 
-              // If it's a join request or neighbourhood_watch_request, navigate to NotificationsScreen without deleting
-              if (item.type === 'join_request' || item.type === 'neighbourhood_watch_request') {
-                navigation.navigate("Notifications", { notification: item });
-                return; // Exit early to prevent deletion
-              }
-
-              // For other notification types, mark as read and then navigate
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user) {
-                const newNotifications = notifications.filter(n => n.id !== item.id);
-                await supabase
-                  .from('profiles')
-                  .update({ notifications: newNotifications })
-                  .eq('id', user.id);
-                setNotifications(newNotifications);
-                setHasNotifications(newNotifications.some(n => !n.read));
-              }
-
+              // Navigate to the appropriate screen based on the notification type
               if (item.type === 'new_event') {
                 navigation.navigate('MainTabs', {
                   screen: 'Events',
@@ -1085,7 +1068,7 @@ const MainAppScreen = ({ route, navigation }) => {
 
   if (!groupId) {
     return (
-      <View style={{ flex: 1 }}>
+      <>
         <Drawer.Navigator
           screenOptions={({ navigation, route }) => ({
             ...screenOptionsWithDrawerButton({ navigation, route }),
@@ -1113,12 +1096,12 @@ const MainAppScreen = ({ route, navigation }) => {
           type={toast.type}
           onHide={() => setToast({ ...toast, visible: false })}
         />
-      </View>
+      </>
     );
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <>
       <Drawer.Navigator
         screenOptions={({ navigation, route }) => ({
           ...screenOptionsWithDrawerButton({ navigation, route }),
@@ -1233,7 +1216,7 @@ const MainAppScreen = ({ route, navigation }) => {
         type={toast.type}
         onHide={() => setToast({ ...toast, visible: false })}
       />
-    </View>
+    </>
   );
 };
 

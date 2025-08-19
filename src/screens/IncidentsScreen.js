@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     ScrollView,
     Modal,
+    ActivityIndicator
 } from "react-native";
 
 import { supabase } from "../../lib/supabase";
@@ -145,13 +146,25 @@ const IncidentScreen = ({ navigation, route }) => {
     const [dropdownVisible, setDropdownVisible] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+    const [isAddingReport, setIsAddingReport] = useState(false);
 
     const handleAddReport = () => {
-        navigation.navigate("AddReportScreen", {
-            onReportAdded: (message) => {
-                setToast({ visible: true, message, type: "success" });
-            }
-        });
+        setIsAddingReport(true);
+        const startTime = Date.now();
+
+        const navigateAfterDelay = () => {
+            navigation.navigate("AddReportScreen", {
+                onReportAdded: (message) => {
+                    setToast({ visible: true, message, type: "success" });
+                }
+            });
+            setIsAddingReport(false);
+        };
+
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, 1000 - elapsedTime);
+
+        setTimeout(navigateAfterDelay, remainingTime);
     };
 
     const handleExport = () => {
@@ -232,10 +245,17 @@ const IncidentScreen = ({ navigation, route }) => {
             fetchReports();
         });
 
+        const blurUnsubscribe = navigation.addListener("blur", () => {
+            setIsAddingReport(false);
+        });
+
         // Also fetch once on mount
         fetchReports();
 
-        return unsubscribe; // Clean up the listener on unmount
+        return () => {
+            unsubscribe();
+            blurUnsubscribe();
+        }; // Clean up the listener on unmount
     }, [groupId, sortOrder, navigation]);
 
 
@@ -281,8 +301,16 @@ const IncidentScreen = ({ navigation, route }) => {
                             }
                         </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={handleAddReport}>
-                        <Text style={styles.link}>+ Add Report</Text>
+                    <TouchableOpacity
+                        onPress={handleAddReport}
+                        disabled={isAddingReport}
+                        style={isAddingReport ? styles.disabledLink : null}
+                    >
+                        {isAddingReport ? (
+                            <ActivityIndicator size="small" color="#3b82f6" />
+                        ) : (
+                            <Text style={styles.link}>+ Add Report</Text>
+                        )}
                     </TouchableOpacity>
                     {dropdownVisible && (
                         <View style={styles.dropdownContainer}>
@@ -627,6 +655,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#f0f0f0',
         borderRadius: 12,
         marginBottom: 16,
+    },
+    disabledLink: {
+        opacity: 0.5,
     },
 });
 

@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
         right: 20,
         padding: 10,
         borderRadius: 8,
-        zIndex: 999,
+        zIndex: 9999,
         elevation: 10,
         backgroundColor: '#333', // Default background color
     },
