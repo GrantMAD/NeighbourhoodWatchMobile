@@ -126,7 +126,7 @@ export default function GroupDataScreen() {
                 setGroupData({
                     ...group,
                     executives: sanitizedExecutives,
-                });""
+                });
             } catch (error) {
                 setToast({ visible: true, message: "Error: Unexpected error: " + error.message, type: "error" });
             } finally {
@@ -297,7 +297,7 @@ export default function GroupDataScreen() {
                 type={toast.type}
                 onHide={() => setToast({ ...toast, visible: false })}
             />
-            <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+            <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}>
                 <Text style={styles.title}>Edit Group Info</Text>
             <Text style={styles.description}>Update your group's information, including contact details, welcome message, and executive team.</Text>
 
@@ -339,6 +339,7 @@ export default function GroupDataScreen() {
             {/* Executive inputs */}
             <View style={styles.inputContainer}>
                 <Text style={styles.label}>👥 Add Executive</Text>
+                <Text style={styles.subDescription}>Add members of your executive team. They will be displayed on the group information screen.</Text>
                 <TextInput
                     style={styles.executiveInput}
                     placeholder="Name"
@@ -396,15 +397,19 @@ export default function GroupDataScreen() {
                 </View>
             )}
 
-            {saving ? (
-                <ActivityIndicator size="large" color="#4338ca" />
-            ) : (
-                <View style={{ paddingBottom: 30 }}>
-                    <TouchableOpacity style={styles.customButton} onPress={handleSave}>
+            <View style={{ paddingBottom: 30 }}>
+                <TouchableOpacity style={styles.customButton} onPress={handleSave} disabled={saving}>
+                    {saving ? (
+                        <View style={styles.buttonContent}>
+                            <ActivityIndicator size="small" color="#ffffff" />
+                            <Text style={[styles.customButtonText, {marginLeft: 10}]}>Saving...</Text>
+                        </View>
+                    ) : (
                         <Text style={styles.customButtonText}>Save Changes</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
+                    )}
+                </TouchableOpacity>
+                {saving && <Text style={styles.savingText}>This may take a moment, please wait...</Text>}
+            </View>
             </ScrollView>
         </View>
     );
@@ -429,13 +434,18 @@ const styles = StyleSheet.create({
         marginBottom: 20,
         textAlign: "center",
     },
+    subDescription: {
+        fontSize: 12,
+        color: "#6b7280",
+        marginBottom: 10,
+    },
     inputContainer: {
         marginBottom: 15,
     },
     label: {
         fontSize: 16,
         fontWeight: "bold",
-        marginBottom: 5,
+        marginBottom: 10,
         marginTop: 10,
         color: "#000",
     },
@@ -552,5 +562,16 @@ const styles = StyleSheet.create({
     },
     addExecutiveButton: {
         backgroundColor: '#2e4053',
+    },
+    buttonContent: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    savingText: {
+        textAlign: 'center',
+        marginTop: 10,
+        color: '#6b7280',
+        fontStyle: 'italic',
     },
 });

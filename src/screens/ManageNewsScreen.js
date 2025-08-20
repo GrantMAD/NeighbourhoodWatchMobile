@@ -71,6 +71,30 @@ const ManageNewsScreen = ({ route, navigation }) => {
                 {
                     text: "OK", onPress: async () => {
                         setDeletingStoryId(storyId);
+
+                        const storyToDelete = news.find(story => story.id === storyId);
+
+                        if (storyToDelete && storyToDelete.image && storyToDelete.image.includes('supabase.co')) {
+                            try {
+                                const imageUrl = new URL(storyToDelete.image);
+                                const pathSegments = imageUrl.pathname.split('/');
+                                const imagePath = pathSegments.slice(pathSegments.length - 2).join('/');
+
+                                if (imagePath) {
+                                    const { error: storageError } = await supabase.storage
+                                        .from('group-assets')
+                                        .remove([imagePath]);
+
+                                    if (storageError) {
+                                        console.error("Error deleting news image:", storageError.message);
+                                        setToast({ visible: true, message: "Could not delete news image, but proceeding to delete story.", type: "warning" });
+                                    }
+                                }
+                            } catch (e) {
+                                console.error("Error parsing image URL or deleting image:", e.message);
+                            }
+                        }
+
                         const { data, error } = await supabase
                             .from('groups')
                             .select('news')

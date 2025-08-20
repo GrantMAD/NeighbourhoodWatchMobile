@@ -77,6 +77,30 @@ const ManageEventsScreen = ({ route, navigation }) => {
                 text: 'OK',
                 onPress: async () => {
                     setDeletingEventId(eventId);
+
+                    const eventToDelete = events.find(event => event.id === eventId);
+
+                    if (eventToDelete && eventToDelete.image && eventToDelete.image.includes('supabase.co')) {
+                        try {
+                            const imageUrl = new URL(eventToDelete.image);
+                            const pathSegments = imageUrl.pathname.split('/');
+                            const imagePath = pathSegments.slice(pathSegments.length - 2).join('/');
+                            
+                            if (imagePath) {
+                                const { error: storageError } = await supabase.storage
+                                    .from('group-assets')
+                                    .remove([imagePath]);
+
+                                if (storageError) {
+                                    console.error("Error deleting event image:", storageError.message);
+                                    setToast({ visible: true, message: "Could not delete event image, but proceeding to delete event.", type: "warning" });
+                                }
+                            }
+                        } catch (e) {
+                            console.error("Error parsing image URL or deleting image:", e.message);
+                        }
+                    }
+
                     const { data, error } = await supabase
                         .from('groups')
                         .select('events')

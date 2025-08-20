@@ -55,6 +55,7 @@ const NotificationSetting = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Notification Preferences</Text>
+      <Text style={styles.description}>Choose what notifications you want to receive from your group. You can change these settings at any time.</Text>
       <View style={styles.optionRow}>
         <Text style={styles.optionText}>Receive Check-In/Out Notifications</Text>
         <Switch
@@ -107,6 +108,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     color: "#1f2937",
+    marginBottom: 10,
+  },
+  description: {
+    fontSize: 14,
+    color: "#6b7280",
     marginBottom: 30,
   },
   optionRow: {

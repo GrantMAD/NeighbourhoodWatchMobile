@@ -9,6 +9,8 @@ import {
   ScrollView,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
+import Toast from "../components/Toast";
+import { useFocusEffect } from '@react-navigation/native';
 
 function SettingsScreen({ route, navigation }) {
   const { groupId } = route.params;
@@ -18,6 +20,16 @@ function SettingsScreen({ route, navigation }) {
   const [isGroupCreator, setIsGroupCreator] = useState(false);
   const [userRole, setUserRole] = useState(null);
   const [showManageDropdown, setShowManageDropdown] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.toastMessage) {
+        setToast({ visible: true, message: route.params.toastMessage, type: 'success' });
+        navigation.setParams({ toastMessage: null }); // Clear the param
+      }
+    }, [route.params?.toastMessage])
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -174,106 +186,114 @@ function SettingsScreen({ route, navigation }) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
+    <>
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast({ ...toast, visible: false })}
+      />
+      <ScrollView contentContainerStyle={styles.scrollViewContent} style={styles.container}>
+        <Text style={styles.title}>Settings</Text>
 
-      <Text style={styles.sectionHeader}>👤 Account</Text>
-      <Text style={styles.sectionDescription}>Manage your account details and preferences.</Text>
-      <TouchableOpacity
-        style={styles.option}
-        onPress={() => navigation.navigate("ProfileScreen")}
-      >
-        <Text style={styles.optionText}>Profile</Text>
-      </TouchableOpacity>
+        <Text style={styles.sectionHeader}>👤 Account</Text>
+        <Text style={styles.sectionDescription}>Manage your account details and preferences.</Text>
+        <TouchableOpacity
+          style={styles.option}
+          onPress={() => navigation.navigate("ProfileScreen")}
+        >
+          <Text style={styles.optionText}>Profile</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.option}
-        onPress={() => navigation.navigate("ChangePasswordScreen")}
-      >
-        <Text style={styles.optionText}>Change Password</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.option}
+          onPress={() => navigation.navigate("ChangePasswordScreen", { groupId })}
+        >
+          <Text style={styles.optionText}>Change Password</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.option} onPress={handleLeaveGroup}>
-        <Text style={styles.optionText}>Leave Group</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.option} onPress={handleLeaveGroup}>
+          <Text style={styles.optionText}>Leave Group</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.sectionHeader}>👥 Group Settings</Text>
-      <Text style={styles.sectionDescription}>Oversee group-specific settings and content.</Text>
+        <Text style={styles.sectionHeader}>👥 Group Settings</Text>
+        <Text style={styles.sectionDescription}>Oversee group-specific settings and content.</Text>
 
-      {(isGroupCreator || userRole === 'Admin') && (
-        <>
-          <TouchableOpacity
-            style={styles.option}
-            onPress={() => navigation.navigate("GroupDataScreen")}
-          >
-            <Text style={styles.optionText}>Group Data</Text>
-          </TouchableOpacity>
+        {(isGroupCreator || userRole === 'Admin') && (
+          <>
+            <TouchableOpacity
+              style={styles.option}
+              onPress={() => navigation.navigate("GroupDataScreen")}
+            >
+              <Text style={styles.optionText}>Group Data</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.option}
-            onPress={() => setShowManageDropdown(!showManageDropdown)}
-          >
-            <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-              <Text style={styles.optionText}>Manage</Text>
-              <Text style={styles.optionText}>▼</Text>
-            </View>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.option}
+              onPress={() => setShowManageDropdown(!showManageDropdown)}
+            >
+              <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                <Text style={styles.optionText}>Manage</Text>
+                <Text style={styles.optionText}>▼</Text>
+              </View>
+            </TouchableOpacity>
 
-          {showManageDropdown && (
-            <View style={styles.dropdown}>
-              <TouchableOpacity
-                style={styles.dropdownOption}
-                onPress={() => navigation.navigate("ManageMembersScreen", { groupId })}
-              >
-                <Text style={styles.optionText}>Manage Members</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.dropdownOption}
-                onPress={() => navigation.navigate("ManageEventsScreen", { groupId })}
-              >
-                <Text style={styles.optionText}>Manage Events</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.dropdownOption}
-                onPress={() => navigation.navigate("ManageNewsScreen", { groupId })}
-              >
-                <Text style={styles.optionText}>Manage News</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </>
-      )}
+            {showManageDropdown && (
+              <View style={styles.dropdown}>
+                <TouchableOpacity
+                  style={styles.dropdownOption}
+                  onPress={() => navigation.navigate("ManageMembersScreen", { groupId })}
+                >
+                  <Text style={styles.optionText}>Manage Members</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.dropdownOption}
+                  onPress={() => navigation.navigate("ManageEventsScreen", { groupId })}
+                >
+                  <Text style={styles.optionText}>Manage Events</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.dropdownOption}
+                  onPress={() => navigation.navigate("ManageNewsScreen", { groupId })}
+                >
+                  <Text style={styles.optionText}>Manage News</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
+        )}
 
-      <TouchableOpacity style={styles.option} onPress={togglePasswordVisibility}>
-        <Text style={styles.optionText}>Group Password</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.option} onPress={togglePasswordVisibility}>
+          <Text style={styles.optionText}>Group Password</Text>
+        </TouchableOpacity>
 
-      {showPassword && (
-        <View style={styles.passwordBox}>
-          {loadingPassword ? (
-            <Text style={styles.loadingPasswordText}>Loading password...</Text>
-          ) : (
-            <Text style={styles.passwordText}>
-              {groupPassword || "No password set."}
+        {showPassword && (
+          <View style={styles.passwordBox}>
+            {loadingPassword ? (
+              <Text style={styles.loadingPasswordText}>Loading password...</Text>
+            ) : (
+              <Text style={styles.passwordText}>
+                {groupPassword || "No password set."}
+              </Text>
+            )}
+            <Text style={styles.hintText}>
+              You can use this password to allow other users to join this group
             </Text>
-          )}
-          <Text style={styles.hintText}>
-            You can use this password to allow other users to join this group
-          </Text>
-        </View>
-      )}
+          </View>
+        )}
 
-      <Text style={styles.sectionHeader}>🔔 Notification Settings</Text>
-      <Text style={styles.sectionDescription}>Configure how you receive notifications.</Text>
-      <TouchableOpacity
-        style={styles.option}
-        onPress={() => navigation.navigate("NotificationSetting")}
-      >
-        <Text style={styles.optionText}>Notifications</Text>
-      </TouchableOpacity>
+        <Text style={styles.sectionHeader}>🔔 Notification Settings</Text>
+        <Text style={styles.sectionDescription}>Configure how you receive notifications.</Text>
+        <TouchableOpacity
+          style={styles.option}
+          onPress={() => navigation.navigate("NotificationSetting")}
+        >
+          <Text style={styles.optionText}>Notifications</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.footerText}>Group ID: {groupId}</Text>
-    </ScrollView>
+        <Text style={styles.footerText}>Group ID: {groupId}</Text>
+      </ScrollView>
+    </>
   );
 }
 
