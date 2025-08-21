@@ -4,11 +4,11 @@
     "slug": "NeighbourhoodWatchMobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Images/nwLogoPadded1.png",
+    "icon": "./assets/Images/nwLogo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/Images/nwLogoPadded1.png",
+      "image": "./assets/Images/nwLogo.png",
       "resizeMode": "contain",
       "backgroundColor": "#1f2937"
     },
@@ -19,7 +19,7 @@
     "scheme": "neighbourhoodwatchapp",
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/Images/nwLogoPadded1.png",
+        "foregroundImage": "./assets/Images/nwLogo.png",
         "backgroundColor": "#1f2937"
       },
       "softwareKeyboardLayoutMode": "pan",
