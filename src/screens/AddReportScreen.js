@@ -103,10 +103,7 @@ const AddReportScreen = ({ navigation, route }) => {
                 Alert.alert("Error", "Could not save report");
             } else {
                 await notifyGroupUsersAboutNewReport(group_id, newReport.title);
-                if (route.params?.onReportAdded) {
-                    route.params.onReportAdded("Report added successfully!");
-                }
-                navigation.goBack();
+                navigation.pop();
             }
         } catch (e) {
             setLoading(false);

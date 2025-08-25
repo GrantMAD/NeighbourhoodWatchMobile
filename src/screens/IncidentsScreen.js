@@ -153,11 +153,7 @@ const IncidentScreen = ({ navigation, route }) => {
         const startTime = Date.now();
 
         const navigateAfterDelay = () => {
-            navigation.navigate("AddReportScreen", {
-                onReportAdded: (message) => {
-                    setToast({ visible: true, message, type: "success" });
-                }
-            });
+            navigation.navigate("AddReportScreen");
             setIsAddingReport(false);
         };
 
