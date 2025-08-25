@@ -236,6 +236,7 @@ function ProfileScreen() {
             setNewNeighbourhoodWatchName("");
             setShowCreateNewInput(false);
             setJoinModalVisible(false); // Close modal after creation
+            fetchProfile();
             fetchNeighbourhoodWatches(); // Refresh the list
         } catch (error) {
             setToast({ visible: true, message: "Error creating Neighbourhood Watch: " + error.message, type: "error" });
@@ -699,6 +700,8 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     neighbourhoodWatchText: {
+        flex: 1,            
+        marginRight: 10,
         fontSize: 16,
         color: "#333",
         marginBottom: 15,
@@ -778,6 +781,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         marginBottom: 15,
+        flexWrap: 'wrap',
     },
     leaveButton: {
         backgroundColor: '#dc3545',

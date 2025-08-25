@@ -25,17 +25,17 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 const defaultAvatar = require('../../assets/Images/user.png');
 
 const LoadingState = () => (
-    <ScrollView style={styles.container}>
-        <View style={styles.loadingHeading} />
-        <View style={styles.loadingDescription} />
-        {[...Array(3)].map((_, i) => (
-            <View key={i} style={styles.loadingGroupContainer}>
-                <View style={styles.loadingGroupHeader} />
-                <View style={styles.loadingMemberCard} />
-                <View style={styles.loadingMemberCard} />
-            </View>
-        ))}
-    </ScrollView>
+  <ScrollView style={styles.container}>
+    <View style={styles.loadingHeading} />
+    <View style={styles.loadingDescription} />
+    {[...Array(3)].map((_, i) => (
+      <View key={i} style={styles.loadingGroupContainer}>
+        <View style={styles.loadingGroupHeader} />
+        <View style={styles.loadingMemberCard} />
+        <View style={styles.loadingMemberCard} />
+      </View>
+    ))}
+  </ScrollView>
 );
 
 const MembersScreen = ({ route }) => {
@@ -222,15 +222,15 @@ const MembersScreen = ({ route }) => {
                   <Text style={styles.detailLabel}>Last Signed In:</Text>
                   <Text style={styles.detailText}>
                     {selectedMember.last_signed_in
-                      ? new Date(selectedMember.last_signed_in).toLocaleString('en-GB', { 
-                          weekday: 'short', 
-                          day: 'numeric', 
-                          month: 'short', 
-                          year: 'numeric', 
-                          hour: '2-digit', 
-                          minute: '2-digit', 
-                          second: '2-digit' 
-                        })
+                      ? new Date(selectedMember.last_signed_in).toLocaleString('en-GB', {
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      })
                       : 'Never'}
                   </Text>
                 </View>
@@ -266,45 +266,53 @@ const MembersScreen = ({ route }) => {
         <ScrollView style={{ flex: 1 }}>
           {Object.keys(groupedMembers).length > 0 ? (
             Object.entries(groupedMembers).map(([groupName, membersInGroup]) => (
-              <View key={groupName} style={styles.groupContainer}>
+              <View style={styles.groupContainer} key={groupName}>
                 <TouchableOpacity
                   onPress={() => toggleGroupExpansion(groupName)}
-                  style={styles.groupHeader}
+                  style={styles.groupCard}
                 >
-                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1 }}>
+                    {/* Group Name */}
                     <Text style={styles.groupTitle}>🏘️ {groupName}</Text>
+
+                    {/* Counts */}
                     <View style={styles.memberCountContainer}>
-                      <Text style={styles.memberCountText}>👥 {membersInGroup.length}</Text>
-                      <Text style={styles.memberCountText}>✅ {membersInGroup.filter(m => m.checked_in).length}</Text>
+                      <View style={styles.countBadge}>
+                        <Text style={styles.countText}>👥 {membersInGroup.length}</Text>
+                      </View>
+                      <View style={styles.countBadge}>
+                        <Text style={styles.countText}>✅ {membersInGroup.filter(m => m.checked_in).length}</Text>
+                      </View>
                     </View>
                   </View>
+
+                  {/* Toggle Icon */}
                   <Text style={styles.groupToggleIcon}>
                     {expandedGroups[groupName] ? '▲' : '▼'}
                   </Text>
                 </TouchableOpacity>
+
                 <Animated.View
                   style={[
                     styles.groupContent,
                     {
                       maxHeight: groupAnimations[groupName]
                         ? groupAnimations[groupName].interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, 1000],
-                          })
+                          inputRange: [0, 1],
+                          outputRange: [0, 1000],
+                        })
                         : 0,
                       opacity: groupAnimations[groupName]
                         ? groupAnimations[groupName].interpolate({
-                            inputRange: [0, 0.5, 1],
-                            outputRange: [0, 0.5, 1],
-                          })
+                          inputRange: [0, 0.5, 1],
+                          outputRange: [0, 0.5, 1],
+                        })
                         : 0,
                     },
                   ]}
                 >
                   {membersInGroup.map((item) => (
-                    <View key={item.id}>
-                      {renderItem({ item })}
-                    </View>
+                    <View key={item.id}>{renderItem({ item })}</View>
                   ))}
                 </Animated.View>
               </View>
@@ -458,6 +466,20 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     textAlign: 'right',
   },
+  groupCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    backgroundColor: '#1f2937',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
   groupContainer: {
     marginBottom: 10,
     borderRadius: 8,
@@ -479,18 +501,19 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   groupTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#ecf0f1',
+    marginBottom: 8,
   },
   groupToggleIcon: {
     fontSize: 22,
     color: '#ecf0f1',
+    alignSelf: 'center',
   },
   memberCountContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 10,
+    gap: 8, // space between badges
   },
   memberCountText: {
     fontSize: 14,
@@ -541,6 +564,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginVertical: 6,
     marginHorizontal: 10,
+  },
+  countBadge: {
+    backgroundColor: '#2c3e50',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  countText: {
+    color: '#bdc3c7',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 
